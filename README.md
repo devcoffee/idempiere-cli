@@ -1,4 +1,4 @@
-# idempiere-cli — A Developer CLI for iDempiere (Built with Quarkus)
+# idempiere-cli — A Developer CLI for iDempiere
 
 > **Disclaimer:**  
 > This document is a **draft proposal**. The `idempiere-cli` project is still in its **early design phase** and not yet officially implemented or released.  

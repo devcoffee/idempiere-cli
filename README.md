@@ -220,6 +220,12 @@ Outputs:
 
 ---
 
+## Contributors
+
+This proposal is being developed by the **dev&Co. Team**, **Saul Piña** and **Eduardo Gil**
+
+---
+
 ## Feedback & Collaboration
 
 We’re looking for feedback from:

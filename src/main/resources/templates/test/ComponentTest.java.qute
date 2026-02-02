@@ -1,0 +1,32 @@
+package {pluginId};
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import java.util.Properties;
+
+import org.compiere.util.Env;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+/**
+ * Test for {className}.
+ */
+public class {className}Test {
+
+    private Properties ctx;
+
+    @BeforeEach
+    void setUp() {
+        ctx = Env.getCtx();
+    }
+
+    @Test
+    void testComponentExists() {
+        assertNotNull(ctx, "Context should be initialized");
+    }
+
+    @Test
+    void testComponentBehavior() {
+        // TODO: implement component-specific tests
+    }
+}

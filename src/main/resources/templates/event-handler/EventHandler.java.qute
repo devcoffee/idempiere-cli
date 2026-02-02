@@ -1,0 +1,25 @@
+package {pluginId};
+
+import org.adempiere.base.event.annotations.EventTopicDelegate;
+import org.adempiere.base.event.annotations.ModelEventTopic;
+import org.adempiere.base.event.annotations.po.AfterChange;
+import org.adempiere.base.event.annotations.po.BeforeNew;
+import org.adempiere.base.event.delegate.ModelEventDelegate;
+import org.compiere.model.PO;
+
+@EventTopicDelegate
+@ModelEventTopic(modelClass = PO.class)
+public class {className} extends ModelEventDelegate<PO> {
+
+    @BeforeNew
+    public void onBeforeNew() {
+        PO po = getModel();
+        // TODO: implement before new logic
+    }
+
+    @AfterChange
+    public void onAfterChange() {
+        PO po = getModel();
+        // TODO: implement after change logic
+    }
+}

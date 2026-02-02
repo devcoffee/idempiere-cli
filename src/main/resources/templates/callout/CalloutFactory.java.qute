@@ -1,0 +1,15 @@
+package {pluginId};
+
+import org.adempiere.base.annotation.AnnotationBasedColumnCalloutFactory;
+import org.osgi.service.component.annotations.Component;
+import org.adempiere.base.IColumnCalloutFactory;
+
+@Component(service = IColumnCalloutFactory.class, immediate = true,
+           property = {"service.ranking:Integer=-1"})
+public class {className}Factory extends AnnotationBasedColumnCalloutFactory {
+
+    @Override
+    protected String[] getPackages() {
+        return new String[]{"{pluginId}"};
+    }
+}

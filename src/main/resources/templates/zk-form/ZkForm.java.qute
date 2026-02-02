@@ -1,0 +1,31 @@
+package {pluginId};
+
+import org.adempiere.webui.panel.ADForm;
+import org.zkoss.zk.ui.event.Event;
+import org.zkoss.zk.ui.event.EventListener;
+import org.zkoss.zul.Borderlayout;
+import org.zkoss.zul.Center;
+import org.zkoss.zul.Label;
+
+public class {className} extends ADForm implements EventListener<Event> {
+
+    private static final long serialVersionUID = 1L;
+
+    @Override
+    protected void initForm() {
+        Borderlayout mainLayout = new Borderlayout();
+        mainLayout.setWidth("100%");
+        mainLayout.setHeight("100%");
+
+        Center center = new Center();
+        mainLayout.appendChild(center);
+        center.appendChild(new Label("TODO: implement form UI"));
+
+        appendChild(mainLayout);
+    }
+
+    @Override
+    public void onEvent(Event event) throws Exception {
+        // TODO: handle form events
+    }
+}

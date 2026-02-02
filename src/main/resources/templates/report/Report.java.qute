@@ -1,0 +1,24 @@
+package {pluginId};
+
+import java.util.logging.Level;
+import org.compiere.process.ProcessInfoParameter;
+import org.compiere.process.SvrProcess;
+
+public class {className} extends SvrProcess {
+
+    @Override
+    protected void prepare() {
+        ProcessInfoParameter[] params = getParameter();
+        for (ProcessInfoParameter param : params) {
+            String parameterName = param.getParameterName();
+            // TODO: process report parameters
+        }
+    }
+
+    @Override
+    protected String doIt() throws Exception {
+        // TODO: implement report logic
+        // For Jasper reports, configure the .jasper file in the AD Process definition
+        return "Report generated successfully.";
+    }
+}

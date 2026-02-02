@@ -1,0 +1,15 @@
+package {pluginId};
+
+import org.idempiere.rest.api.v1.resource.ResourceExtension;
+import org.osgi.service.component.annotations.Component;
+import java.util.Collection;
+import java.util.List;
+
+@Component(service = ResourceExtension.class, immediate = true)
+public class {className}ResourceExtension implements ResourceExtension {
+
+    @Override
+    public Collection<Class<?>> getResourceClasses() {
+        return List.of({className}Resource.class);
+    }
+}

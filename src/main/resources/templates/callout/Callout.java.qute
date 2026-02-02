@@ -1,0 +1,19 @@
+package {pluginId};
+
+import java.util.Properties;
+import org.adempiere.base.annotation.Callout;
+import org.adempiere.base.IColumnCallout;
+import org.compiere.model.GridField;
+import org.compiere.model.GridTab;
+
+@Callout(tableName = "TODO_TableName", columnName = "TODO_ColumnName")
+public class {className} implements IColumnCallout {
+
+    @Override
+    public String start(Properties ctx, int WindowNo,
+                        GridTab mTab, GridField mField,
+                        Object value, Object oldValue) {
+        // TODO: implement callout logic
+        return null;
+    }
+}

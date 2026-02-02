@@ -1,0 +1,38 @@
+package {pluginId};
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import java.util.Properties;
+
+import org.compiere.util.Env;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+/**
+ * Test for {className} callout.
+ */
+public class {className}Test {
+
+    private Properties ctx;
+
+    @BeforeEach
+    void setUp() {
+        ctx = Env.getCtx();
+    }
+
+    @Test
+    void testCalloutExists() {
+        // TODO: verify callout is registered
+        assertNotNull(ctx, "Context should be initialized");
+    }
+
+    @Test
+    void testCalloutExecution() {
+        // TODO: implement callout test
+        // {className} callout = new {className}();
+        // GridTab mockTab = ...; // setup mock or test tab
+        // GridField mockField = ...; // setup mock or test field
+        // String result = callout.start(ctx, 0, mockTab, mockField, null, null);
+        // assertEquals("", result, "Callout should return empty string on success");
+    }
+}

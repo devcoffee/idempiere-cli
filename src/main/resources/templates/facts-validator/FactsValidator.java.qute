@@ -1,0 +1,19 @@
+package {pluginId};
+
+import org.adempiere.base.event.annotations.EventTopicDelegate;
+import org.adempiere.base.event.annotations.ModelEventTopic;
+import org.adempiere.base.event.delegate.FactsValidateDelegate;
+import org.compiere.acct.Fact;
+import org.compiere.model.MInvoice;
+
+import java.util.List;
+
+@EventTopicDelegate
+@ModelEventTopic(modelClass = MInvoice.class)
+public class {className} extends FactsValidateDelegate {
+
+    @Override
+    public void onFactsValidate(List<Fact> facts) {
+        // TODO: implement accounting facts validation
+    }
+}

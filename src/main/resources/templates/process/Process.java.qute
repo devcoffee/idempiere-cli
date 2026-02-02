@@ -1,0 +1,23 @@
+package {pluginId};
+
+import org.compiere.process.SvrProcess;
+import org.idempiere.process.annotation.Parameter;
+import org.idempiere.process.annotation.Process;
+
+@Process
+public class {className} extends SvrProcess {
+
+    // @Parameter(name = "ParameterName")
+    // private int p_ParameterName;
+
+    @Override
+    protected void prepare() {
+        // Parameters are automatically injected via @Parameter annotations
+    }
+
+    @Override
+    protected String doIt() throws Exception {
+        // TODO: implement process logic
+        return "Process completed successfully.";
+    }
+}

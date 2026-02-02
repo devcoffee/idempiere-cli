@@ -1,237 +1,289 @@
-# idempiere-cli — A Developer CLI for iDempiere
+# idempiere-cli
 
-> **Disclaimer:**  
-> This document is a **draft proposal**. The `idempiere-cli` project is still in its **early design phase** and not yet officially implemented or released.  
-> There is currently **no client or production version** available.  
->  
-> **We welcome feedback, ideas, and contributions** from the community to shape and improve this tool together!
+A command-line tool for iDempiere plugin development, built with [Quarkus](https://quarkus.io/) and [Picocli](https://picocli.info/).
 
-## Summary
-
-`idempiere-cli` is a command-line tool built with Quarkus, designed to modernize the developer experience for iDempiere plugin development. It streamlines the entire workflow — from setting up a development environment to building, testing, and publishing plugins.
-
-The CLI scaffolds OSGi-ready plugins, integrates with Eclipse PDE, and follows iDempiere architectural standards such as declarative service registration.
+> **This is a Proof of Concept** generated through vibe-coding with AI assistance (Claude), based on the
+> [idempiere](https://github.com/idempiere/idempiere) and [idempiere-dev-setup](https://github.com/hengsin/idempiere-dev-setup)
+> repositories. It is **not production-ready** and needs community contributions to be completed.
+> Feedback, ideas, and pull requests are welcome!
 
 ---
 
-## Developer Journey
+## What it does
 
-    [doctor]
-       ↓
-    [setup-dev-env]
-       ↓
-    [init plugin]
-       ↓
-    [add features + (future) AD modeling]
-       ↓
-    [run/test/build]
-       ↓
-    [publish/distribute]
+`idempiere-cli` streamlines the entire iDempiere plugin development lifecycle: environment setup, project scaffolding, component generation, dependency analysis, migration, packaging, and more.
 
----
-
-## Core Goals
-
-- Standardize plugin structure
-- Simplify local environment setup using Docker and Git
-- Scaffold modular extensions (callouts, processes, forms, etc.)
-- Generate Eclipse-compatible `.target` and `.launch` files
-- Package and publish plugins to GitHub or Maven
-- Initial support for Eclipse, with plans for IntelliJ and VS Code
-
----
-
-## CLI Commands
-
-### doctor
-
-Check required tools and environment:
-
-```bash
-idempiere-cli doctor
 ```
-
-Checks for:
-- Java 17+, Maven
-- Git
-- PostgreSQL or Oracle
-- Eclipse (or IntelliJ/VS Code)
-- Cloned `idempiere` core (and optionally `idempiere-rest`)
-
-Optional fix mode:
-
-```bash
-idempiere-cli doctor --fix
+doctor ──> setup-dev-env ──> init ──> add components ──> build ──> deploy
+                                          │
+                              deps / migrate / doctor --dir
+                                          │
+                                 package / diff-schema
 ```
 
 ---
 
-### setup-dev-env
+## Implemented Commands
 
-Bootstrap a complete local development environment using [idempiere-dev-setup](https://github.com/hengsin/idempiere-dev-setup):
+### `doctor`
+
+Check required tools and environment prerequisites.
 
 ```bash
-idempiere-cli setup-dev-env --ide=eclipse --db=postgres --with-docker
+idempiere-cli doctor              # Check Java, Maven, Git, Docker, PostgreSQL
+idempiere-cli doctor --fix        # Attempt auto-fix (placeholder)
+idempiere-cli doctor --dir ./my-plugin  # Validate plugin structure
 ```
 
----
+Plugin validation (`--dir`) checks:
+- `MANIFEST.MF` headers (Bundle-SymbolicName, Bundle-Version, etc.)
+- `build.properties` entries (source, output, bin.includes)
+- `pom.xml` (tycho-maven-plugin, packaging=bundle)
+- `OSGI-INF/` directory
+- Imports vs Require-Bundle consistency
 
-### init <PluginName>
+### `setup-dev-env`
 
-Scaffold a new plugin with selected features:
+Bootstrap a complete local iDempiere development environment.
 
 ```bash
+idempiere-cli setup-dev-env --ide=eclipse --with-docker --include-rest
+```
+
+Automates: git clone, database setup (native or Docker), Eclipse workspace/target configuration, and optional REST repository.
+
+### `init`
+
+Scaffold a new OSGi-ready iDempiere plugin.
+
+```bash
+# With explicit flags
 idempiere-cli init org.mycompany.myplugin \
-  --with-callout \
-  --with-event-handler \
-  --with-process \
-  --with-zk-form \
-  --with-report
+  --with-callout --with-process --with-event-handler \
+  --idempiere-version 13
+
+# Interactive mode (prompts for each option)
+idempiere-cli init org.mycompany.myplugin --interactive
 ```
 
-Creates:
-- OSGi-compliant plugin with `plugin.xml`, `MANIFEST.MF`
-- Optional `Activator.java` class
-- Feature-specific stubs using Declarative Services annotations
-- `.target` and `.launch` files for Eclipse
+Generates: `pom.xml`, `MANIFEST.MF`, `plugin.xml`, `build.properties`, and component stubs with OSGi Declarative Services annotations.
 
----
+**Platform version support:** `--idempiere-version` flag controls Java release, Tycho version, bundle version, and target branch (v12 = Java 17/release-12, v13 = Java 21/master).
 
-### add <extension-type>
+### `add <component>`
 
-Extend an existing plugin by adding new components:
+Add components to an existing plugin.
 
 ```bash
-idempiere-cli add callout --name=MyCallout --to=org.myplugin
-idempiere-cli add zk-form --name=CustomDashboard
+idempiere-cli add callout --name=MyCallout --to=./my-plugin
+idempiere-cli add process --name=MyProcess --to=./my-plugin
+idempiere-cli add event-handler --name=MyHandler --to=./my-plugin
+idempiere-cli add zk-form --name=MyForm --to=./my-plugin
+idempiere-cli add report --name=MyReport --to=./my-plugin
+idempiere-cli add window-validator --name=MyValidator --to=./my-plugin
+idempiere-cli add rest-extension --name=MyResource --to=./my-plugin
+idempiere-cli add facts-validator --name=MyFactsValidator --to=./my-plugin
+idempiere-cli add model --table=C_Order --db-host=localhost --to=./my-plugin
+idempiere-cli add test --dir=./my-plugin              # All components
+idempiere-cli add test --for=MyProcess --dir=./my-plugin  # Specific class
 ```
 
----
+The `model` subcommand connects to PostgreSQL and generates `I_`, `X_`, and `M_` classes from `AD_Column` metadata.
 
-## Plugin Features Supported (Initial Version)
+The `test` subcommand generates JUnit test stubs, detecting component type (process, callout, event handler) from source code.
 
-| Feature        | Description                                                           |
-|----------------|------------------------------------------------------------------------|
-| Callout        | Business logic triggered when users interact with specific fields      |
-| Event Handler  | Logic that reacts to system events like record creation or changes     |
-| Process        | Background/manual tasks triggered from buttons or menus                |
-| ZK Form        | Custom UI forms built with the ZK framework                            |
-| Report         | Jasper-based or built-in reports integrated into the user interface    |
-| Model Class    | PO-based model class to extend or override default table logic         |
+### `info`
 
-> Note: Additional extension types like REST endpoints, payment gateways, and media viewers are planned for future releases.
-
----
-
-## (Planned) AD Modeling Support
-
-Future versions will support scaffolding Application Dictionary definitions:
+Display plugin metadata and detected components.
 
 ```bash
-idempiere-cli add ad-table --name=Z_MyTable
-idempiere-cli add ad-window --name=Z_MyWindow
-idempiere-cli generate ad-xml --table=Z_MyTable
+idempiere-cli info --dir=./my-plugin
 ```
 
-Output formats:
-- AD XML
-- Optional SQL/JSON
-- Future layout hints for field positioning (`top`, `bottom`, `group`, etc.)
+### `build`
 
----
-
-### eclipse-config
-
-Generate Eclipse PDE configuration files:
+Build a plugin using Maven/Tycho.
 
 ```bash
-idempiere-cli eclipse-config --include-rest
+idempiere-cli build --dir=./my-plugin --clean
 ```
 
-Creates:
-- `.target` definition pointing to iDempiere and REST (if selected)
-- `.launch` configuration for running Equinox in Eclipse
+### `deploy`
 
----
-
-### build / run
-
-Compile or launch plugin inside local workspace:
+Deploy a built plugin to an iDempiere instance.
 
 ```bash
-idempiere-cli build --plugin=org.myplugin
-idempiere-cli run
+idempiere-cli deploy --dir=./my-plugin --target=/opt/idempiere/plugins
 ```
 
-- `build`: Runs `mvn install` and produces `.jar` and `.xml` artifacts
-- `run`: Launches OSGi container via Eclipse or embedded test runner (future)
+### `migrate`
 
----
-
-### publish
-
-Distribute plugin artifacts to a release platform:
+Migrate a plugin between iDempiere platform versions.
 
 ```bash
-idempiere-cli publish --to=github
+idempiere-cli migrate --from=12 --to=13 --dir=./my-plugin
 ```
 
-Outputs:
-- Plugin `.jar` + `.xml`
-- GitHub release or Maven-ready package
-- Future: GitHub Actions automation
+Updates `pom.xml` (Java release, Tycho version), `MANIFEST.MF` (JavaSE version, bundle versions), and `build.properties` (javac source/target).
+
+### `deps`
+
+Analyze plugin dependencies.
+
+```bash
+idempiere-cli deps --dir=./my-plugin
+```
+
+Scans Java imports, cross-references against known iDempiere bundle-to-package mappings, and reports missing or unused entries in `Require-Bundle`.
+
+### `package`
+
+Package a plugin for distribution.
+
+```bash
+idempiere-cli package --dir=./my-plugin --format=zip
+idempiere-cli package --dir=./my-plugin --format=p2
+```
+
+### `diff-schema`
+
+Compare model classes against the database schema.
+
+```bash
+idempiere-cli diff-schema --table=C_Order --dir=./my-plugin --db-host=localhost
+```
+
+Reports columns added in the database but missing from code, columns in code but removed from the database, and type mismatches.
 
 ---
 
 ## Tech Stack
 
-| Component        | Tool                      |
-|------------------|---------------------------|
-| Language         | Java 17+                  |
-| CLI Framework    | Quarkus CLI Plugin        |
-| Templates        | Qute                      |
-| Build Tool       | Maven                     |
-| IDE Integration  | Eclipse PDE               |
-| Packaging        | JBang                     |
-| Source Control   | GitHub                    |
+| Component       | Technology           |
+|-----------------|----------------------|
+| Language        | Java 17+             |
+| CLI Framework   | Quarkus 3.17 + Picocli |
+| Templates       | Qute                 |
+| Build           | Maven + Tycho        |
+| Database        | PostgreSQL (JDBC)    |
+| Testing         | JUnit 5 + QuarkusMainTest |
 
 ---
 
-## Future Roadmap (just initial ideas...)
+## Building from Source
 
-| Feature                 | Description                                           |
-|--------------------------|-------------------------------------------------------|
-| `doctor --fix`           | Auto-install missing dependencies                     |
-| `generate zk-form`       | ZUL form + controller scaffolding                     |
-| `add rest-process`       | REST-exposed process with CLI + AD integration        |
-| `generate ad-xml`        | Reverse-generate from database table                  |
-| `publish`                | CI template generation, Maven deploy                  |
-| `create-template`        | Save plugin boilerplates as reusable templates        |
+```bash
+git clone https://github.com/<your-org>/idempiere-cli.git
+cd idempiere-cli
+./mvnw clean package
+```
 
----
+Run directly:
 
-## Community Value
-
-- Simplifies plugin development
-- Encourages modular architecture
-- Increases discoverability of iDempiere extension points
-- Aligns with iDempiere 9+ standards (Declarative Services, REST)
-- Creates a consistent onboarding path for new contributors
+```bash
+java -jar target/quarkus-app/quarkus-run.jar doctor
+```
 
 ---
 
-## Contributors
+## Project Structure
 
-This proposal is being developed by the **dev&Co. Team**, **Saul Piña** and **Eduardo Gil**
+```
+src/main/java/org/idempiere/cli/
+  IdempiereCli.java              # Top-level command registry
+  commands/                      # Picocli command classes
+    add/                         # Subcommands for "add"
+  model/                         # Data models (PluginDescriptor, PlatformVersion, etc.)
+  service/                       # Business logic services
+
+src/main/resources/templates/    # Qute templates for code generation
+  plugin/                        # Base plugin files (pom.xml, MANIFEST.MF, etc.)
+  callout/, process/, ...        # Component-specific templates
+  test/                          # Test stub templates
+
+src/test/java/                   # QuarkusMainTest-based integration tests
+```
 
 ---
 
-## Feedback & Collaboration
+## CLI + MCP Server: The Bigger Picture
 
-We’re looking for feedback from:
-- Plugin developers
-- Core maintainers
-- DX/tooling specialists
-- Newcomers to the platform
+This CLI is designed to work **alongside an iDempiere MCP (Model Context Protocol) server** — a separate project that exposes Application Dictionary knowledge to AI tools.
 
-Your ideas can shape the future of iDempiere development experience.
+The responsibility split:
+
+| Concern                        | CLI (this project)  | MCP Server          |
+|--------------------------------|---------------------|---------------------|
+| Scaffold plugin structure      | Yes                 |                     |
+| Generate component stubs       | Yes                 |                     |
+| Build / deploy / package       | Yes                 |                     |
+| Migrate between versions       | Yes                 |                     |
+| Analyze dependencies           | Yes                 |                     |
+| AD table/column introspection  |                     | Yes                 |
+| AD window/tab/field metadata   |                     | Yes                 |
+| Register components in AD      |                     | Yes                 |
+| Business logic context         |                     | Yes                 |
+| Validation rules & callout map |                     | Yes                 |
+
+**Example combined workflow** (AI-assisted plugin development):
+
+```
+1. MCP: "What columns does C_Order have?"        → AD introspection
+2. CLI: idempiere-cli init org.acme.order-ext     → scaffold plugin
+3. CLI: idempiere-cli add model --table=C_Order   → generate model classes
+4. MCP: "What callouts exist for C_Order?"        → AD context
+5. CLI: idempiere-cli add callout --name=...      → generate stub with context
+6. CLI: idempiere-cli add test --dir=.            → generate test stubs
+7. CLI: idempiere-cli build && deploy             → build and deploy
+8. MCP: "Register process in AD_Process"          → AD registration
+```
+
+The MCP server gives AI agents **semantic understanding** of the iDempiere platform, while the CLI handles **filesystem operations, builds, and deployments**. Together, they enable end-to-end AI-assisted plugin development.
+
+---
+
+## Roadmap
+
+### Short-term
+- [ ] Integration tests with real plugin fixtures (scaffold + deps, scaffold + migrate, scaffold + add test)
+- [ ] `doctor --fix` implementation (auto-install missing tools)
+- [ ] Improve `package --format=p2` (full Tycho p2 update site generation)
+- [ ] Add `--config` support for persistent CLI preferences
+
+### Medium-term
+- [ ] MCP-aware commands (e.g., `add callout` receiving AD context from MCP server)
+- [ ] `publish` command (GitHub Releases, Maven deploy)
+- [ ] Template customization (user-defined templates)
+- [ ] IntelliJ / VS Code project file generation (beyond Eclipse PDE)
+
+### Long-term
+- [ ] Plugin marketplace integration
+- [ ] CI/CD pipeline generation (GitHub Actions, Jenkins)
+- [ ] Multi-plugin workspace management
+- [ ] Migration guides with breaking change detection
+
+---
+
+## Contributing
+
+This project needs help! Areas where contributions are especially welcome:
+
+- **Testing**: Integration tests with real iDempiere plugins
+- **Templates**: Improved code generation templates following iDempiere best practices
+- **MCP integration**: Connecting CLI commands with the MCP server for AD-aware generation
+- **Documentation**: Usage guides, tutorials, and examples
+- **Platform support**: Windows/Linux testing, native image compilation
+
+---
+
+## License
+
+TBD
+
+---
+
+## Acknowledgments
+
+- Original proposal by **dev&Co. Team**, **Saul Pina**, and **Eduardo Gil**
+- Built on top of [iDempiere](https://www.idempiere.org/) and [idempiere-dev-setup](https://github.com/hengsin/idempiere-dev-setup)
+- POC developed with AI assistance (Claude / vibe-coding)

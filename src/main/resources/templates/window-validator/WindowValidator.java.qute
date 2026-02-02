@@ -1,0 +1,17 @@
+package {pluginId};
+
+import org.adempiere.webui.adwindow.validator.WindowValidator;
+import org.adempiere.webui.adwindow.validator.WindowValidatorEvent;
+import org.adempiere.webui.adwindow.validator.WindowValidatorEventType;
+import org.osgi.service.component.annotations.Component;
+
+@Component(service = WindowValidator.class, immediate = true)
+public class {className} implements WindowValidator {
+
+    @Override
+    public void onWindowEvent(WindowValidatorEvent event, WindowValidatorEventType type) {
+        // TODO: implement window validation logic
+        // Available event types: BEFORE_SAVE, AFTER_SAVE, BEFORE_DELETE, AFTER_DELETE,
+        //   BEFORE_PROCESS, AFTER_PROCESS, BEFORE_DOC_ACTION, AFTER_DOC_ACTION, etc.
+    }
+}

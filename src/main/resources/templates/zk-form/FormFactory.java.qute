@@ -1,0 +1,15 @@
+package {pluginId};
+
+import org.adempiere.webui.factory.AnnotationBasedFormFactory;
+import org.osgi.service.component.annotations.Component;
+import org.adempiere.webui.factory.IFormFactory;
+
+@Component(service = IFormFactory.class, immediate = true,
+           property = {"service.ranking:Integer=1"})
+public class {className}Factory extends AnnotationBasedFormFactory {
+
+    @Override
+    protected String[] getPackages() {
+        return new String[]{"{pluginId}"};
+    }
+}

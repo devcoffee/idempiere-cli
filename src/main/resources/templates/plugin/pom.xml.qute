@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>{pluginId}</groupId>
+    <artifactId>{pluginId}</artifactId>
+    <version>{version}</version>
+    <packaging>bundle</packaging>
+
+    <name>{pluginName}</name>
+
+    <properties>
+        <maven.compiler.release>{javaRelease}</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <tycho.version>{tychoVersion}</tycho.version>
+    </properties>
+
+    <build>
+        <sourceDirectory>src</sourceDirectory>
+        <plugins>
+            <plugin>
+                <groupId>org.eclipse.tycho</groupId>
+                <artifactId>tycho-maven-plugin</artifactId>
+                <version>$\{tycho.version\}</version>
+                <extensions>true</extensions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>standalone-build</id>
+            <repositories>
+                <repository>
+                    <id>idempiere-local</id>
+                    <url>file:$\{idempiere.home\}</url>
+                    <layout>p2</layout>
+                </repository>
+            </repositories>
+        </profile>
+    </profiles>
+</project>

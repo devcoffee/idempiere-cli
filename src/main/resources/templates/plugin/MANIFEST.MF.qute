@@ -1,0 +1,13 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: {pluginName}
+Bundle-SymbolicName: {pluginId};singleton:=true
+Bundle-Version: {version}
+Bundle-Vendor: {vendor}
+Bundle-RequiredExecutionEnvironment: {javaSeVersion}
+{#if withRestExtension}Fragment-Host: org.idempiere.rest.api
+{#else}Require-Bundle: org.adempiere.base;bundle-version="{bundleVersion}"{#if withZkForm || withWindowValidator},
+ org.adempiere.ui.zk;bundle-version="{bundleVersion}"{/if}
+Service-Component: OSGI-INF/*.xml
+{/if}Bundle-ActivationPolicy: lazy
+Automatic-Module-Name: {pluginId}

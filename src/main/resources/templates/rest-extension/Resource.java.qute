@@ -1,0 +1,18 @@
+package {pluginId};
+
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+
+@Path("v1/{resourcePath}")
+public class {className}Resource {
+
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response get() {
+        // TODO: implement REST endpoint
+        return Response.ok().build();
+    }
+}

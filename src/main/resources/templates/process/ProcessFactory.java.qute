@@ -1,0 +1,15 @@
+package {pluginId};
+
+import org.idempiere.process.annotation.AnnotationBasedProcessFactory;
+import org.osgi.service.component.annotations.Component;
+import org.compiere.process.IProcessFactory;
+
+@Component(service = IProcessFactory.class, immediate = true,
+           property = {"service.ranking:Integer=1"})
+public class {className}Factory extends AnnotationBasedProcessFactory {
+
+    @Override
+    protected String[] getPackages() {
+        return new String[]{"{pluginId}"};
+    }
+}

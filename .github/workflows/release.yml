@@ -11,15 +11,11 @@ on:
         required: true
 
 env:
-  GRAALVM_VERSION: '22.3.0'
-  JAVA_VERSION: '17'
+  JAVA_VERSION: '21'
 
 jobs:
-  build-linux:
+  build-linux-amd64:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        arch: [amd64, arm64]
     steps:
       - uses: actions/checkout@v4
 
@@ -31,28 +27,19 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build native image
-        run: |
-          mvn package -Pnative -DskipTests
+        run: mvn -B package -Pnative -DskipTests
 
       - name: Rename binary
-        run: |
-          mv target/idempiere target/idempiere-linux-${{ matrix.arch }}
+        run: mv target/*-runner target/idempiere-linux-amd64
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: idempiere-linux-${{ matrix.arch }}
-          path: target/idempiere-linux-${{ matrix.arch }}
+          name: idempiere-linux-amd64
+          path: target/idempiere-linux-amd64
 
-  build-macos:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: macos-13
-            arch: amd64
-          - os: macos-14
-            arch: arm64
+  build-macos-arm64:
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -64,18 +51,40 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build native image
-        run: |
-          mvn package -Pnative -DskipTests
+        run: mvn -B package -Pnative -DskipTests
 
       - name: Rename binary
-        run: |
-          mv target/idempiere target/idempiere-darwin-${{ matrix.arch }}
+        run: mv target/*-runner target/idempiere-darwin-arm64
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: idempiere-darwin-${{ matrix.arch }}
-          path: target/idempiere-darwin-${{ matrix.arch }}
+          name: idempiere-darwin-arm64
+          path: target/idempiere-darwin-arm64
+
+  build-macos-amd64:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up GraalVM
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'graalvm'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build native image
+        run: mvn -B package -Pnative -DskipTests
+
+      - name: Rename binary
+        run: mv target/*-runner target/idempiere-darwin-amd64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: idempiere-darwin-amd64
+          path: target/idempiere-darwin-amd64
 
   build-windows:
     runs-on: windows-latest
@@ -95,12 +104,10 @@ jobs:
           arch: x64
 
       - name: Build native image
-        run: |
-          mvn package -Pnative -DskipTests
+        run: mvn -B package -Pnative -DskipTests
 
       - name: Rename binary
-        run: |
-          move target\idempiere.exe target\idempiere-windows-amd64.exe
+        run: move target\*-runner.exe target\idempiere-windows-amd64.exe
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -109,7 +116,7 @@ jobs:
           path: target/idempiere-windows-amd64.exe
 
   release:
-    needs: [build-linux, build-macos, build-windows]
+    needs: [build-linux-amd64, build-macos-arm64, build-macos-amd64, build-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -125,7 +132,6 @@ jobs:
         run: |
           mkdir -p release
           cp artifacts/idempiere-linux-amd64/idempiere-linux-amd64 release/
-          cp artifacts/idempiere-linux-arm64/idempiere-linux-arm64 release/ || true
           cp artifacts/idempiere-darwin-amd64/idempiere-darwin-amd64 release/
           cp artifacts/idempiere-darwin-arm64/idempiere-darwin-arm64 release/
           cp artifacts/idempiere-windows-amd64/idempiere-windows-amd64.exe release/
@@ -162,7 +168,6 @@ jobs:
             | Platform | Architecture | File |
             |----------|--------------|------|
             | Linux | x64 | `idempiere-linux-amd64` |
-            | Linux | arm64 | `idempiere-linux-arm64` |
             | macOS | Intel | `idempiere-darwin-amd64` |
             | macOS | Apple Silicon | `idempiere-darwin-arm64` |
             | Windows | x64 | `idempiere-windows-amd64.exe` |

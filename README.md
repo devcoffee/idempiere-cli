@@ -48,7 +48,6 @@ Download the appropriate binary from [GitHub Releases](https://github.com/idempi
 | Platform | Architecture | File |
 |----------|--------------|------|
 | Linux | x64 | `idempiere-linux-amd64` |
-| Linux | arm64 | `idempiere-linux-arm64` |
 | macOS | Intel | `idempiere-darwin-amd64` |
 | macOS | Apple Silicon | `idempiere-darwin-arm64` |
 | Windows | x64 | `idempiere-windows-amd64.exe` |
@@ -330,7 +329,7 @@ The MCP server gives AI agents **semantic understanding** of the iDempiere platf
 ### Short-term
 - [ ] Integration tests with real plugin fixtures (scaffold + deps, scaffold + migrate, scaffold + add test)
 - [x] `doctor --fix` implementation (suggests setup-dev-env commands based on detected issues)
-- [x] Native image distribution (GraalVM + install script for Linux/macOS/Windows)
+- [x] Native image distribution (GraalVM for Linux/macOS/Windows)
 - [ ] Improve `package --format=p2` (full Tycho p2 update site generation)
 - [ ] Add `--config` support for persistent CLI preferences
 

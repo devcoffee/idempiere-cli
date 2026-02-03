@@ -291,7 +291,7 @@ src/test/java/                   # QuarkusMainTest-based integration tests
 
 ## CLI + MCP Server: The Bigger Picture
 
-This CLI is designed to work **alongside an iDempiere MCP (Model Context Protocol) server** — a separate project that exposes Application Dictionary knowledge to AI tools.
+This CLI is designed to work **alongside the [iDempiere MCP Server](https://github.com/hengsin/idempiere-mcp)** — a separate project that exposes Application Dictionary knowledge to AI tools.
 
 The responsibility split:
 
@@ -354,7 +354,7 @@ This project needs help! Areas where contributions are especially welcome:
 
 - **Testing**: Integration tests with real iDempiere plugins
 - **Templates**: Improved code generation templates following iDempiere best practices
-- **MCP integration**: Connecting CLI commands with the MCP server for AD-aware generation
+- **MCP integration**: Connecting CLI commands with the [MCP server](https://github.com/hengsin/idempiere-mcp) for AD-aware generation
 - **Documentation**: Usage guides, tutorials, and examples
 - **Platform support**: Windows/Linux testing, native image compilation
 
@@ -369,5 +369,5 @@ TBD
 ## Acknowledgments
 
 - Original proposal by **dev&Co. Team**, **Saul Pina**, and **Eduardo Gil**
-- Built on top of [iDempiere](https://www.idempiere.org/) and [idempiere-dev-setup](https://github.com/hengsin/idempiere-dev-setup)
+- Built on top of [iDempiere](https://www.idempiere.org/), [idempiere-dev-setup](https://github.com/hengsin/idempiere-dev-setup), and [idempiere-examples](https://github.com/hengsin/idempiere-examples)
 - POC developed with AI assistance (Claude / vibe-coding)

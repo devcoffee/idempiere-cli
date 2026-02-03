@@ -28,7 +28,7 @@ doctor ──> setup-dev-env ──> init ──> add components ──> build �
 ### Quick Install (Linux, macOS, Windows via Git Bash/WSL)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/idempiere/idempiere-cli/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/devcoffee/idempiere-cli/main/install.sh | bash
 ```
 
 ### Install Options
@@ -43,7 +43,7 @@ curl -fsSL https://raw.githubusercontent.com/idempiere/idempiere-cli/main/instal
 
 ### Manual Download
 
-Download the appropriate binary from [GitHub Releases](https://github.com/idempiere/idempiere-cli/releases):
+Download the appropriate binary from [GitHub Releases](https://github.com/devcoffee/idempiere-cli/releases):
 
 | Platform | Architecture | File |
 |----------|--------------|------|
@@ -66,7 +66,7 @@ From zero to first plugin in 4 commands:
 
 ```bash
 # 1. Install CLI
-curl -fsSL https://raw.githubusercontent.com/idempiere/idempiere-cli/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/devcoffee/idempiere-cli/main/install.sh | bash
 
 # 2. Check environment & get fix suggestions
 idempiere doctor --fix
@@ -237,7 +237,7 @@ Reports columns added in the database but missing from code, columns in code but
 ## Building from Source
 
 ```bash
-git clone https://github.com/idempiere/idempiere-cli.git
+git clone https://github.com/devcoffee/idempiere-cli.git
 cd idempiere-cli
 ./mvnw clean package
 ```

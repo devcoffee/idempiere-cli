@@ -32,7 +32,7 @@ jobs:
 
       - name: Build native image
         run: |
-          ./mvnw package -Pnative -DskipTests
+          mvn package -Pnative -DskipTests
 
       - name: Rename binary
         run: |
@@ -65,7 +65,7 @@ jobs:
 
       - name: Build native image
         run: |
-          ./mvnw package -Pnative -DskipTests
+          mvn package -Pnative -DskipTests
 
       - name: Rename binary
         run: |
@@ -96,7 +96,7 @@ jobs:
 
       - name: Build native image
         run: |
-          ./mvnw.cmd package -Pnative -DskipTests
+          mvn package -Pnative -DskipTests
 
       - name: Rename binary
         run: |

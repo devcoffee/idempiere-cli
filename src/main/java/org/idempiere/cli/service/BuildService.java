@@ -2,7 +2,7 @@ package org.idempiere.cli.service;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import java.io.IOException;
+import org.idempiere.cli.util.PluginUtils;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -60,19 +60,7 @@ public class BuildService {
     }
 
     public Optional<Path> findBuiltJar(Path pluginDir) {
-        Path targetDir = pluginDir.resolve("target");
-        if (!Files.exists(targetDir)) {
-            return Optional.empty();
-        }
-        try (var stream = Files.list(targetDir)) {
-            return stream
-                    .filter(p -> p.getFileName().toString().endsWith(".jar"))
-                    .filter(p -> !p.getFileName().toString().endsWith("-sources.jar"))
-                    .filter(p -> !p.getFileName().toString().equals("classes.jar"))
-                    .findFirst();
-        } catch (IOException e) {
-            return Optional.empty();
-        }
+        return PluginUtils.findBuiltJar(pluginDir);
     }
 
     private String detectMvnCommand(Path dir) {

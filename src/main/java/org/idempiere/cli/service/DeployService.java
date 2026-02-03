@@ -1,6 +1,8 @@
 package org.idempiere.cli.service;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import org.idempiere.cli.util.CliDefaults;
+import org.idempiere.cli.util.PluginUtils;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -44,7 +46,7 @@ public class DeployService {
              PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
              BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
-            socket.setSoTimeout(5000);
+            socket.setSoTimeout(CliDefaults.OSGI_SOCKET_TIMEOUT_MS);
 
             // Read initial prompt
             readAvailable(in);
@@ -52,7 +54,7 @@ public class DeployService {
             // Check if bundle is already installed
             out.println("ss " + bundleName);
             out.flush();
-            Thread.sleep(500);
+            Thread.sleep(CliDefaults.OSGI_RESPONSE_DELAY_MS);
             String ssOutput = readAvailable(in);
 
             if (ssOutput.contains(bundleName)) {
@@ -62,7 +64,7 @@ public class DeployService {
                     System.out.println("  Updating existing bundle (id=" + bundleId + ")...");
                     out.println("update " + bundleId + " " + fileUri);
                     out.flush();
-                    Thread.sleep(1000);
+                    Thread.sleep(CliDefaults.OSGI_COMMAND_DELAY_MS);
                     readAvailable(in);
                     System.out.println("  Bundle updated successfully.");
                     return true;
@@ -73,14 +75,14 @@ public class DeployService {
             System.out.println("  Installing new bundle...");
             out.println("install " + fileUri);
             out.flush();
-            Thread.sleep(1000);
+            Thread.sleep(CliDefaults.OSGI_COMMAND_DELAY_MS);
             String installOutput = readAvailable(in);
 
             String newBundleId = extractInstalledBundleId(installOutput);
             if (newBundleId != null) {
                 out.println("start " + newBundleId);
                 out.flush();
-                Thread.sleep(500);
+                Thread.sleep(CliDefaults.OSGI_RESPONSE_DELAY_MS);
                 readAvailable(in);
                 System.out.println("  Bundle installed and started (id=" + newBundleId + ").");
             } else {
@@ -103,19 +105,7 @@ public class DeployService {
     }
 
     public Optional<Path> findBuiltJar(Path pluginDir) {
-        Path targetDir = pluginDir.resolve("target");
-        if (!Files.exists(targetDir)) {
-            return Optional.empty();
-        }
-        try (var stream = Files.list(targetDir)) {
-            return stream
-                    .filter(p -> p.getFileName().toString().endsWith(".jar"))
-                    .filter(p -> !p.getFileName().toString().endsWith("-sources.jar"))
-                    .filter(p -> !p.getFileName().toString().equals("classes.jar"))
-                    .findFirst();
-        } catch (IOException e) {
-            return Optional.empty();
-        }
+        return PluginUtils.findBuiltJar(pluginDir);
     }
 
     private String readAvailable(BufferedReader in) throws IOException {

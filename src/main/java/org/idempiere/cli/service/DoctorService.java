@@ -20,6 +20,14 @@ public class DoctorService {
     private static final String CROSS = "\u2718";
     private static final String WARN = "\u26A0";
 
+    // Pre-compiled patterns for version detection (avoids re-compilation on each call)
+    private static final Pattern REQUIRE_BUNDLE_PATTERN = Pattern.compile("(?:Require-Bundle|Fragment-Host):\\s*(.+)", Pattern.DOTALL);
+    private static final Pattern JAVA_VERSION_PATTERN = Pattern.compile("version \"(\\d+)");
+    private static final Pattern MAVEN_VERSION_PATTERN = Pattern.compile("Apache Maven (\\S+)");
+    private static final Pattern GIT_VERSION_PATTERN = Pattern.compile("git version (\\S+)");
+    private static final Pattern DOCKER_VERSION_PATTERN = Pattern.compile("Docker version (\\S+)");
+    private static final Pattern PSQL_VERSION_PATTERN = Pattern.compile("psql \\(PostgreSQL\\) (\\S+)");
+
     @Inject
     ProcessRunner processRunner;
 
@@ -32,10 +40,12 @@ public class DoctorService {
         List<CheckResult> results = new ArrayList<>();
 
         results.add(checkJava());
+        results.add(checkJar());
         results.add(checkMaven());
         results.add(checkGit());
-        results.add(checkDocker());
         results.add(checkPostgres());
+        results.add(checkGreadlink());
+        results.add(checkDocker());
 
         System.out.println();
         System.out.println("----------------------------------");
@@ -46,8 +56,14 @@ public class DoctorService {
 
         System.out.printf("Results: %d passed, %d warnings, %d failed%n", passed, warnings, failed);
 
-        if (fix) {
+        if (fix && failed > 0) {
+            runAutoFix(results);
+        } else if (failed > 0) {
             printFixSuggestions(results);
+        } else if (passed == results.size()) {
+            System.out.println();
+            System.out.println("All checks passed! Your environment is ready.");
+            System.out.println("Run 'idempiere setup-dev-env' to bootstrap your development environment.");
         }
 
         System.out.println();
@@ -181,7 +197,7 @@ public class DoctorService {
         try {
             String manifestContent = Files.readString(manifest);
             Set<String> declaredBundles = new HashSet<>();
-            Matcher m = Pattern.compile("(?:Require-Bundle|Fragment-Host):\\s*(.+)", Pattern.DOTALL).matcher(manifestContent);
+            Matcher m = REQUIRE_BUNDLE_PATTERN.matcher(manifestContent);
             if (m.find()) {
                 String bundleStr = m.group(1).split("\\n(?!\\s)")[0];
                 for (String part : bundleStr.split(",")) {
@@ -245,8 +261,7 @@ public class DoctorService {
             return new CheckResult("Java", Status.FAIL);
         }
 
-        Pattern pattern = Pattern.compile("version \"(\\d+)");
-        Matcher matcher = pattern.matcher(result.output());
+        Matcher matcher = JAVA_VERSION_PATTERN.matcher(result.output());
         if (matcher.find()) {
             int majorVersion = Integer.parseInt(matcher.group(1));
             if (majorVersion >= 17) {
@@ -269,8 +284,7 @@ public class DoctorService {
             return new CheckResult("Maven", Status.FAIL);
         }
 
-        Pattern pattern = Pattern.compile("Apache Maven (\\S+)");
-        Matcher matcher = pattern.matcher(result.output());
+        Matcher matcher = MAVEN_VERSION_PATTERN.matcher(result.output());
         if (matcher.find()) {
             printResult(Status.OK, "Maven", "Version " + matcher.group(1) + " detected");
             return new CheckResult("Maven", Status.OK);
@@ -287,8 +301,7 @@ public class DoctorService {
             return new CheckResult("Git", Status.FAIL);
         }
 
-        Pattern pattern = Pattern.compile("git version (\\S+)");
-        Matcher matcher = pattern.matcher(result.output());
+        Matcher matcher = GIT_VERSION_PATTERN.matcher(result.output());
         if (matcher.find()) {
             printResult(Status.OK, "Git", "Version " + matcher.group(1) + " detected");
             return new CheckResult("Git", Status.OK);
@@ -305,8 +318,7 @@ public class DoctorService {
             return new CheckResult("Docker", Status.WARN);
         }
 
-        Pattern pattern = Pattern.compile("Docker version (\\S+)");
-        Matcher matcher = pattern.matcher(result.output());
+        Matcher matcher = DOCKER_VERSION_PATTERN.matcher(result.output());
         if (matcher.find()) {
             printResult(Status.OK, "Docker", "Version " + matcher.group(1) + " detected");
             return new CheckResult("Docker", Status.OK);
@@ -319,12 +331,11 @@ public class DoctorService {
     private CheckResult checkPostgres() {
         ProcessRunner.RunResult result = processRunner.run("psql", "--version");
         if (result.exitCode() < 0 || result.output() == null) {
-            printResult(Status.WARN, "PostgreSQL", "psql client not found (optional)");
-            return new CheckResult("PostgreSQL", Status.WARN);
+            printResult(Status.FAIL, "PostgreSQL", "psql client not found (required for database import)");
+            return new CheckResult("PostgreSQL", Status.FAIL);
         }
 
-        Pattern pattern = Pattern.compile("psql \\(PostgreSQL\\) (\\S+)");
-        Matcher matcher = pattern.matcher(result.output());
+        Matcher matcher = PSQL_VERSION_PATTERN.matcher(result.output());
         if (matcher.find()) {
             printResult(Status.OK, "PostgreSQL", "psql version " + matcher.group(1) + " detected");
             return new CheckResult("PostgreSQL", Status.OK);
@@ -332,6 +343,32 @@ public class DoctorService {
 
         printResult(Status.OK, "PostgreSQL", "psql found");
         return new CheckResult("PostgreSQL", Status.OK);
+    }
+
+    private CheckResult checkJar() {
+        ProcessRunner.RunResult result = processRunner.run("jar", "--version");
+        if (result.exitCode() < 0 || result.output() == null) {
+            printResult(Status.FAIL, "jar", "Not found (required for database seed extraction)");
+            return new CheckResult("jar", Status.FAIL);
+        }
+        printResult(Status.OK, "jar", "Found (part of JDK)");
+        return new CheckResult("jar", Status.OK);
+    }
+
+    private CheckResult checkGreadlink() {
+        String os = System.getProperty("os.name", "").toLowerCase();
+        if (!os.contains("mac")) {
+            // greadlink is only needed on macOS
+            return new CheckResult("greadlink", Status.OK);
+        }
+
+        ProcessRunner.RunResult result = processRunner.run("greadlink", "--version");
+        if (result.exitCode() < 0 || result.output() == null) {
+            printResult(Status.FAIL, "greadlink", "Not found (required on macOS for database import)");
+            return new CheckResult("greadlink", Status.FAIL);
+        }
+        printResult(Status.OK, "greadlink", "Found (coreutils)");
+        return new CheckResult("greadlink", Status.OK);
     }
 
     private void printResult(Status status, String tool, String message) {
@@ -344,16 +381,19 @@ public class DoctorService {
     }
 
     private void printFixSuggestions(List<CheckResult> results) {
+        String os = System.getProperty("os.name", "").toLowerCase();
+
         boolean javaFailed = results.stream().anyMatch(r -> r.tool().equals("Java") && r.status() == Status.FAIL);
+        boolean jarFailed = results.stream().anyMatch(r -> r.tool().equals("jar") && r.status() == Status.FAIL);
         boolean mavenFailed = results.stream().anyMatch(r -> r.tool().equals("Maven") && r.status() == Status.FAIL);
         boolean gitFailed = results.stream().anyMatch(r -> r.tool().equals("Git") && r.status() == Status.FAIL);
+        boolean postgresFailed = results.stream().anyMatch(r -> r.tool().equals("PostgreSQL") && r.status() == Status.FAIL);
+        boolean greadlinkFailed = results.stream().anyMatch(r -> r.tool().equals("greadlink") && r.status() == Status.FAIL);
         boolean dockerMissing = results.stream().anyMatch(r -> r.tool().equals("Docker") && r.status() != Status.OK);
-        boolean postgresMissing = results.stream().anyMatch(r -> r.tool().equals("PostgreSQL") && r.status() != Status.OK);
 
-        boolean hasCriticalFailures = javaFailed || mavenFailed || gitFailed;
-        boolean hasOptionalMissing = dockerMissing || postgresMissing;
+        boolean hasCriticalFailures = javaFailed || jarFailed || mavenFailed || gitFailed || postgresFailed || greadlinkFailed;
 
-        if (!hasCriticalFailures && !hasOptionalMissing) {
+        if (!hasCriticalFailures && !dockerMissing) {
             System.out.println();
             System.out.println("All checks passed! Your environment is ready.");
             System.out.println("Run 'idempiere setup-dev-env' to bootstrap your development environment.");
@@ -366,108 +406,130 @@ public class DoctorService {
 
         if (hasCriticalFailures) {
             System.out.println();
-            System.out.println("The following tools are REQUIRED and must be installed manually:");
+            System.out.println("The following tools are REQUIRED:");
             System.out.println();
 
-            if (javaFailed) {
-                System.out.println("  Java 17+:");
-                String os = System.getProperty("os.name").toLowerCase();
-                if (os.contains("mac")) {
-                    System.out.println("    brew install openjdk@17");
-                } else if (os.contains("linux")) {
-                    System.out.println("    sudo apt install openjdk-17-jdk  (Debian/Ubuntu)");
-                    System.out.println("    sudo dnf install java-17-openjdk  (Fedora/RHEL)");
-                } else {
-                    System.out.println("    Download from: https://adoptium.net/");
+            // Build combined install command for macOS
+            if (os.contains("mac")) {
+                List<String> brewPackages = new ArrayList<>();
+                if (javaFailed || jarFailed) brewPackages.add("openjdk@17");
+                if (mavenFailed) brewPackages.add("maven");
+                if (gitFailed) brewPackages.add("git");
+                if (postgresFailed) brewPackages.add("postgresql");
+                if (greadlinkFailed) brewPackages.add("coreutils");
+
+                if (!brewPackages.isEmpty()) {
+                    System.out.println("  Install with Homebrew:");
+                    System.out.println();
+                    System.out.println("    brew install " + String.join(" ", brewPackages));
+                    System.out.println();
+                    System.out.println("  Or run: idempiere doctor --fix");
+                    System.out.println();
+                }
+            } else if (os.contains("linux")) {
+                List<String> aptPackages = new ArrayList<>();
+                if (javaFailed || jarFailed) aptPackages.add("openjdk-17-jdk");
+                if (mavenFailed) aptPackages.add("maven");
+                if (gitFailed) aptPackages.add("git");
+                if (postgresFailed) aptPackages.add("postgresql-client");
+
+                if (!aptPackages.isEmpty()) {
+                    System.out.println("  Install with apt (Debian/Ubuntu):");
+                    System.out.println();
+                    System.out.println("    sudo apt install " + String.join(" ", aptPackages));
+                    System.out.println();
+                }
+            } else {
+                // Windows or other
+                if (javaFailed || jarFailed) {
+                    System.out.println("  Java 17+: https://adoptium.net/");
+                }
+                if (mavenFailed) {
+                    System.out.println("  Maven: https://maven.apache.org/download.cgi");
+                }
+                if (gitFailed) {
+                    System.out.println("  Git: https://git-scm.com/downloads");
+                }
+                if (postgresFailed) {
+                    System.out.println("  PostgreSQL: https://www.postgresql.org/download/");
                 }
                 System.out.println();
             }
 
-            if (mavenFailed) {
-                System.out.println("  Maven:");
-                String os = System.getProperty("os.name").toLowerCase();
-                if (os.contains("mac")) {
-                    System.out.println("    brew install maven");
-                } else if (os.contains("linux")) {
-                    System.out.println("    sudo apt install maven  (Debian/Ubuntu)");
-                    System.out.println("    sudo dnf install maven  (Fedora/RHEL)");
-                } else {
-                    System.out.println("    Download from: https://maven.apache.org/download.cgi");
-                }
-                System.out.println();
-            }
-
-            if (gitFailed) {
-                System.out.println("  Git:");
-                String os = System.getProperty("os.name").toLowerCase();
-                if (os.contains("mac")) {
-                    System.out.println("    brew install git");
-                } else if (os.contains("linux")) {
-                    System.out.println("    sudo apt install git  (Debian/Ubuntu)");
-                    System.out.println("    sudo dnf install git  (Fedora/RHEL)");
-                } else {
-                    System.out.println("    Download from: https://git-scm.com/downloads");
-                }
-                System.out.println();
-            }
-
-            System.out.println("After installing the required tools, run 'idempiere doctor' again.");
+            System.out.println("After installing, run 'idempiere doctor' again.");
         }
 
-        if (hasOptionalMissing && !hasCriticalFailures) {
+        if (dockerMissing) {
             System.out.println();
-            System.out.println("Optional tools not found. You can proceed with setup-dev-env:");
+            System.out.println("Optional: Docker (for containerized PostgreSQL)");
+            if (os.contains("mac")) {
+                System.out.println("    brew install --cask docker");
+            } else if (os.contains("linux")) {
+                System.out.println("    sudo apt install docker.io");
+            } else {
+                System.out.println("    https://www.docker.com/products/docker-desktop");
+            }
             System.out.println();
+            System.out.println("  With Docker, use: idempiere setup-dev-env --with-docker");
+        }
+    }
 
-            if (dockerMissing && postgresMissing) {
-                System.out.println("  Neither Docker nor PostgreSQL client found.");
-                System.out.println("  To use Docker for PostgreSQL (recommended):");
-                System.out.println();
-                System.out.println("    1. Install Docker:");
-                String os = System.getProperty("os.name").toLowerCase();
-                if (os.contains("mac")) {
-                    System.out.println("       brew install --cask docker");
-                } else if (os.contains("linux")) {
-                    System.out.println("       sudo apt install docker.io  (Debian/Ubuntu)");
-                } else {
-                    System.out.println("       Download from: https://www.docker.com/products/docker-desktop");
-                }
-                System.out.println();
-                System.out.println("    2. Then run setup with Docker:");
-                System.out.println("       idempiere setup-dev-env --with-docker");
-                System.out.println();
-                System.out.println("  Or, if you have PostgreSQL installed on a different host:");
-                System.out.println("       idempiere setup-dev-env --db-host <host> --db-port <port>");
-            } else if (dockerMissing) {
-                System.out.println("  Docker not found, but PostgreSQL client is available.");
-                System.out.println("  You can use an existing PostgreSQL installation:");
-                System.out.println();
-                System.out.println("    idempiere setup-dev-env --db-host localhost --db-name idempiere");
-                System.out.println();
-                System.out.println("  Or install Docker for containerized PostgreSQL:");
-                String os = System.getProperty("os.name").toLowerCase();
-                if (os.contains("mac")) {
-                    System.out.println("    brew install --cask docker");
-                } else if (os.contains("linux")) {
-                    System.out.println("    sudo apt install docker.io  (Debian/Ubuntu)");
-                } else {
-                    System.out.println("    Download from: https://www.docker.com/products/docker-desktop");
-                }
-                System.out.println();
-                System.out.println("  Then: idempiere setup-dev-env --with-docker");
-            } else if (postgresMissing) {
-                System.out.println("  PostgreSQL client not found, but Docker is available.");
-                System.out.println("  Use Docker for PostgreSQL (recommended):");
-                System.out.println();
-                System.out.println("    idempiere setup-dev-env --with-docker");
-            }
-        } else if (hasOptionalMissing && hasCriticalFailures) {
+    private void runAutoFix(List<CheckResult> results) {
+        String os = System.getProperty("os.name", "").toLowerCase();
+
+        if (!os.contains("mac")) {
             System.out.println();
-            System.out.println("Note: Once the required tools are installed, you can use:");
-            if (postgresMissing || dockerMissing) {
-                System.out.println("    idempiere setup-dev-env --with-docker");
-                System.out.println("  to automatically configure PostgreSQL in a Docker container.");
-            }
+            System.out.println("Auto-fix is currently only supported on macOS with Homebrew.");
+            System.out.println("Please install the missing tools manually.");
+            return;
+        }
+
+        // Check if Homebrew is available
+        if (!processRunner.isAvailable("brew")) {
+            System.out.println();
+            System.out.println("Homebrew not found. Install it first:");
+            System.out.println("  /bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"");
+            return;
+        }
+
+        List<String> packagesToInstall = new ArrayList<>();
+
+        boolean javaFailed = results.stream().anyMatch(r -> r.tool().equals("Java") && r.status() == Status.FAIL);
+        boolean jarFailed = results.stream().anyMatch(r -> r.tool().equals("jar") && r.status() == Status.FAIL);
+        boolean mavenFailed = results.stream().anyMatch(r -> r.tool().equals("Maven") && r.status() == Status.FAIL);
+        boolean gitFailed = results.stream().anyMatch(r -> r.tool().equals("Git") && r.status() == Status.FAIL);
+        boolean postgresFailed = results.stream().anyMatch(r -> r.tool().equals("PostgreSQL") && r.status() == Status.FAIL);
+        boolean greadlinkFailed = results.stream().anyMatch(r -> r.tool().equals("greadlink") && r.status() == Status.FAIL);
+
+        if (javaFailed || jarFailed) packagesToInstall.add("openjdk@17");
+        if (mavenFailed) packagesToInstall.add("maven");
+        if (gitFailed) packagesToInstall.add("git");
+        if (postgresFailed) packagesToInstall.add("postgresql");
+        if (greadlinkFailed) packagesToInstall.add("coreutils");
+
+        if (packagesToInstall.isEmpty()) {
+            System.out.println();
+            System.out.println("Nothing to fix!");
+            return;
+        }
+
+        System.out.println();
+        System.out.println("Installing missing packages with Homebrew...");
+        System.out.println();
+
+        List<String> command = new ArrayList<>();
+        command.add("brew");
+        command.add("install");
+        command.addAll(packagesToInstall);
+
+        int exitCode = processRunner.runLive(command.toArray(new String[0]));
+
+        if (exitCode == 0) {
+            System.out.println();
+            System.out.println("Installation complete. Run 'idempiere doctor' to verify.");
+        } else {
+            System.out.println();
+            System.out.println("Some packages may have failed to install. Check output above.");
         }
     }
 

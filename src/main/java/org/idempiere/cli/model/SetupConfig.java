@@ -1,31 +1,33 @@
 package org.idempiere.cli.model;
 
+import org.idempiere.cli.util.CliDefaults;
 import java.nio.file.Path;
 
 public class SetupConfig {
 
     private Path sourceDir;
     private Path eclipseDir;
-    private String branch = "master";
-    private String repositoryUrl = "https://github.com/idempiere/idempiere.git";
-    private String dbType = "postgresql";
-    private String dbHost = "localhost";
-    private int dbPort = 5432;
-    private String dbName = "idempiere";
-    private String dbUser = "adempiere";
-    private String dbPass = "adempiere";
-    private String dbAdminPass = "postgres";
-    private String httpHost = "0.0.0.0";
-    private int httpPort = 8080;
-    private int httpsPort = 8443;
+    private String branch = CliDefaults.GIT_BRANCH;
+    private String repositoryUrl = CliDefaults.IDEMPIERE_REPO_URL;
+    private String dbType = CliDefaults.DB_TYPE;
+    private String dbHost = CliDefaults.DB_HOST;
+    private int dbPort = CliDefaults.DB_PORT;
+    private String dbName = CliDefaults.DB_NAME;
+    private String dbUser = CliDefaults.DB_USER;
+    private String dbPass = CliDefaults.DB_PASSWORD;
+    private String dbAdminPass = CliDefaults.DB_ADMIN_PASSWORD;
+    private String httpHost = CliDefaults.HTTP_BIND_ADDRESS;
+    private int httpPort = CliDefaults.HTTP_PORT;
+    private int httpsPort = CliDefaults.HTTPS_PORT;
     private boolean useDocker;
-    private String dockerContainerName = "idempiere-postgres";
-    private String dockerPostgresVersion = "15.3";
+    private String dockerContainerName = CliDefaults.DOCKER_CONTAINER_NAME;
+    private String dockerPostgresVersion = CliDefaults.DOCKER_POSTGRES_VERSION;
     private boolean skipDb;
     private boolean skipWorkspace;
     private boolean includeRest;
     private boolean installCopilot;
     private boolean nonInteractive;
+    private boolean continueOnError;
 
     public Path getSourceDir() {
         return sourceDir;
@@ -201,6 +203,14 @@ public class SetupConfig {
 
     public void setNonInteractive(boolean nonInteractive) {
         this.nonInteractive = nonInteractive;
+    }
+
+    public boolean isContinueOnError() {
+        return continueOnError;
+    }
+
+    public void setContinueOnError(boolean continueOnError) {
+        this.continueOnError = continueOnError;
     }
 
     public String getDbConnectionString() {

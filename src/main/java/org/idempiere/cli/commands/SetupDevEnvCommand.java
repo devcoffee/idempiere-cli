@@ -6,13 +6,14 @@ import org.idempiere.cli.service.SetupDevEnvService;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import java.nio.file.Path;
+import java.util.concurrent.Callable;
 
 @Command(
         name = "setup-dev-env",
         description = "Bootstrap a complete local iDempiere development environment",
         mixinStandardHelpOptions = true
 )
-public class SetupDevEnvCommand implements Runnable {
+public class SetupDevEnvCommand implements Callable<Integer> {
 
     @Option(names = "--ide", description = "Target IDE (default: eclipse)", defaultValue = "eclipse")
     String ide;
@@ -83,15 +84,39 @@ public class SetupDevEnvCommand implements Runnable {
     @Option(names = "--non-interactive", description = "Run without prompting for confirmation")
     boolean nonInteractive;
 
+    @Option(names = "--continue-on-error", description = "Continue setup even if a step fails")
+    boolean continueOnError;
+
     @Inject
     SetupDevEnvService setupDevEnvService;
 
     @Override
-    public void run() {
+    public Integer call() {
+        // Check for headless environment BEFORE doing any work
+        if (isHeadlessEnvironment()) {
+            System.err.println("Error: setup-dev-env requires a graphical environment (display).");
+            System.err.println();
+            System.err.println("This command installs Eclipse plugins and configures the workspace,");
+            System.err.println("which requires a display to run the Eclipse P2 director.");
+            System.err.println();
+            System.err.println("Options:");
+            System.err.println("  - Run this command on a machine with a display (macOS, Linux desktop, Windows)");
+            System.err.println("  - Use a VM with GUI (UTM, VirtualBox, Parallels)");
+            System.err.println("  - On Linux server: use X11 forwarding (ssh -X) or VNC");
+            System.err.println();
+            System.err.println("For testing CLI commands that don't require Eclipse, use Docker:");
+            System.err.println("  ./test-cli.sh");
+            return 1;
+        }
+
         SetupConfig config = new SetupConfig();
 
-        config.setSourceDir(sourceDir != null ? sourceDir : Path.of("idempiere"));
-        config.setEclipseDir(eclipseDir != null ? eclipseDir : Path.of("eclipse"));
+        // Normalize paths to absolute to avoid issues when running from different directories
+        Path resolvedSourceDir = (sourceDir != null ? sourceDir : Path.of("idempiere")).toAbsolutePath().normalize();
+        Path resolvedEclipseDir = (eclipseDir != null ? eclipseDir : Path.of("eclipse")).toAbsolutePath().normalize();
+
+        config.setSourceDir(resolvedSourceDir);
+        config.setEclipseDir(resolvedEclipseDir);
         config.setBranch(branch);
         config.setRepositoryUrl(repositoryUrl);
         config.setDbType(dbType);
@@ -111,7 +136,47 @@ public class SetupDevEnvCommand implements Runnable {
         config.setIncludeRest(includeRest);
         config.setInstallCopilot(installCopilot);
         config.setNonInteractive(nonInteractive);
+        config.setContinueOnError(continueOnError);
 
         setupDevEnvService.setup(config);
+        return 0;
+    }
+
+    /**
+     * Check if running in a headless environment (no display available).
+     * Works across Linux, macOS, and Windows.
+     */
+    private boolean isHeadlessEnvironment() {
+        String os = System.getProperty("os.name", "").toLowerCase();
+
+        // Windows typically always has a display
+        if (os.contains("win")) {
+            return false;
+        }
+
+        // macOS: check if running via SSH (no local display)
+        if (os.contains("mac")) {
+            String sshConnection = System.getenv("SSH_CONNECTION");
+            String sshClient = System.getenv("SSH_CLIENT");
+            // If SSH variables are set and no DISPLAY, we're headless
+            if ((sshConnection != null && !sshConnection.isEmpty()) ||
+                (sshClient != null && !sshClient.isEmpty())) {
+                String display = System.getenv("DISPLAY");
+                return display == null || display.isEmpty();
+            }
+            return false; // Local macOS session has display
+        }
+
+        // Linux: check for DISPLAY or WAYLAND_DISPLAY
+        String display = System.getenv("DISPLAY");
+        if (display != null && !display.isEmpty()) {
+            return false;
+        }
+        String waylandDisplay = System.getenv("WAYLAND_DISPLAY");
+        if (waylandDisplay != null && !waylandDisplay.isEmpty()) {
+            return false;
+        }
+
+        return true; // No display found
     }
 }

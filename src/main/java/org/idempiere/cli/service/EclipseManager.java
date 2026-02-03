@@ -3,15 +3,18 @@ package org.idempiere.cli.service;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.idempiere.cli.model.SetupConfig;
+import org.idempiere.cli.util.CliDefaults;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
 @ApplicationScoped
 public class EclipseManager {
 
-    private static final String ECLIPSE_VERSION = "2025-09";
-    private static final String ECLIPSE_RELEASE = "R";
+    private static final String ECLIPSE_VERSION = CliDefaults.ECLIPSE_VERSION;
+    private static final String ECLIPSE_RELEASE = CliDefaults.ECLIPSE_RELEASE;
     private static final String ECLIPSE_MIRROR = "https://download.eclipse.org/technology/epp/downloads/release/"
             + ECLIPSE_VERSION + "/" + ECLIPSE_RELEASE + "/";
 
@@ -26,15 +29,20 @@ public class EclipseManager {
     @Inject
     ProcessRunner processRunner;
 
+    @Inject
+    SessionLogger sessionLogger;
+
     public boolean detectOrInstall(SetupConfig config) {
         Path eclipseDir = config.getEclipseDir();
         Path eclipseExe = getEclipseExecutable(eclipseDir);
 
         if (Files.exists(eclipseExe)) {
+            sessionLogger.logInfo("Eclipse found at " + eclipseDir.toAbsolutePath());
             System.out.println("  Eclipse found at: " + eclipseDir.toAbsolutePath());
             return true;
         }
 
+        sessionLogger.logInfo("Eclipse not found, downloading Eclipse JEE " + ECLIPSE_VERSION);
         System.out.println("  Eclipse not found at: " + eclipseDir.toAbsolutePath());
         System.out.println("  Downloading Eclipse JEE " + ECLIPSE_VERSION + "...");
 
@@ -44,6 +52,7 @@ public class EclipseManager {
     public boolean installPlugins(SetupConfig config) {
         Path eclipseExe = getEclipseExecutable(config.getEclipseDir());
         if (!Files.exists(eclipseExe)) {
+            sessionLogger.logError("Eclipse executable not found at: " + eclipseExe.toAbsolutePath());
             System.err.println("  Eclipse executable not found at: " + eclipseExe.toAbsolutePath());
             return false;
         }
@@ -119,8 +128,9 @@ public class EclipseManager {
 
     private int runP2Director(Path eclipseExe, String vm, Path dataDir, String destination,
                               String repository, String installIUs) {
+        ProcessRunner.RunResult result;
         if (vm != null) {
-            return processRunner.runLive(
+            result = processRunner.runQuiet(
                     eclipseExe.toString(),
                     "-vm", vm,
                     "-nosplash",
@@ -131,7 +141,7 @@ public class EclipseManager {
                     "-installIU", installIUs
             );
         } else {
-            return processRunner.runLive(
+            result = processRunner.runQuiet(
                     eclipseExe.toString(),
                     "-nosplash",
                     "-data", dataDir.toAbsolutePath().toString(),
@@ -141,55 +151,141 @@ public class EclipseManager {
                     "-installIU", installIUs
             );
         }
+
+        // Only show output on failure
+        if (!result.isSuccess()) {
+            // Log error and full output to session log
+            sessionLogger.logError("P2 Director failed (exit code: " + result.exitCode() + ")");
+            sessionLogger.logCommandOutput("p2-director", result.output());
+            System.err.println("  P2 Director failed. See session log for details.");
+            // Show last 30 lines as summary on screen
+            System.err.println("  Last 30 lines:");
+            String[] lines = result.output().split("\n");
+            int start = Math.max(0, lines.length - 30);
+            for (int i = start; i < lines.length; i++) {
+                System.err.println("    " + lines[i]);
+            }
+        }
+        return result.exitCode();
     }
 
     public boolean setupWorkspace(SetupConfig config) {
         Path sourceDir = config.getSourceDir();
-        Path workspaceDir = config.getEclipseDir().resolve("workspace");
+        Path eclipseDir = config.getEclipseDir();
 
         try {
-            Files.createDirectories(workspaceDir);
-        } catch (IOException e) {
-            System.err.println("  Failed to create workspace directory: " + e.getMessage());
-            return false;
-        }
-
-        // Link projects into workspace metadata so Eclipse auto-discovers them on first launch.
-        // This avoids the need for CDT headlessbuild (not in Eclipse JEE) or interactive import.
-        System.out.println("  Linking iDempiere projects into Eclipse workspace...");
-
-        try {
-            Path projectsDir = workspaceDir.resolve(".metadata/.plugins/org.eclipse.core.resources/.projects");
-            Files.createDirectories(projectsDir);
-
-            int linked = 0;
+            // Count projects for info
+            int projectCount = 0;
             try (var dirs = Files.list(sourceDir)) {
-                var projects = dirs.filter(Files::isDirectory)
+                projectCount = (int) dirs.filter(Files::isDirectory)
                         .filter(d -> Files.exists(d.resolve(".project")))
-                        .toList();
+                        .count();
+            }
 
-                for (Path projectDir : projects) {
-                    String projectName = projectDir.getFileName().toString();
-                    Path projectMetaDir = projectsDir.resolve(projectName);
-                    Files.createDirectories(projectMetaDir);
+            sessionLogger.logInfo("Found " + projectCount + " Eclipse projects in source directory");
+            System.out.println("  Found " + projectCount + " Eclipse projects in source directory.");
 
-                    Path locationFile = projectMetaDir.resolve(".location");
-                    writeProjectLocation(locationFile, projectDir.toAbsolutePath().toString());
-                    linked++;
+            // Configure default workspace in Eclipse preferences
+            configureDefaultWorkspace(config, sourceDir);
+
+            // Copy workspace setup scripts to lib directory (where Jython is)
+            Path libDir = sourceDir.resolve("lib");
+            if (!Files.exists(libDir)) {
+                Files.createDirectories(libDir);
+            }
+            copyResourceToFile("eclipse/setup-ws.xml", libDir.resolve("setup-ws.xml"));
+            copyResourceToFile("eclipse/loadtargetplatform.xml", libDir.resolve("loadtargetplatform.xml"));
+
+            // Run Eclipse antRunner to import projects (same as hengsin/idempiere-dev-setup)
+            Path eclipseExe = getEclipseExecutable(eclipseDir);
+            if (!Files.exists(eclipseExe)) {
+                sessionLogger.logError("Eclipse executable not found at: " + eclipseExe.toAbsolutePath());
+                System.err.println("  Eclipse executable not found at: " + eclipseExe.toAbsolutePath());
+                return false;
+            }
+
+            Path javaHome = detectJavaHome(eclipseDir);
+            String vmArg = null;
+            if (javaHome != null) {
+                Path javaBin = javaHome.resolve("bin/java");
+                if (Files.exists(javaBin)) {
+                    vmArg = javaBin.toAbsolutePath().toString();
                 }
             }
 
-            System.out.println("  Linked " + linked + " projects into workspace.");
+            // Step 1: Import projects using setup-ws.xml
+            System.out.println("  Importing projects into workspace...");
+            boolean importOk = runAntRunner(eclipseExe, vmArg, sourceDir,
+                    libDir.resolve("setup-ws.xml"), sourceDir);
+            if (!importOk) {
+                System.err.println("  Warning: Project import may have had issues. Check Eclipse manually.");
+            }
 
-            // Configure default workspace in Eclipse preferences (same as setup.sh)
-            configureDefaultWorkspace(config, sourceDir);
+            // Step 2: Load target platform using loadtargetplatform.xml
+            System.out.println("  Loading target platform (this may take a while)...");
+            boolean targetOk = runAntRunner(eclipseExe, vmArg, sourceDir,
+                    libDir.resolve("loadtargetplatform.xml"), sourceDir);
+            if (!targetOk) {
+                System.err.println("  Warning: Target platform loading may have had issues. Check Eclipse manually.");
+            }
 
-            System.out.println("  Workspace configured at: " + workspaceDir.toAbsolutePath());
-            return true;
+            System.out.println("  Workspace configured at: " + sourceDir.toAbsolutePath());
+            return importOk && targetOk;
         } catch (IOException e) {
+            sessionLogger.logError("Failed to configure workspace: " + e.getMessage());
             System.err.println("  Failed to configure workspace: " + e.getMessage());
             return false;
         }
+    }
+
+    private void copyResourceToFile(String resourcePath, Path targetPath) throws IOException {
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
+            if (is == null) {
+                throw new IOException("Resource not found: " + resourcePath);
+            }
+            Files.copy(is, targetPath, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private boolean runAntRunner(Path eclipseExe, String vm, Path dataDir, Path buildFile, Path idempiereDir) {
+        ProcessRunner.RunResult result;
+        String idempiereProperty = "-Didempiere=" + idempiereDir.toAbsolutePath().toString();
+
+        if (vm != null) {
+            result = processRunner.runQuiet(
+                    eclipseExe.toString(),
+                    "-vm", vm,
+                    "-nosplash",
+                    "-data", dataDir.toAbsolutePath().toString(),
+                    "-application", "org.eclipse.ant.core.antRunner",
+                    "-buildfile", buildFile.toAbsolutePath().toString(),
+                    idempiereProperty
+            );
+        } else {
+            result = processRunner.runQuiet(
+                    eclipseExe.toString(),
+                    "-nosplash",
+                    "-data", dataDir.toAbsolutePath().toString(),
+                    "-application", "org.eclipse.ant.core.antRunner",
+                    "-buildfile", buildFile.toAbsolutePath().toString(),
+                    idempiereProperty
+            );
+        }
+
+        // Only show output on failure
+        if (!result.isSuccess()) {
+            // Log full output to session log
+            sessionLogger.logCommandOutput("ant-runner", result.output());
+            System.err.println("  Ant Runner failed. See session log for details.");
+            // Show last 30 lines as summary on screen
+            System.err.println("  Last 30 lines:");
+            String[] lines = result.output().split("\n");
+            int start = Math.max(0, lines.length - 30);
+            for (int i = start; i < lines.length; i++) {
+                System.err.println("    " + lines[i]);
+            }
+        }
+        return result.isSuccess();
     }
 
     private void configureDefaultWorkspace(SetupConfig config, Path sourceDir) throws IOException {
@@ -213,26 +309,6 @@ public class EclipseManager {
                     + "eclipse.preferences.version=1\n";
             Files.writeString(idePrefs, content);
         }
-    }
-
-    private void writeProjectLocation(Path locationFile, String projectPath) throws IOException {
-        String uri = "URI//" + Path.of(projectPath).toUri().toString();
-        byte[] uriBytes = uri.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-
-        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
-        // File header (magic bytes for Eclipse .location)
-        bos.write(new byte[]{0x40, (byte) 0xB1, (byte) 0x8B, (byte) 0x81, 0x23, (byte) 0xBC, 0x00, 0x14,
-                0x1A, 0x25, (byte) 0x96, (byte) 0xE7, (byte) 0xA3, (byte) 0x93, (byte) 0xBE, 0x1E});
-        // URI length (2 bytes big-endian)
-        bos.write((uriBytes.length >> 8) & 0xFF);
-        bos.write(uriBytes.length & 0xFF);
-        // URI string
-        bos.write(uriBytes);
-        // Trailer
-        bos.write(new byte[]{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
-
-        Files.write(locationFile, bos.toByteArray());
     }
 
     public Path detectJavaHome(Path eclipseDir) {
@@ -308,6 +384,7 @@ public class EclipseManager {
         } else if (os.contains("win")) {
             fileName = "eclipse-jee-" + ECLIPSE_VERSION + "-" + ECLIPSE_RELEASE + "-win32-x86_64.zip";
         } else {
+            sessionLogger.logError("Unsupported operating system: " + os);
             System.err.println("  Unsupported operating system: " + os);
             return false;
         }
@@ -330,6 +407,7 @@ public class EclipseManager {
             }
 
             if (exitCode != 0) {
+                sessionLogger.logError("Failed to download Eclipse (exit code: " + exitCode + ")");
                 System.err.println("  Failed to download Eclipse.");
                 return false;
             }
@@ -357,6 +435,7 @@ public class EclipseManager {
             }
 
             if (exitCode != 0) {
+                sessionLogger.logError("Failed to extract Eclipse (exit code: " + exitCode + ")");
                 System.err.println("  Failed to extract Eclipse.");
                 return false;
             }
@@ -367,6 +446,7 @@ public class EclipseManager {
             System.out.println("  Eclipse installed at: " + config.getEclipseDir().toAbsolutePath());
             return true;
         } catch (IOException e) {
+            sessionLogger.logError("Failed to download/extract Eclipse: " + e.getMessage());
             System.err.println("  Failed to download/extract Eclipse: " + e.getMessage());
             return false;
         }

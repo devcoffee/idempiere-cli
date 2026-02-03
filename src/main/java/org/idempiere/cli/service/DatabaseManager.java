@@ -3,6 +3,8 @@ package org.idempiere.cli.service;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.idempiere.cli.model.SetupConfig;
+import java.io.IOException;
+import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
@@ -12,6 +14,9 @@ public class DatabaseManager {
 
     @Inject
     ProcessRunner processRunner;
+
+    @Inject
+    SessionLogger sessionLogger;
 
     public boolean setupDatabase(SetupConfig config) {
         if (config.isUseDocker() && "postgresql".equals(config.getDbType())) {
@@ -30,15 +35,45 @@ public class DatabaseManager {
             return false;
         }
 
+        sessionLogger.logInfo("Database connection verified: " + config.getDbConnectionString());
         System.out.println("  Database connection verified.");
 
         // Check if database exists and has data
         if (isDatabaseEmpty(config)) {
+            sessionLogger.logInfo("Database is empty, importing seed data");
             return importSeedData(config);
         } else {
+            sessionLogger.logInfo("Database already contains data, running migrations");
             System.out.println("  Database already contains data.");
+            // Ensure config files exist before running migrations
+            if (!ensureConfigFiles(config)) {
+                return false;
+            }
             return runMigrations(config);
         }
+    }
+
+    /**
+     * Ensure configuration files exist (myEnvironment.sh, idempiereEnv.properties, etc.)
+     * These are needed for migrations and other operations.
+     */
+    private boolean ensureConfigFiles(SetupConfig config) {
+        Path sourceDir = config.getSourceDir();
+        Path productDir = findProductDirectory(sourceDir);
+        if (productDir == null) {
+            System.err.println("  Product directory not found.");
+            return false;
+        }
+
+        Path myEnvScript = productDir.resolve("utils/myEnvironment.sh");
+        if (!Files.exists(myEnvScript)) {
+            System.out.println("  Configuration files not found. Running console setup...");
+            if (!runConsoleSetup(productDir, config)) {
+                System.err.println("  Console setup failed.");
+                return false;
+            }
+        }
+        return true;
     }
 
     public boolean createDockerPostgres(SetupConfig config) {
@@ -152,68 +187,296 @@ public class DatabaseManager {
 
     public boolean importSeedData(SetupConfig config) {
         Path sourceDir = config.getSourceDir();
-        Path importScript = findScript(sourceDir, "RUN_ImportIdempiere");
 
-        if (importScript == null) {
-            System.err.println("  Import script not found in source directory.");
-            System.err.println("  Make sure the iDempiere source has been built first.");
+        // Check prerequisites before running
+        if (!checkImportPrerequisites()) {
             return false;
         }
 
-        System.out.println("  Importing seed database...");
-        System.out.println("  This may take several minutes.");
+        // Following hengsin/idempiere-dev-setup approach:
+        // Use the built product directory for database import
+        Path productDir = findProductDirectory(sourceDir);
+        if (productDir == null) {
+            System.err.println("  Product directory not found.");
+            System.err.println("  Make sure the iDempiere source has been built with Maven.");
+            return false;
+        }
 
-        Map<String, String> env = Map.of(
+        // Step 1: Run console-setup-alt.sh to create configuration files
+        System.out.println("  Running console setup...");
+        if (!runConsoleSetup(productDir, config)) {
+            System.err.println("  Console setup failed.");
+            return false;
+        }
+
+        // Step 2: Import the database using RUN_ImportIdempiere.sh from utils
+        Path utilsDir = productDir.resolve("utils");
+        Path importScript = utilsDir.resolve("RUN_ImportIdempiere.sh");
+        if (!Files.exists(importScript)) {
+            System.err.println("  Import script not found: " + importScript);
+            return false;
+        }
+
+        System.out.println("  Importing seed database (this may take several minutes)...");
+
+        Map<String, String> importEnv = Map.of(
                 "PGPASSWORD", config.getDbAdminPass(),
-                "IDEMPIERE_HOME", sourceDir.toAbsolutePath().toString()
+                "IDEMPIERE_HOME", productDir.toAbsolutePath().toString()
         );
 
-        int exitCode = processRunner.runLiveInDir(
-                importScript.getParent(), env,
-                importScript.toString(),
-                config.getDbHost(),
-                String.valueOf(config.getDbPort()),
-                config.getDbName(),
-                config.getDbUser(),
-                config.getDbPass()
+        // Pipe newline to skip "Press enter to continue..." prompt
+        // Run quietly - capture output and only show on failure
+        ProcessRunner.RunResult importResult = processRunner.runQuietInDirWithEnvAndInput(
+                utilsDir, importEnv,
+                "\n",
+                importScript.toAbsolutePath().toString()
         );
 
-        if (exitCode != 0) {
+        if (!importResult.isSuccess()) {
             System.err.println("  Seed data import failed.");
+            System.err.println("  Import output (last 30 lines):");
+            String[] lines = importResult.output().split("\n");
+            int start = Math.max(0, lines.length - 30);
+            for (int i = start; i < lines.length; i++) {
+                System.err.println("    " + lines[i]);
+            }
             return false;
         }
+
+        // Step 3: Copy generated config files back to source directory
+        copyConfigToSource(productDir, sourceDir);
 
         System.out.println("  Seed data imported successfully.");
         return true;
     }
 
+    private Path findProductDirectory(Path sourceDir) {
+        // Product is built at: org.idempiere.p2/target/products/org.adempiere.server.product/<os>/<ws>/<arch>
+        // Try OS-specific path first, then fall back to linux (which has the same scripts)
+        Path productsBase = sourceDir.resolve("org.idempiere.p2/target/products/org.adempiere.server.product");
+
+        String os = System.getProperty("os.name", "").toLowerCase();
+        String arch = System.getProperty("os.arch", "");
+
+        // Determine platform-specific path
+        String platformPath;
+        if (os.contains("mac")) {
+            // macOS: macosx/cocoa/x86_64 or macosx/cocoa/aarch64
+            String macArch = arch.contains("aarch64") || arch.contains("arm") ? "aarch64" : "x86_64";
+            platformPath = "macosx/cocoa/" + macArch;
+        } else if (os.contains("win")) {
+            platformPath = "win32/win32/x86_64";
+        } else {
+            platformPath = "linux/gtk/x86_64";
+        }
+
+        Path productDir = productsBase.resolve(platformPath);
+        if (Files.isDirectory(productDir)) {
+            return productDir;
+        }
+
+        // Fallback to linux (scripts are platform-independent)
+        productDir = productsBase.resolve("linux/gtk/x86_64");
+        if (Files.isDirectory(productDir)) {
+            return productDir;
+        }
+
+        return null;
+    }
+
+    private boolean runConsoleSetup(Path productDir, SetupConfig config) {
+        Path consoleSetup = productDir.resolve("console-setup-alt.sh");
+        if (!Files.exists(consoleSetup)) {
+            System.err.println("  console-setup-alt.sh not found in product directory.");
+            return false;
+        }
+
+        // Build input for console-setup-alt.sh (following hengsin's approach)
+        // Format: JAVA_HOME, JAVA_OPTIONS, IDEMPIERE_HOME, KEY_STORE_PASS, KEY_STORE_ON, KEY_STORE_OU,
+        //         KEY_STORE_O, KEY_STORE_L, KEY_STORE_S, KEY_STORE_C, IDEMPIERE_HOST, IDEMPIERE_PORT,
+        //         IDEMPIERE_SSL_PORT, SSL (N), DB_TYPE (2=postgres), DB_HOST, DB_PORT, DB_NAME,
+        //         DB_USER, DB_PASS, DB_SYSTEM, MAIL_HOST, MAIL_USER, MAIL_PASS, MAIL_ADMIN, SAVE (Y)
+        String javaHome = System.getProperty("java.home");
+        String dbTypeNum = "postgresql".equals(config.getDbType()) ? "2" : "1";
+
+        // Use higher ports by default to avoid conflicts with common services
+        // 8080/8443 are often in use by other applications
+        int httpPort = findAvailablePort(8880, 9080);
+        int httpsPort = findAvailablePort(8843, 9443);
+
+        StringBuilder input = new StringBuilder();
+        input.append(javaHome).append("\n");           // JAVA_HOME
+        input.append("-Xmx2048M").append("\n");        // JAVA_OPTIONS
+        input.append(productDir.toAbsolutePath()).append("\n"); // IDEMPIERE_HOME
+        input.append("myPassword").append("\n");       // KEY_STORE_PASS
+        input.append("idempiere.org").append("\n");    // KEY_STORE_ON
+        input.append("iDempiere").append("\n");        // KEY_STORE_OU
+        input.append("iDempiere").append("\n");        // KEY_STORE_O
+        input.append("myTown").append("\n");           // KEY_STORE_L
+        input.append("CA").append("\n");               // KEY_STORE_S
+        input.append("US").append("\n");               // KEY_STORE_C
+        input.append("0.0.0.0").append("\n");          // IDEMPIERE_HOST
+        input.append(httpPort).append("\n");           // IDEMPIERE_PORT
+        input.append(httpsPort).append("\n");          // IDEMPIERE_SSL_PORT
+        input.append("N").append("\n");                // SSL
+        input.append(dbTypeNum).append("\n");          // DB_TYPE (2=postgresql)
+        input.append(config.getDbHost()).append("\n"); // DB_HOST
+        input.append(config.getDbPort()).append("\n"); // DB_PORT
+        input.append(config.getDbName()).append("\n"); // DB_NAME
+        input.append(config.getDbUser()).append("\n"); // DB_USER
+        input.append(config.getDbPass()).append("\n"); // DB_PASS
+        input.append(config.getDbAdminPass()).append("\n"); // DB_SYSTEM
+        input.append("0.0.0.0").append("\n");          // MAIL_HOST
+        input.append("info").append("\n");             // MAIL_USER
+        input.append("info").append("\n");             // MAIL_PASS
+        input.append("info@idempiere").append("\n");   // MAIL_ADMIN
+        input.append("Y").append("\n");                // SAVE
+
+        Map<String, String> env = Map.of(
+                "CONSOLE_SETUP_BATCH_MODE", "Y",
+                "PGPASSWORD", config.getDbAdminPass()
+        );
+
+        // Use bash -c with printf to pipe input correctly (like hengsin's approach)
+        // This ensures stdin is available from the start, avoiding race conditions
+        // Replace newlines with \n for printf, and escape single quotes
+        String escapedInput = input.toString()
+                .replace("\\", "\\\\")
+                .replace("'", "'\\''")
+                .replace("\n", "\\n");
+
+        // Run quietly - capture output and only show on failure
+        ProcessRunner.RunResult result = processRunner.runQuietInDirWithEnv(
+                productDir, env,
+                "bash", "-c",
+                "printf '" + escapedInput + "' | " + consoleSetup.toAbsolutePath().toString()
+        );
+
+        if (!result.isSuccess()) {
+            System.err.println("  Console setup output:");
+            // Show last 20 lines
+            String[] lines = result.output().split("\n");
+            int start = Math.max(0, lines.length - 20);
+            for (int i = start; i < lines.length; i++) {
+                System.err.println("    " + lines[i]);
+            }
+        }
+
+        return result.isSuccess();
+    }
+
+    private void copyConfigToSource(Path productDir, Path sourceDir) {
+        try {
+            // Copy configuration files from product to source (for Eclipse development)
+            Path[] filesToCopy = {
+                    productDir.resolve("idempiere.properties"),
+                    productDir.resolve("idempiereEnv.properties"),
+                    productDir.resolve("hazelcast.xml"),
+                    productDir.resolve(".idpass")
+            };
+
+            for (Path file : filesToCopy) {
+                if (Files.exists(file)) {
+                    Files.copy(file, sourceDir.resolve(file.getFileName()),
+                            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
+
+            // Copy jettyhome directory
+            Path jettyHome = productDir.resolve("jettyhome");
+            if (Files.isDirectory(jettyHome)) {
+                Path targetJetty = sourceDir.resolve("jettyhome");
+                copyDirectory(jettyHome, targetJetty);
+            }
+        } catch (IOException e) {
+            System.err.println("  Warning: Could not copy some config files: " + e.getMessage());
+        }
+    }
+
+    private void copyDirectory(Path source, Path target) throws IOException {
+        Files.walk(source).forEach(sourcePath -> {
+            try {
+                Path targetPath = target.resolve(source.relativize(sourcePath));
+                if (Files.isDirectory(sourcePath)) {
+                    Files.createDirectories(targetPath);
+                } else {
+                    Files.copy(sourcePath, targetPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
     public boolean runMigrations(SetupConfig config) {
         Path sourceDir = config.getSourceDir();
-        Path syncScript = findScript(sourceDir, "RUN_SyncDB");
 
-        if (syncScript == null) {
+        // Following hengsin's approach: use the product directory for migrations
+        Path productDir = findProductDirectory(sourceDir);
+        if (productDir == null) {
+            System.out.println("  Product directory not found. Skipping migrations.");
+            return true;
+        }
+
+        Path utilsDir = productDir.resolve("utils");
+        Path syncScript = utilsDir.resolve("RUN_SyncDB.sh");
+        if (!Files.exists(syncScript)) {
             System.out.println("  Migration script not found. Skipping migrations.");
             return true;
         }
 
-        System.out.println("  Running database migrations...");
-
         Map<String, String> env = Map.of(
                 "PGPASSWORD", config.getDbAdminPass(),
-                "IDEMPIERE_HOME", sourceDir.toAbsolutePath().toString()
+                "IDEMPIERE_HOME", productDir.toAbsolutePath().toString()
         );
 
-        int exitCode = processRunner.runLiveInDir(
-                syncScript.getParent(), env,
-                syncScript.toString()
+        // Run quietly - capture output and only show on failure
+        System.out.print("  Running database migrations");
+        ProcessRunner.RunResult syncResult = processRunner.runQuietInDirWithEnv(
+                utilsDir, env,
+                syncScript.toAbsolutePath().toString()
         );
 
-        if (exitCode != 0) {
-            System.err.println("  Warning: Migration encountered errors.");
+        // Log output to session log
+        sessionLogger.logCommandOutput("RUN_SyncDB", syncResult.output());
+
+        if (!syncResult.isSuccess()) {
+            System.err.println("  Migration failed. See session log for details.");
+            // Show last 20 lines as summary on screen
+            System.err.println("  Last 20 lines:");
+            String[] lines = syncResult.output().split("\n");
+            int start = Math.max(0, lines.length - 20);
+            for (int i = start; i < lines.length; i++) {
+                System.err.println("    " + lines[i]);
+            }
             return false;
         }
 
-        System.out.println("  Migrations completed successfully.");
+        // Sign database after migration (like hengsin does)
+        Path signScript = productDir.resolve("sign-database-build-alt.sh");
+        if (Files.exists(signScript)) {
+            System.out.print("  Signing database");
+            ProcessRunner.RunResult signResult = processRunner.runQuietInDirWithEnv(
+                    productDir, env,
+                    signScript.toAbsolutePath().toString()
+            );
+
+            // Log output to session log
+            sessionLogger.logCommandOutput("sign-database", signResult.output());
+
+            if (!signResult.isSuccess()) {
+                System.err.println("  Database signing failed. See session log for details.");
+                // Show last 20 lines as summary on screen
+                System.err.println("  Last 20 lines:");
+                String[] lines = signResult.output().split("\n");
+                int start = Math.max(0, lines.length - 20);
+                for (int i = start; i < lines.length; i++) {
+                    System.err.println("    " + lines[i]);
+                }
+                return false;
+            }
+        }
+
         return true;
     }
 
@@ -268,24 +531,55 @@ public class DatabaseManager {
         return result.isSuccess();
     }
 
-    private Path findScript(Path sourceDir, String scriptName) {
-        // Search common locations
-        String[] searchPaths = {
-                "utils",
-                "org.adempiere.server-feature/utils.unix",
-                "org.adempiere.server-feature/utils.windows"
-        };
-
-        String os = System.getProperty("os.name", "").toLowerCase();
-        String ext = os.contains("win") ? ".bat" : ".sh";
-
-        for (String searchPath : searchPaths) {
-            Path script = sourceDir.resolve(searchPath).resolve(scriptName + ext);
-            if (Files.exists(script)) {
-                return script;
+    private int findAvailablePort(int preferred, int fallback) {
+        if (isPortAvailable(preferred)) {
+            return preferred;
+        }
+        if (isPortAvailable(fallback)) {
+            return fallback;
+        }
+        // Try to find any available port in range
+        for (int port = fallback; port < fallback + 100; port++) {
+            if (isPortAvailable(port)) {
+                return port;
             }
         }
+        return fallback; // Return fallback even if not available, let the setup fail with clear message
+    }
 
-        return null;
+    private boolean isPortAvailable(int port) {
+        try (ServerSocket socket = new ServerSocket(port)) {
+            socket.setReuseAddress(true);
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private boolean checkImportPrerequisites() {
+        String os = System.getProperty("os.name", "").toLowerCase();
+        java.util.List<String> missing = new java.util.ArrayList<>();
+
+        // On macOS, RUN_ImportIdempiereDev.sh requires greadlink from coreutils
+        if (os.contains("mac") && !processRunner.isAvailable("greadlink")) {
+            missing.add("greadlink (brew install coreutils)");
+        }
+
+        if (!processRunner.isAvailable("psql")) {
+            missing.add("psql (PostgreSQL client)");
+        }
+
+        if (!processRunner.isAvailable("jar")) {
+            missing.add("jar (part of JDK)");
+        }
+
+        if (!missing.isEmpty()) {
+            System.err.println("  Missing prerequisites: " + String.join(", ", missing));
+            System.err.println();
+            System.err.println("  Run 'idempiere doctor --fix' to install missing dependencies.");
+            return false;
+        }
+
+        return true;
     }
 }

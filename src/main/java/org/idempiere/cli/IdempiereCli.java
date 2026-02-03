@@ -7,6 +7,7 @@ import org.idempiere.cli.commands.DeployCommand;
 import org.idempiere.cli.commands.DepsCommand;
 import org.idempiere.cli.commands.DiffSchemaCommand;
 import org.idempiere.cli.commands.DoctorCommand;
+import org.idempiere.cli.commands.GenerateCompletionCommand;
 import org.idempiere.cli.commands.InfoCommand;
 import org.idempiere.cli.commands.InitCommand;
 import org.idempiere.cli.commands.MigrateCommand;
@@ -31,7 +32,8 @@ import picocli.CommandLine.Command;
                 MigrateCommand.class,
                 DepsCommand.class,
                 PackageCommand.class,
-                DiffSchemaCommand.class
+                DiffSchemaCommand.class,
+                GenerateCompletionCommand.class
         }
 )
 public class IdempiereCli {

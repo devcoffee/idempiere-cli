@@ -47,15 +47,15 @@ Download the appropriate binary from [GitHub Releases](https://github.com/devcof
 
 | Platform | Architecture | File |
 |----------|--------------|------|
-| Linux | x64 | `idempiere-linux-amd64` |
-| macOS | Intel | `idempiere-darwin-amd64` |
-| macOS | Apple Silicon | `idempiere-darwin-arm64` |
-| Windows | x64 | `idempiere-windows-amd64.exe` |
+| Linux | x64 | `idempiere-cli-linux-amd64` |
+| macOS | Intel | `idempiere-cli-darwin-amd64` |
+| macOS | Apple Silicon | `idempiere-cli-darwin-arm64` |
+| Windows | x64 | `idempiere-cli-windows-amd64.exe` |
 
 ### Verify Installation
 
 ```bash
-idempiere doctor
+idempiere-cli doctor
 ```
 
 ---
@@ -69,13 +69,13 @@ From zero to first plugin in 4 commands:
 curl -fsSL https://raw.githubusercontent.com/devcoffee/idempiere-cli/main/install.sh | bash
 
 # 2. Check environment & get fix suggestions
-idempiere doctor --fix
+idempiere-cli doctor --fix
 
 # 3. Setup complete dev environment (Eclipse + PostgreSQL + iDempiere source)
-idempiere setup-dev-env --with-docker
+idempiere-cli setup-dev-env --with-docker
 
 # 4. Create your first plugin
-idempiere init org.mycompany.myplugin --with-process --with-event-handler
+idempiere-cli init org.mycompany.myplugin --with-process --with-event-handler
 ```
 
 Compare this to the [traditional setup](https://wiki.idempiere.org/en/Installing_iDempiere) which requires manually configuring Eclipse, PostgreSQL, cloning repositories, and setting up target platforms.
@@ -248,7 +248,7 @@ cd idempiere-cli
 ./mvnw clean package -Pnative
 ```
 
-This produces a standalone binary at `target/idempiere` (or `target/idempiere.exe` on Windows).
+This produces a standalone binary at `target/idempiere-cli-runner` (or `target/idempiere-cli-runner.exe` on Windows).
 
 Run directly:
 

@@ -6,7 +6,7 @@ set -e
 
 REPO="devcoffee/idempiere-cli"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
-BINARY_NAME="idempiere"
+BINARY_NAME="idempiere-cli"
 
 # Colors for output
 RED='\033[0;31m'
@@ -65,7 +65,7 @@ install() {
 
     info "Installing idempiere-cli v${version} for ${os}-${arch}..."
 
-    local filename="idempiere-${os}-${arch}"
+    local filename="idempiere-cli-${os}-${arch}"
     if [ "$os" = "windows" ]; then
         filename="${filename}.exe"
     fi
@@ -128,7 +128,7 @@ install() {
             echo ""
         fi
 
-        echo "Run 'idempiere doctor' to verify your environment."
+        echo "Run 'idempiere-cli doctor' to verify your environment."
         echo ""
     else
         error "Installation failed"

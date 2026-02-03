@@ -30,13 +30,13 @@ jobs:
         run: mvn -B package -Pnative -DskipTests
 
       - name: Rename binary
-        run: mv target/*-runner target/idempiere-linux-amd64
+        run: mv target/*-runner target/idempiere-cli-linux-amd64
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: idempiere-linux-amd64
-          path: target/idempiere-linux-amd64
+          name: idempiere-cli-linux-amd64
+          path: target/idempiere-cli-linux-amd64
 
   build-macos-arm64:
     runs-on: macos-latest
@@ -54,13 +54,13 @@ jobs:
         run: mvn -B package -Pnative -DskipTests
 
       - name: Rename binary
-        run: mv target/*-runner target/idempiere-darwin-arm64
+        run: mv target/*-runner target/idempiere-cli-darwin-arm64
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: idempiere-darwin-arm64
-          path: target/idempiere-darwin-arm64
+          name: idempiere-cli-darwin-arm64
+          path: target/idempiere-cli-darwin-arm64
 
   build-macos-amd64:
     runs-on: macos-15
@@ -78,13 +78,13 @@ jobs:
         run: mvn -B package -Pnative -DskipTests
 
       - name: Rename binary
-        run: mv target/*-runner target/idempiere-darwin-amd64
+        run: mv target/*-runner target/idempiere-cli-darwin-amd64
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: idempiere-darwin-amd64
-          path: target/idempiere-darwin-amd64
+          name: idempiere-cli-darwin-amd64
+          path: target/idempiere-cli-darwin-amd64
 
   build-windows:
     runs-on: windows-latest
@@ -107,13 +107,13 @@ jobs:
         run: mvn -B package -Pnative -DskipTests
 
       - name: Rename binary
-        run: move target\*-runner.exe target\idempiere-windows-amd64.exe
+        run: move target\*-runner.exe target\idempiere-cli-windows-amd64.exe
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: idempiere-windows-amd64
-          path: target/idempiere-windows-amd64.exe
+          name: idempiere-cli-windows-amd64
+          path: target/idempiere-cli-windows-amd64.exe
 
   release:
     needs: [build-linux-amd64, build-macos-arm64, build-macos-amd64, build-windows]
@@ -131,11 +131,11 @@ jobs:
       - name: Prepare release files
         run: |
           mkdir -p release
-          cp artifacts/idempiere-linux-amd64/idempiere-linux-amd64 release/
-          cp artifacts/idempiere-darwin-amd64/idempiere-darwin-amd64 release/
-          cp artifacts/idempiere-darwin-arm64/idempiere-darwin-arm64 release/
-          cp artifacts/idempiere-windows-amd64/idempiere-windows-amd64.exe release/
-          chmod +x release/idempiere-*
+          cp artifacts/idempiere-cli-linux-amd64/idempiere-cli-linux-amd64 release/
+          cp artifacts/idempiere-cli-darwin-amd64/idempiere-cli-darwin-amd64 release/
+          cp artifacts/idempiere-cli-darwin-arm64/idempiere-cli-darwin-arm64 release/
+          cp artifacts/idempiere-cli-windows-amd64/idempiere-cli-windows-amd64.exe release/
+          chmod +x release/idempiere-cli-*
           cd release && sha256sum * > checksums.txt
 
       - name: Get version
@@ -167,10 +167,10 @@ jobs:
 
             | Platform | Architecture | File |
             |----------|--------------|------|
-            | Linux | x64 | `idempiere-linux-amd64` |
-            | macOS | Intel | `idempiere-darwin-amd64` |
-            | macOS | Apple Silicon | `idempiere-darwin-arm64` |
-            | Windows | x64 | `idempiere-windows-amd64.exe` |
+            | Linux | x64 | `idempiere-cli-linux-amd64` |
+            | macOS | Intel | `idempiere-cli-darwin-amd64` |
+            | macOS | Apple Silicon | `idempiere-cli-darwin-arm64` |
+            | Windows | x64 | `idempiere-cli-windows-amd64.exe` |
 
             ## Verify checksums
 

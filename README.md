@@ -35,10 +35,10 @@ curl -fsSL https://raw.githubusercontent.com/devcoffee/idempiere-cli/main/instal
 
 ```bash
 # Install specific version
-curl -fsSL https://raw.githubusercontent.com/idempiere/idempiere-cli/main/install.sh | VERSION=1.0.0 bash
+curl -fsSL https://raw.githubusercontent.com/devcoffee/idempiere-cli/main/install.sh | VERSION=1.0.0 bash
 
 # Install to custom directory
-curl -fsSL https://raw.githubusercontent.com/idempiere/idempiere-cli/main/install.sh | INSTALL_DIR=~/.local/bin bash
+curl -fsSL https://raw.githubusercontent.com/devcoffee/idempiere-cli/main/install.sh | INSTALL_DIR=~/.local/bin bash
 ```
 
 ### Manual Download

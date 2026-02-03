@@ -46,9 +46,8 @@ public class DoctorService {
 
         System.out.printf("Results: %d passed, %d warnings, %d failed%n", passed, warnings, failed);
 
-        if (failed > 0 && fix) {
-            System.out.println();
-            System.out.println("Auto-fix is not yet implemented. Please install missing tools manually.");
+        if (fix) {
+            printFixSuggestions(results);
         }
 
         System.out.println();
@@ -342,6 +341,134 @@ public class DoctorService {
             case FAIL -> CROSS;
         };
         System.out.printf("  %s  %-15s %s%n", icon, tool, message);
+    }
+
+    private void printFixSuggestions(List<CheckResult> results) {
+        boolean javaFailed = results.stream().anyMatch(r -> r.tool().equals("Java") && r.status() == Status.FAIL);
+        boolean mavenFailed = results.stream().anyMatch(r -> r.tool().equals("Maven") && r.status() == Status.FAIL);
+        boolean gitFailed = results.stream().anyMatch(r -> r.tool().equals("Git") && r.status() == Status.FAIL);
+        boolean dockerMissing = results.stream().anyMatch(r -> r.tool().equals("Docker") && r.status() != Status.OK);
+        boolean postgresMissing = results.stream().anyMatch(r -> r.tool().equals("PostgreSQL") && r.status() != Status.OK);
+
+        boolean hasCriticalFailures = javaFailed || mavenFailed || gitFailed;
+        boolean hasOptionalMissing = dockerMissing || postgresMissing;
+
+        if (!hasCriticalFailures && !hasOptionalMissing) {
+            System.out.println();
+            System.out.println("All checks passed! Your environment is ready.");
+            System.out.println("Run 'idempiere setup-dev-env' to bootstrap your development environment.");
+            return;
+        }
+
+        System.out.println();
+        System.out.println("Fix Suggestions");
+        System.out.println("---------------");
+
+        if (hasCriticalFailures) {
+            System.out.println();
+            System.out.println("The following tools are REQUIRED and must be installed manually:");
+            System.out.println();
+
+            if (javaFailed) {
+                System.out.println("  Java 17+:");
+                String os = System.getProperty("os.name").toLowerCase();
+                if (os.contains("mac")) {
+                    System.out.println("    brew install openjdk@17");
+                } else if (os.contains("linux")) {
+                    System.out.println("    sudo apt install openjdk-17-jdk  (Debian/Ubuntu)");
+                    System.out.println("    sudo dnf install java-17-openjdk  (Fedora/RHEL)");
+                } else {
+                    System.out.println("    Download from: https://adoptium.net/");
+                }
+                System.out.println();
+            }
+
+            if (mavenFailed) {
+                System.out.println("  Maven:");
+                String os = System.getProperty("os.name").toLowerCase();
+                if (os.contains("mac")) {
+                    System.out.println("    brew install maven");
+                } else if (os.contains("linux")) {
+                    System.out.println("    sudo apt install maven  (Debian/Ubuntu)");
+                    System.out.println("    sudo dnf install maven  (Fedora/RHEL)");
+                } else {
+                    System.out.println("    Download from: https://maven.apache.org/download.cgi");
+                }
+                System.out.println();
+            }
+
+            if (gitFailed) {
+                System.out.println("  Git:");
+                String os = System.getProperty("os.name").toLowerCase();
+                if (os.contains("mac")) {
+                    System.out.println("    brew install git");
+                } else if (os.contains("linux")) {
+                    System.out.println("    sudo apt install git  (Debian/Ubuntu)");
+                    System.out.println("    sudo dnf install git  (Fedora/RHEL)");
+                } else {
+                    System.out.println("    Download from: https://git-scm.com/downloads");
+                }
+                System.out.println();
+            }
+
+            System.out.println("After installing the required tools, run 'idempiere doctor' again.");
+        }
+
+        if (hasOptionalMissing && !hasCriticalFailures) {
+            System.out.println();
+            System.out.println("Optional tools not found. You can proceed with setup-dev-env:");
+            System.out.println();
+
+            if (dockerMissing && postgresMissing) {
+                System.out.println("  Neither Docker nor PostgreSQL client found.");
+                System.out.println("  To use Docker for PostgreSQL (recommended):");
+                System.out.println();
+                System.out.println("    1. Install Docker:");
+                String os = System.getProperty("os.name").toLowerCase();
+                if (os.contains("mac")) {
+                    System.out.println("       brew install --cask docker");
+                } else if (os.contains("linux")) {
+                    System.out.println("       sudo apt install docker.io  (Debian/Ubuntu)");
+                } else {
+                    System.out.println("       Download from: https://www.docker.com/products/docker-desktop");
+                }
+                System.out.println();
+                System.out.println("    2. Then run setup with Docker:");
+                System.out.println("       idempiere setup-dev-env --with-docker");
+                System.out.println();
+                System.out.println("  Or, if you have PostgreSQL installed on a different host:");
+                System.out.println("       idempiere setup-dev-env --db-host <host> --db-port <port>");
+            } else if (dockerMissing) {
+                System.out.println("  Docker not found, but PostgreSQL client is available.");
+                System.out.println("  You can use an existing PostgreSQL installation:");
+                System.out.println();
+                System.out.println("    idempiere setup-dev-env --db-host localhost --db-name idempiere");
+                System.out.println();
+                System.out.println("  Or install Docker for containerized PostgreSQL:");
+                String os = System.getProperty("os.name").toLowerCase();
+                if (os.contains("mac")) {
+                    System.out.println("    brew install --cask docker");
+                } else if (os.contains("linux")) {
+                    System.out.println("    sudo apt install docker.io  (Debian/Ubuntu)");
+                } else {
+                    System.out.println("    Download from: https://www.docker.com/products/docker-desktop");
+                }
+                System.out.println();
+                System.out.println("  Then: idempiere setup-dev-env --with-docker");
+            } else if (postgresMissing) {
+                System.out.println("  PostgreSQL client not found, but Docker is available.");
+                System.out.println("  Use Docker for PostgreSQL (recommended):");
+                System.out.println();
+                System.out.println("    idempiere setup-dev-env --with-docker");
+            }
+        } else if (hasOptionalMissing && hasCriticalFailures) {
+            System.out.println();
+            System.out.println("Note: Once the required tools are installed, you can use:");
+            if (postgresMissing || dockerMissing) {
+                System.out.println("    idempiere setup-dev-env --with-docker");
+                System.out.println("  to automatically configure PostgreSQL in a Docker container.");
+            }
+        }
     }
 
     private enum Status {

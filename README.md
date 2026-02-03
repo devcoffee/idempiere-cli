@@ -31,9 +31,14 @@ Check required tools and environment prerequisites.
 
 ```bash
 idempiere-cli doctor              # Check Java, Maven, Git, Docker, PostgreSQL
-idempiere-cli doctor --fix        # Attempt auto-fix (placeholder)
+idempiere-cli doctor --fix        # Show fix suggestions with setup-dev-env commands
 idempiere-cli doctor --dir ./my-plugin  # Validate plugin structure
 ```
+
+**Fix suggestions (`--fix`):**
+- For critical tools (Java, Maven, Git): shows platform-specific installation commands (brew, apt, dnf, or download links)
+- For optional tools (Docker, PostgreSQL): suggests using `setup-dev-env --with-docker` for containerized PostgreSQL
+- Detects OS (macOS, Linux, Windows) and provides appropriate commands
 
 Plugin validation (`--dir`) checks:
 - `MANIFEST.MF` headers (Bundle-SymbolicName, Bundle-Version, etc.)
@@ -246,7 +251,7 @@ The MCP server gives AI agents **semantic understanding** of the iDempiere platf
 
 ### Short-term
 - [ ] Integration tests with real plugin fixtures (scaffold + deps, scaffold + migrate, scaffold + add test)
-- [ ] `doctor --fix` implementation (auto-install missing tools)
+- [x] `doctor --fix` implementation (suggests setup-dev-env commands based on detected issues)
 - [ ] Improve `package --format=p2` (full Tycho p2 update site generation)
 - [ ] Add `--config` support for persistent CLI preferences
 

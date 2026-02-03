@@ -23,6 +23,28 @@ doctor ──> setup-dev-env ──> init ──> add components ──> build �
 
 ---
 
+## Quick Start
+
+From zero to first plugin in 4 commands:
+
+```bash
+# 1. Install CLI
+curl -fsSL https://raw.githubusercontent.com/devcoffee/idempiere-cli/main/install.sh | bash
+
+# 2. Check environment & get fix suggestions
+idempiere-cli doctor --fix
+
+# 3. Setup complete dev environment (Eclipse + PostgreSQL + iDempiere source)
+idempiere-cli setup-dev-env --with-docker
+
+# 4. Create your first plugin
+idempiere-cli init org.mycompany.myplugin --with-process --with-event-handler
+```
+
+Compare this to the [traditional setup](https://wiki.idempiere.org/en/Installing_iDempiere) which requires manually configuring Eclipse, PostgreSQL, cloning repositories, and setting up target platforms.
+
+---
+
 ## Installation
 
 ### Quick Install (Linux, macOS, Windows via Git Bash/WSL)
@@ -57,28 +79,6 @@ Download the appropriate binary from [GitHub Releases](https://github.com/devcof
 ```bash
 idempiere-cli doctor
 ```
-
----
-
-## Quick Start
-
-From zero to first plugin in 4 commands:
-
-```bash
-# 1. Install CLI
-curl -fsSL https://raw.githubusercontent.com/devcoffee/idempiere-cli/main/install.sh | bash
-
-# 2. Check environment & get fix suggestions
-idempiere-cli doctor --fix
-
-# 3. Setup complete dev environment (Eclipse + PostgreSQL + iDempiere source)
-idempiere-cli setup-dev-env --with-docker
-
-# 4. Create your first plugin
-idempiere-cli init org.mycompany.myplugin --with-process --with-event-handler
-```
-
-Compare this to the [traditional setup](https://wiki.idempiere.org/en/Installing_iDempiere) which requires manually configuring Eclipse, PostgreSQL, cloning repositories, and setting up target platforms.
 
 ---
 
@@ -376,7 +376,7 @@ This project needs help! Areas where contributions are especially welcome:
 
 ## License
 
-TBD
+This project is licensed under the [GNU General Public License v2.0](LICENSE).
 
 ---
 

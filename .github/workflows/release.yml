@@ -1,0 +1,174 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+
+env:
+  GRAALVM_VERSION: '22.3.0'
+  JAVA_VERSION: '17'
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up GraalVM
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'graalvm'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build native image
+        run: |
+          ./mvnw package -Pnative -DskipTests
+
+      - name: Rename binary
+        run: |
+          mv target/idempiere target/idempiere-linux-${{ matrix.arch }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: idempiere-linux-${{ matrix.arch }}
+          path: target/idempiere-linux-${{ matrix.arch }}
+
+  build-macos:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-13
+            arch: amd64
+          - os: macos-14
+            arch: arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up GraalVM
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'graalvm'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build native image
+        run: |
+          ./mvnw package -Pnative -DskipTests
+
+      - name: Rename binary
+        run: |
+          mv target/idempiere target/idempiere-darwin-${{ matrix.arch }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: idempiere-darwin-${{ matrix.arch }}
+          path: target/idempiere-darwin-${{ matrix.arch }}
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up GraalVM
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'graalvm'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Visual Studio shell
+        uses: egor-tensin/vs-shell@v2
+        with:
+          arch: x64
+
+      - name: Build native image
+        run: |
+          ./mvnw.cmd package -Pnative -DskipTests
+
+      - name: Rename binary
+        run: |
+          move target\idempiere.exe target\idempiere-windows-amd64.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: idempiere-windows-amd64
+          path: target/idempiere-windows-amd64.exe
+
+  release:
+    needs: [build-linux, build-macos, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          cp artifacts/idempiere-linux-amd64/idempiere-linux-amd64 release/
+          cp artifacts/idempiere-linux-arm64/idempiere-linux-arm64 release/ || true
+          cp artifacts/idempiere-darwin-amd64/idempiere-darwin-amd64 release/
+          cp artifacts/idempiere-darwin-arm64/idempiere-darwin-arm64 release/
+          cp artifacts/idempiere-windows-amd64/idempiere-windows-amd64.exe release/
+          chmod +x release/idempiere-*
+          cd release && sha256sum * > checksums.txt
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: idempiere-cli v${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: false
+          files: |
+            release/*
+          body: |
+            ## Installation
+
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
+            ```
+
+            ## Binaries
+
+            | Platform | Architecture | File |
+            |----------|--------------|------|
+            | Linux | x64 | `idempiere-linux-amd64` |
+            | Linux | arm64 | `idempiere-linux-arm64` |
+            | macOS | Intel | `idempiere-darwin-amd64` |
+            | macOS | Apple Silicon | `idempiere-darwin-arm64` |
+            | Windows | x64 | `idempiere-windows-amd64.exe` |
+
+            ## Verify checksums
+
+            ```bash
+            sha256sum -c checksums.txt
+            ```

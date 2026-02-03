@@ -106,6 +106,8 @@
             </activation>
             <properties>
                 <quarkus.native.enabled>true</quarkus.native.enabled>
+                <quarkus.package.jar.enabled>false</quarkus.package.jar.enabled>
+                <quarkus.native.additional-build-args>-H:Name=idempiere</quarkus.native.additional-build-args>
             </properties>
         </profile>
     </profiles>

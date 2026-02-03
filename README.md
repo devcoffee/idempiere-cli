@@ -23,6 +23,66 @@ doctor ──> setup-dev-env ──> init ──> add components ──> build �
 
 ---
 
+## Installation
+
+### Quick Install (Linux, macOS, Windows via Git Bash/WSL)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/idempiere/idempiere-cli/main/install.sh | bash
+```
+
+### Install Options
+
+```bash
+# Install specific version
+curl -fsSL https://raw.githubusercontent.com/idempiere/idempiere-cli/main/install.sh | VERSION=1.0.0 bash
+
+# Install to custom directory
+curl -fsSL https://raw.githubusercontent.com/idempiere/idempiere-cli/main/install.sh | INSTALL_DIR=~/.local/bin bash
+```
+
+### Manual Download
+
+Download the appropriate binary from [GitHub Releases](https://github.com/idempiere/idempiere-cli/releases):
+
+| Platform | Architecture | File |
+|----------|--------------|------|
+| Linux | x64 | `idempiere-linux-amd64` |
+| Linux | arm64 | `idempiere-linux-arm64` |
+| macOS | Intel | `idempiere-darwin-amd64` |
+| macOS | Apple Silicon | `idempiere-darwin-arm64` |
+| Windows | x64 | `idempiere-windows-amd64.exe` |
+
+### Verify Installation
+
+```bash
+idempiere doctor
+```
+
+---
+
+## Quick Start
+
+From zero to first plugin in 4 commands:
+
+```bash
+# 1. Install CLI
+curl -fsSL https://raw.githubusercontent.com/idempiere/idempiere-cli/main/install.sh | bash
+
+# 2. Check environment & get fix suggestions
+idempiere doctor --fix
+
+# 3. Setup complete dev environment (Eclipse + PostgreSQL + iDempiere source)
+idempiere setup-dev-env --with-docker
+
+# 4. Create your first plugin
+idempiere init org.mycompany.myplugin --with-process --with-event-handler
+```
+
+Compare this to the [traditional setup](https://wiki.idempiere.org/en/Installing_iDempiere) which requires manually configuring Eclipse, PostgreSQL, cloning repositories, and setting up target platforms.
+
+---
+
 ## Implemented Commands
 
 ### `doctor`
@@ -178,16 +238,34 @@ Reports columns added in the database but missing from code, columns in code but
 ## Building from Source
 
 ```bash
-git clone https://github.com/<your-org>/idempiere-cli.git
+git clone https://github.com/idempiere/idempiere-cli.git
 cd idempiere-cli
 ./mvnw clean package
 ```
+
+### Native Image (requires GraalVM)
+
+```bash
+./mvnw clean package -Pnative
+```
+
+This produces a standalone binary at `target/idempiere` (or `target/idempiere.exe` on Windows).
 
 Run directly:
 
 ```bash
 java -jar target/quarkus-app/quarkus-run.jar doctor
 ```
+
+### Releasing
+
+Push a tag to trigger GitHub Actions release:
+
+```bash
+git tag v1.0.0 && git push --tags
+```
+
+This builds native binaries for all platforms and creates a GitHub Release.
 
 ---
 
@@ -252,6 +330,7 @@ The MCP server gives AI agents **semantic understanding** of the iDempiere platf
 ### Short-term
 - [ ] Integration tests with real plugin fixtures (scaffold + deps, scaffold + migrate, scaffold + add test)
 - [x] `doctor --fix` implementation (suggests setup-dev-env commands based on detected issues)
+- [x] Native image distribution (GraalVM + install script for Linux/macOS/Windows)
 - [ ] Improve `package --format=p2` (full Tycho p2 update site generation)
 - [ ] Add `--config` support for persistent CLI preferences
 

@@ -38,4 +38,4 @@ target/
 .DS_Store
 
 # Local development wrapper script
-idempiere
+/idempiere

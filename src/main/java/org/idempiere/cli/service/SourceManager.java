@@ -181,13 +181,23 @@ public class SourceManager {
     private String detectMvnCommand(Path dir) {
         // Check for Maven wrapper first
         Path mvnw = dir.resolve("mvnw");
-        if (Files.exists(mvnw) && Files.isExecutable(mvnw)) {
-            return mvnw.toString();
+        if (Files.exists(mvnw)) {
+            // Make executable if needed (common issue after git clone)
+            if (!Files.isExecutable(mvnw)) {
+                try {
+                    mvnw.toFile().setExecutable(true);
+                } catch (Exception ignored) {
+                    // Fall through to mvn
+                }
+            }
+            if (Files.isExecutable(mvnw)) {
+                return "./mvnw";
+            }
         }
         // Check for Windows wrapper
         Path mvnwCmd = dir.resolve("mvnw.cmd");
         if (Files.exists(mvnwCmd)) {
-            return mvnwCmd.toString();
+            return "mvnw.cmd";
         }
         return "mvn";
     }

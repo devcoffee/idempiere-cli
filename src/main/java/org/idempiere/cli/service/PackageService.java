@@ -63,8 +63,17 @@ public class PackageService {
 
         // Detect Maven
         String mvnCmd = "mvn";
-        if (Files.exists(pluginDir.resolve("mvnw"))) {
-            mvnCmd = "./mvnw";
+        Path mvnw = pluginDir.resolve("mvnw");
+        if (Files.exists(mvnw)) {
+            if (!Files.isExecutable(mvnw)) {
+                try {
+                    mvnw.toFile().setExecutable(true);
+                } catch (Exception ignored) {
+                }
+            }
+            if (Files.isExecutable(mvnw)) {
+                mvnCmd = "./mvnw";
+            }
         } else if (Files.exists(pluginDir.resolve("mvnw.cmd"))) {
             mvnCmd = "mvnw.cmd";
         }

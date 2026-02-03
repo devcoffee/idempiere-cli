@@ -79,7 +79,17 @@ public class BuildService {
         // Check for wrapper in plugin directory
         Path mvnw = dir.resolve("mvnw");
         if (Files.exists(mvnw)) {
-            return mvnw.toAbsolutePath().toString();
+            // Make executable if needed (common issue after git clone)
+            if (!Files.isExecutable(mvnw)) {
+                try {
+                    mvnw.toFile().setExecutable(true);
+                } catch (Exception ignored) {
+                    // Fall through to check again
+                }
+            }
+            if (Files.isExecutable(mvnw)) {
+                return mvnw.toAbsolutePath().toString();
+            }
         }
         Path mvnwCmd = dir.resolve("mvnw.cmd");
         if (Files.exists(mvnwCmd)) {

@@ -42,6 +42,29 @@ public class DatabaseManager {
     }
 
     public boolean createDockerPostgres(SetupConfig config) {
+        // First, check if Docker daemon is running
+        if (!isDockerRunning()) {
+            System.err.println("  Docker is not running.");
+            System.err.println();
+            System.err.println("  Troubleshooting:");
+            String os = System.getProperty("os.name", "").toLowerCase();
+            if (os.contains("mac")) {
+                System.err.println("    1. Start Docker Desktop: open -a Docker");
+                System.err.println("    2. Wait for Docker to finish starting (icon stops animating)");
+                System.err.println("    3. Run this command again");
+            } else if (os.contains("linux")) {
+                System.err.println("    1. Start Docker daemon: sudo systemctl start docker");
+                System.err.println("    2. Ensure your user is in the docker group: sudo usermod -aG docker $USER");
+                System.err.println("    3. Run this command again");
+            } else {
+                System.err.println("    1. Start Docker Desktop");
+                System.err.println("    2. Wait for Docker to finish starting");
+                System.err.println("    3. Run this command again");
+            }
+            System.err.println();
+            return false;
+        }
+
         System.out.println("  Creating Docker PostgreSQL container...");
 
         // Check if container already exists
@@ -100,6 +123,16 @@ public class DatabaseManager {
     }
 
     private boolean validatePostgresConnection(SetupConfig config) {
+        // When using Docker, use docker exec to run psql inside the container
+        if (config.isUseDocker()) {
+            ProcessRunner.RunResult result = processRunner.run(
+                    "docker", "exec", config.getDockerContainerName(),
+                    "psql", "-U", "postgres", "-c", "SELECT 1"
+            );
+            return result.isSuccess();
+        }
+
+        // Otherwise, use local psql client
         Map<String, String> env = Map.of("PGPASSWORD", config.getDbAdminPass());
         ProcessRunner.RunResult result = processRunner.runWithEnv(env,
                 "psql", "-h", config.getDbHost(),
@@ -186,14 +219,27 @@ public class DatabaseManager {
 
     private boolean isDatabaseEmpty(SetupConfig config) {
         if ("postgresql".equals(config.getDbType())) {
-            Map<String, String> env = Map.of("PGPASSWORD", config.getDbPass());
-            ProcessRunner.RunResult result = processRunner.runWithEnv(env,
-                    "psql", "-h", config.getDbHost(),
-                    "-p", String.valueOf(config.getDbPort()),
-                    "-U", config.getDbUser(),
-                    "-d", config.getDbName(),
-                    "-tAc", "SELECT COUNT(*) FROM ad_client"
-            );
+            ProcessRunner.RunResult result;
+
+            if (config.isUseDocker()) {
+                // Use docker exec to run psql inside the container
+                result = processRunner.run(
+                        "docker", "exec", config.getDockerContainerName(),
+                        "psql", "-U", config.getDbUser(),
+                        "-d", config.getDbName(),
+                        "-tAc", "SELECT COUNT(*) FROM ad_client"
+                );
+            } else {
+                // Use local psql client
+                Map<String, String> env = Map.of("PGPASSWORD", config.getDbPass());
+                result = processRunner.runWithEnv(env,
+                        "psql", "-h", config.getDbHost(),
+                        "-p", String.valueOf(config.getDbPort()),
+                        "-U", config.getDbUser(),
+                        "-d", config.getDbName(),
+                        "-tAc", "SELECT COUNT(*) FROM ad_client"
+                );
+            }
             // If query fails (table doesn't exist), database is empty
             return !result.isSuccess();
         }
@@ -215,6 +261,11 @@ public class DatabaseManager {
             System.out.print(".");
         }
         System.out.println();
+    }
+
+    private boolean isDockerRunning() {
+        ProcessRunner.RunResult result = processRunner.run("docker", "info");
+        return result.isSuccess();
     }
 
     private Path findScript(Path sourceDir, String scriptName) {

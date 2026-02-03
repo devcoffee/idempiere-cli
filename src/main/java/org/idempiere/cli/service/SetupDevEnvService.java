@@ -6,6 +6,9 @@ import org.idempiere.cli.model.SetupConfig;
 import org.idempiere.cli.util.CliDefaults;
 import java.util.Scanner;
 
+/**
+ * Orchestrates complete development environment setup (source, database, Eclipse).
+ */
 @ApplicationScoped
 public class SetupDevEnvService {
 

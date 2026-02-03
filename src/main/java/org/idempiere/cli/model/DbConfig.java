@@ -1,5 +1,8 @@
 package org.idempiere.cli.model;
 
+/**
+ * Database connection configuration.
+ */
 public record DbConfig(
         String host,
         int port,

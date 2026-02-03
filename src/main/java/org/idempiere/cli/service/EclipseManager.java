@@ -10,6 +10,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
+/**
+ * Downloads and configures Eclipse IDE for iDempiere development.
+ */
 @ApplicationScoped
 public class EclipseManager {
 

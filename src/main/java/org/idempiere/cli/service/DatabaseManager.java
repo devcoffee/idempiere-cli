@@ -9,6 +9,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 
+/**
+ * Manages database setup including Docker PostgreSQL and schema import.
+ */
 @ApplicationScoped
 public class DatabaseManager {
 

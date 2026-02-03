@@ -17,6 +17,9 @@ import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Compares model classes against database schema to detect drift.
+ */
 @ApplicationScoped
 public class DiffSchemaService {
 

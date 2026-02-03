@@ -13,6 +13,9 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Optional;
 
+/**
+ * Deploys plugins to iDempiere via file copy or OSGi hot-deploy.
+ */
 @ApplicationScoped
 public class DeployService {
 

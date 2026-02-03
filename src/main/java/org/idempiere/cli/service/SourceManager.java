@@ -12,6 +12,9 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Scanner;
 
+/**
+ * Manages iDempiere source code operations (clone, update, build).
+ */
 @ApplicationScoped
 public class SourceManager {
 

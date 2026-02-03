@@ -10,6 +10,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
 
+/**
+ * Generates JUnit test stubs for plugin components.
+ */
 @ApplicationScoped
 public class TestGeneratorService {
 

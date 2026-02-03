@@ -15,6 +15,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+/**
+ * Generates iDempiere model classes (I_, X_, M_) from AD_Column metadata.
+ */
 @ApplicationScoped
 public class ModelGeneratorService {
 

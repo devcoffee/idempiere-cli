@@ -3,6 +3,10 @@ package org.idempiere.cli.model;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * Describes an iDempiere plugin project configuration.
+ * Used during scaffolding and component generation.
+ */
 public class PluginDescriptor {
 
     private String pluginId;

@@ -12,6 +12,9 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Renders Qute templates for code generation.
+ */
 @ApplicationScoped
 public class TemplateRenderer {
 

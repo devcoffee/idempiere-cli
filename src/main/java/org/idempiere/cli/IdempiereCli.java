@@ -1,5 +1,9 @@
 package org.idempiere.cli;
 
+/**
+ * Main entry point for the iDempiere CLI.
+ * Registers all available subcommands for plugin development tasks.
+ */
 import io.quarkus.picocli.runtime.annotations.TopCommand;
 import org.idempiere.cli.commands.AddCommand;
 import org.idempiere.cli.commands.BuildCommand;

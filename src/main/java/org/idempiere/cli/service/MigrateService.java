@@ -9,6 +9,9 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Migrates plugin configuration between iDempiere platform versions.
+ */
 @ApplicationScoped
 public class MigrateService {
 

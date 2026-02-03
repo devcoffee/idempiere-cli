@@ -9,6 +9,9 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Extracts and displays plugin metadata from MANIFEST.MF.
+ */
 @ApplicationScoped
 public class PluginInfoService {
 

@@ -10,6 +10,9 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Creates new iDempiere plugin projects and adds components to existing plugins.
+ */
 @ApplicationScoped
 public class ScaffoldService {
 

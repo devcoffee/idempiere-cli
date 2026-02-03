@@ -9,6 +9,9 @@ import java.nio.file.Path;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+/**
+ * Packages plugins for distribution (ZIP or P2 update site).
+ */
 @ApplicationScoped
 public class PackageService {
 

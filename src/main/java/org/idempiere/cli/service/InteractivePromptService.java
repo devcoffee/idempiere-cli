@@ -5,6 +5,9 @@ import jakarta.enterprise.context.ApplicationScoped;
 import java.io.Console;
 import java.util.Scanner;
 
+/**
+ * Handles interactive user prompts for CLI commands.
+ */
 @ApplicationScoped
 public class InteractivePromptService {
 

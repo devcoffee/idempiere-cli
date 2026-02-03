@@ -13,6 +13,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+/**
+ * Validates development environment and plugin structure.
+ */
 @ApplicationScoped
 public class DoctorService {
 

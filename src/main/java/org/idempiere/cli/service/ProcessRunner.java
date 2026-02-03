@@ -9,6 +9,9 @@ import java.io.OutputStream;
 import java.nio.file.Path;
 import java.util.Map;
 
+/**
+ * Executes external processes with various output modes (live, quiet, captured).
+ */
 @ApplicationScoped
 public class ProcessRunner {
 

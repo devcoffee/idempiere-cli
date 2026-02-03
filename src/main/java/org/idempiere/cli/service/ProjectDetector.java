@@ -8,6 +8,9 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Detects iDempiere plugin projects and extracts basic metadata.
+ */
 @ApplicationScoped
 public class ProjectDetector {
 

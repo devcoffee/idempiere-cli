@@ -15,6 +15,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+/**
+ * Analyzes plugin dependencies by comparing Java imports against Require-Bundle declarations.
+ */
 @ApplicationScoped
 public class DepsService {
 

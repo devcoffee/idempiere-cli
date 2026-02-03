@@ -2,9 +2,9 @@
 
 A command-line tool for iDempiere plugin development, built with [Quarkus](https://quarkus.io/) and [Picocli](https://picocli.info/).
 
-> **This is a Proof of Concept** generated through vibe-coding with AI assistance (Claude), based on the
-> [idempiere](https://github.com/idempiere/idempiere) and [idempiere-dev-setup](https://github.com/hengsin/idempiere-dev-setup)
-> repositories. It is **not production-ready** and needs community contributions to be completed.
+> **This is a Proof of Concept** based on the [idempiere](https://github.com/idempiere/idempiere) and
+> [idempiere-dev-setup](https://github.com/hengsin/idempiere-dev-setup) repositories.
+> It is **not production-ready** and needs community contributions to be completed.
 > Feedback, ideas, and pull requests are welcome!
 
 ---
@@ -326,17 +326,32 @@ The MCP server gives AI agents **semantic understanding** of the iDempiere platf
 
 ## Roadmap
 
-### Short-term
-- [ ] Integration tests with real plugin fixtures (scaffold + deps, scaffold + migrate, scaffold + add test)
-- [x] `doctor --fix` implementation (suggests setup-dev-env commands based on detected issues)
+### Completed
+- [x] `doctor` with environment checks and `--fix` auto-installation (macOS/Homebrew)
+- [x] `doctor --dir` for plugin structure validation
+- [x] `setup-dev-env` with Docker PostgreSQL support
+- [x] `init` with `--interactive` mode
+- [x] `add` for all component types (callout, process, event-handler, zk-form, report, window-validator, rest-extension, facts-validator)
+- [x] `add model` for I_/X_/M_ class generation from database
+- [x] `add test` for JUnit test stub generation
+- [x] `build` and `deploy` commands
+- [x] `migrate` between iDempiere versions (v12 ↔ v13)
+- [x] `deps` for dependency analysis (imports vs Require-Bundle)
+- [x] `package --format=zip` for distribution
+- [x] `diff-schema` for model vs database comparison
+- [x] `generate-completion` for bash/zsh shell completion
 - [x] Native image distribution (GraalVM for Linux/macOS/Windows)
+
+### Short-term
+- [ ] Integration tests with real plugin fixtures (scaffold → build → validate)
 - [ ] Improve `package --format=p2` (full Tycho p2 update site generation)
-- [ ] Add `--config` support for persistent CLI preferences
+- [ ] Add `--config` support for persistent CLI preferences (~/.idempiere-cli.yaml)
+- [ ] Expand bundle-to-package mapping in `deps` command
 
 ### Medium-term
 - [ ] MCP-aware commands (e.g., `add callout` receiving AD context from MCP server)
 - [ ] `publish` command (GitHub Releases, Maven deploy)
-- [ ] Template customization (user-defined templates)
+- [ ] Template customization (user-defined templates in ~/.idempiere-cli/templates/)
 - [ ] IntelliJ / VS Code project file generation (beyond Eclipse PDE)
 
 ### Long-term
@@ -369,4 +384,3 @@ TBD
 
 - Original proposal by **dev&Co. Team**, **Saul Pina**, and **Eduardo Gil**
 - Built on top of [iDempiere](https://www.idempiere.org/), [idempiere-dev-setup](https://github.com/hengsin/idempiere-dev-setup), and [idempiere-examples](https://github.com/hengsin/idempiere-examples)
-- POC developed with AI assistance (Claude / vibe-coding)

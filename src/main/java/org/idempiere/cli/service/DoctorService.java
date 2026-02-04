@@ -271,7 +271,12 @@ public class DoctorService {
     private CheckResult checkJava() {
         ProcessRunner.RunResult result = processRunner.run("java", "-version");
         if (result.exitCode() < 0 || result.output() == null) {
-            printResult(Status.FAIL, "Java", "Not found");
+            // On Windows, check if installed via winget but not in PATH
+            if (IS_WINDOWS && isWingetPackageInstalled("EclipseAdoptium.Temurin")) {
+                printResult(Status.FAIL, "Java", "Installed but not in PATH (restart terminal)");
+            } else {
+                printResult(Status.FAIL, "Java", "Not found");
+            }
             return new CheckResult("Java", Status.FAIL);
         }
 
@@ -294,6 +299,16 @@ public class DoctorService {
     private CheckResult checkMaven() {
         ProcessRunner.RunResult result = processRunner.run("mvn", "-version");
         if (result.exitCode() < 0 || result.output() == null) {
+            // On Windows, check if Maven was installed by doctor --fix but not in PATH
+            if (IS_WINDOWS) {
+                String programFiles = System.getenv("ProgramFiles");
+                if (programFiles == null) programFiles = "C:\\Program Files";
+                Path mavenBin = Path.of(programFiles, "apache-maven-" + MAVEN_VERSION, "bin", "mvn.cmd");
+                if (Files.exists(mavenBin)) {
+                    printResult(Status.FAIL, "Maven", "Installed but not in PATH (add " + mavenBin.getParent() + " to PATH)");
+                    return new CheckResult("Maven", Status.FAIL);
+                }
+            }
             printResult(Status.FAIL, "Maven", "Not found");
             return new CheckResult("Maven", Status.FAIL);
         }
@@ -345,7 +360,12 @@ public class DoctorService {
     private CheckResult checkPostgres() {
         ProcessRunner.RunResult result = processRunner.run("psql", "--version");
         if (result.exitCode() < 0 || result.output() == null) {
-            printResult(Status.FAIL, "PostgreSQL", "psql client not found (required for database import)");
+            // On Windows, check if installed via winget but not in PATH
+            if (IS_WINDOWS && isWingetPackageInstalled("PostgreSQL.PostgreSQL")) {
+                printResult(Status.FAIL, "PostgreSQL", "Installed but psql not in PATH (restart terminal or add to PATH)");
+            } else {
+                printResult(Status.FAIL, "PostgreSQL", "psql client not found (required for database import)");
+            }
             return new CheckResult("PostgreSQL", Status.FAIL);
         }
 
@@ -460,15 +480,19 @@ public class DoctorService {
                 // Windows with winget
                 List<String> wingetPackages = new ArrayList<>();
                 if (javaFailed || jarFailed) wingetPackages.add("EclipseAdoptium.Temurin.21.JDK");
-                if (mavenFailed) wingetPackages.add("Apache.Maven");
                 if (gitFailed) wingetPackages.add("Git.Git");
-                if (postgresFailed) wingetPackages.add("PostgreSQL.PostgreSQL");
+                if (postgresFailed) wingetPackages.add("PostgreSQL.PostgreSQL.17");
 
-                if (!wingetPackages.isEmpty()) {
+                if (!wingetPackages.isEmpty() || mavenFailed) {
                     System.out.println("  Install with winget:");
                     System.out.println();
                     for (String pkg : wingetPackages) {
-                        System.out.println("    winget install --id " + pkg);
+                        System.out.println("    winget install --id " + pkg + " --source winget");
+                    }
+                    if (mavenFailed) {
+                        System.out.println();
+                        System.out.println("  Maven (manual download):");
+                        System.out.println("    https://maven.apache.org/download.cgi");
                     }
                     System.out.println();
                     System.out.println("  Or run: idempiere-cli doctor --fix");
@@ -541,6 +565,9 @@ public class DoctorService {
         boolean gitFailed = results.stream().anyMatch(r -> r.tool().equals("Git") && r.status() == Status.FAIL);
         boolean postgresFailed = results.stream().anyMatch(r -> r.tool().equals("PostgreSQL") && r.status() == Status.FAIL);
 
+        // Track tools that need PATH adjustment
+        List<String[]> pathIssues = new ArrayList<>(); // {tool name, path to add}
+
         // Packages to install via winget (Maven not available on winget)
         List<String[]> packagesToInstall = new ArrayList<>();
         if (javaFailed || jarFailed) packagesToInstall.add(new String[]{"EclipseAdoptium.Temurin.21.JDK", "Java 21 (Temurin)"});
@@ -549,7 +576,6 @@ public class DoctorService {
 
         boolean hasWingetPackages = !packagesToInstall.isEmpty();
         boolean anythingInstalled = false;
-        boolean hasPathIssue = false;
 
         if (hasWingetPackages) {
             System.out.println();
@@ -560,9 +586,12 @@ public class DoctorService {
                 // Check if already installed via winget
                 if (isWingetPackageInstalled(pkg[0])) {
                     System.out.println(pkg[1] + " is already installed but not in PATH.");
-                    System.out.println("  This usually means you need to restart your terminal.");
                     anythingInstalled = true;
-                    hasPathIssue = true;
+                    // Detect the path for each tool
+                    String pathToAdd = detectWingetToolPath(pkg[0]);
+                    if (pathToAdd != null) {
+                        pathIssues.add(new String[]{pkg[1], pathToAdd});
+                    }
                     continue;
                 }
 
@@ -579,8 +608,16 @@ public class DoctorService {
         // Maven: download and install automatically
         if (mavenFailed) {
             System.out.println();
-            if (installMavenWindows()) {
+            boolean mavenInstalled = installMavenWindows();
+            if (mavenInstalled) {
                 anythingInstalled = true;
+                // Check if Maven needs PATH
+                String programFiles = System.getenv("ProgramFiles");
+                if (programFiles == null) programFiles = "C:\\Program Files";
+                Path mavenBin = Path.of(programFiles, "apache-maven-" + MAVEN_VERSION, "bin");
+                if (Files.exists(mavenBin) && !processRunner.isAvailable("mvn")) {
+                    pathIssues.add(new String[]{"Maven", mavenBin.toString()});
+                }
             }
         }
 
@@ -593,15 +630,79 @@ public class DoctorService {
         System.out.println();
         if (anythingInstalled) {
             System.out.println("Installation complete.");
-            if (hasPathIssue) {
+
+            if (!pathIssues.isEmpty()) {
                 System.out.println();
-                System.out.println("IMPORTANT: Some tools are installed but not yet in your PATH.");
-                System.out.println("Please close this terminal and open a NEW terminal window,");
-                System.out.println("then run 'idempiere-cli doctor' to verify.");
+                System.out.println("IMPORTANT: The following tools need to be added to PATH:");
+                System.out.println();
+
+                // Collect all paths for the combined command
+                StringBuilder allPaths = new StringBuilder();
+                for (String[] issue : pathIssues) {
+                    System.out.println("  " + issue[0] + ": " + issue[1]);
+                    if (allPaths.length() > 0) allPaths.append(";");
+                    allPaths.append(issue[1]);
+                }
+
+                System.out.println();
+                System.out.println("Option 1: Restart your terminal (may work if installer updated PATH)");
+                System.out.println();
+                System.out.println("Option 2: Add to PATH manually (run as Administrator in PowerShell):");
+                System.out.println();
+                System.out.println("  [Environment]::SetEnvironmentVariable(\"Path\",");
+                System.out.println("    [Environment]::GetEnvironmentVariable(\"Path\", \"Machine\") + \";\" +");
+                System.out.println("    \"" + allPaths + "\", \"Machine\")");
+                System.out.println();
+                System.out.println("Then run 'idempiere-cli doctor' to verify.");
             } else {
                 System.out.println("Restart your terminal and run 'idempiere-cli doctor' to verify.");
             }
         }
+    }
+
+    /**
+     * Detect the bin path for a winget-installed tool.
+     */
+    private String detectWingetToolPath(String packageId) {
+        String programFiles = System.getenv("ProgramFiles");
+        if (programFiles == null) programFiles = "C:\\Program Files";
+
+        if (packageId.contains("Temurin")) {
+            // Java Temurin installs to Program Files\Eclipse Adoptium\jdk-VERSION
+            Path adoptiumDir = Path.of(programFiles, "Eclipse Adoptium");
+            if (Files.exists(adoptiumDir)) {
+                try (var dirs = Files.list(adoptiumDir)) {
+                    return dirs.filter(Files::isDirectory)
+                            .filter(p -> p.getFileName().toString().startsWith("jdk-"))
+                            .findFirst()
+                            .map(p -> p.resolve("bin").toString())
+                            .orElse(null);
+                } catch (IOException e) {
+                    return null;
+                }
+            }
+        } else if (packageId.contains("PostgreSQL")) {
+            // PostgreSQL installs to Program Files\PostgreSQL\VERSION\bin
+            Path pgDir = Path.of(programFiles, "PostgreSQL");
+            if (Files.exists(pgDir)) {
+                try (var dirs = Files.list(pgDir)) {
+                    return dirs.filter(Files::isDirectory)
+                            .filter(p -> p.getFileName().toString().matches("\\d+"))
+                            .findFirst()
+                            .map(p -> p.resolve("bin").toString())
+                            .orElse(null);
+                } catch (IOException e) {
+                    return null;
+                }
+            }
+        } else if (packageId.contains("Git")) {
+            // Git installs to Program Files\Git\cmd
+            Path gitPath = Path.of(programFiles, "Git", "cmd");
+            if (Files.exists(gitPath)) {
+                return gitPath.toString();
+            }
+        }
+        return null;
     }
 
     private boolean isWingetPackageInstalled(String packageId) {

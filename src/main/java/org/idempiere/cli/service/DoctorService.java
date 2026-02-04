@@ -426,7 +426,7 @@ public class DoctorService {
             // Build combined install command for macOS
             if (os.contains("mac")) {
                 List<String> brewPackages = new ArrayList<>();
-                if (javaFailed || jarFailed) brewPackages.add("openjdk@17");
+                if (javaFailed || jarFailed) brewPackages.add("openjdk@21");
                 if (mavenFailed) brewPackages.add("maven");
                 if (gitFailed) brewPackages.add("git");
                 if (postgresFailed) brewPackages.add("postgresql");

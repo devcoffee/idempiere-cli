@@ -22,6 +22,9 @@ public class SetupConfig {
     private boolean useDocker;
     private String dockerContainerName = CliDefaults.DOCKER_CONTAINER_NAME;
     private String dockerPostgresVersion = CliDefaults.DOCKER_POSTGRES_VERSION;
+    private String oracleDockerContainer = CliDefaults.DOCKER_ORACLE_CONTAINER;
+    private String oracleDockerImage = CliDefaults.DOCKER_ORACLE_IMAGE;
+    private String oracleDockerHome = CliDefaults.DOCKER_ORACLE_HOME;
     private boolean skipDb;
     private boolean skipWorkspace;
     private boolean includeRest;
@@ -163,6 +166,30 @@ public class SetupConfig {
 
     public void setDockerPostgresVersion(String dockerPostgresVersion) {
         this.dockerPostgresVersion = dockerPostgresVersion;
+    }
+
+    public String getOracleDockerContainer() {
+        return oracleDockerContainer;
+    }
+
+    public void setOracleDockerContainer(String oracleDockerContainer) {
+        this.oracleDockerContainer = oracleDockerContainer;
+    }
+
+    public String getOracleDockerImage() {
+        return oracleDockerImage;
+    }
+
+    public void setOracleDockerImage(String oracleDockerImage) {
+        this.oracleDockerImage = oracleDockerImage;
+    }
+
+    public String getOracleDockerHome() {
+        return oracleDockerHome;
+    }
+
+    public void setOracleDockerHome(String oracleDockerHome) {
+        this.oracleDockerHome = oracleDockerHome;
     }
 
     public boolean isSkipDb() {

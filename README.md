@@ -70,6 +70,7 @@ Download the appropriate binary from [GitHub Releases](https://github.com/devcof
 | Platform | Architecture | File |
 |----------|--------------|------|
 | Linux | x64 | `idempiere-cli-linux-amd64` |
+| Linux | ARM64 | `idempiere-cli-linux-arm64` |
 | macOS | Intel | `idempiere-cli-darwin-amd64` |
 | macOS | Apple Silicon | `idempiere-cli-darwin-arm64` |
 | Windows | x64 | `idempiere-cli-windows-amd64.exe` |
@@ -117,10 +118,26 @@ Plugin validation (`--dir`) checks:
 Bootstrap a complete local iDempiere development environment.
 
 ```bash
-idempiere-cli setup-dev-env --ide=eclipse --with-docker --include-rest
+# PostgreSQL with Docker
+idempiere-cli setup-dev-env --with-docker --include-rest
+
+# Oracle with Docker
+idempiere-cli setup-dev-env --db=oracle --with-docker
+
+# Custom Oracle Docker options
+idempiere-cli setup-dev-env --db=oracle --with-docker \
+  --oracle-docker-container=my-oracle \
+  --oracle-docker-image=gvenzl/oracle-xe:21-slim
 ```
 
-Automates: git clone, database setup (native or Docker), Eclipse workspace/target configuration, and optional REST repository.
+Automates: git clone, database setup (PostgreSQL or Oracle, native or Docker), Eclipse workspace/target configuration, and optional REST repository.
+
+**Database options:**
+- `--db=postgresql` (default): PostgreSQL database
+- `--db=oracle`: Oracle XE database
+- `--with-docker`: Create database in Docker container
+- `--oracle-docker-container`: Container name (default: `idempiere-oracle`)
+- `--oracle-docker-image`: Docker image (default: `gvenzl/oracle-xe:21-slim`)
 
 ### `init`
 
@@ -231,11 +248,11 @@ Reports columns added in the database but missing from code, columns in code but
 
 | Component       | Technology           |
 |-----------------|----------------------|
-| Language        | Java 17+             |
+| Language        | Java 21              |
 | CLI Framework   | Quarkus 3.17 + Picocli |
 | Templates       | Qute                 |
 | Build           | Maven + Tycho        |
-| Database        | PostgreSQL (JDBC)    |
+| Database        | PostgreSQL, Oracle (JDBC) |
 | Testing         | JUnit 5 + QuarkusMainTest |
 
 ---
@@ -333,9 +350,10 @@ The MCP server gives AI agents **semantic understanding** of the iDempiere platf
 ## Roadmap
 
 ### Completed
-- [x] `doctor` with environment checks and `--fix` auto-installation (macOS/Homebrew)
+- [x] `doctor` with environment checks and `--fix` auto-installation (macOS, Linux, Windows)
 - [x] `doctor --dir` for plugin structure validation
 - [x] `setup-dev-env` with Docker PostgreSQL support
+- [x] `setup-dev-env` with Docker Oracle XE support (`--db=oracle --with-docker`)
 - [x] `init` with `--interactive` mode
 - [x] `add` for all component types (callout, process, event-handler, zk-form, report, window-validator, rest-extension, facts-validator)
 - [x] `add model` for I_/X_/M_ class generation from database
@@ -346,7 +364,8 @@ The MCP server gives AI agents **semantic understanding** of the iDempiere platf
 - [x] `package --format=zip` for distribution
 - [x] `diff-schema` for model vs database comparison
 - [x] `generate-completion` for bash/zsh shell completion
-- [x] Native image distribution (GraalVM for Linux/macOS/Windows)
+- [x] Native image distribution (GraalVM for Linux x64/ARM64, macOS Intel/Apple Silicon, Windows x64)
+- [x] Cross-platform compatibility: Windows winget, Linux apt/dnf/yum/pacman/zypper, macOS Homebrew
 
 ### Short-term
 - [ ] Integration tests with real plugin fixtures (scaffold → build → validate)
@@ -376,7 +395,7 @@ This project needs help! Areas where contributions are especially welcome:
 - **Templates**: Improved code generation templates following iDempiere best practices
 - **MCP integration**: Connecting CLI commands with the [MCP server](https://github.com/hengsin/idempiere-mcp) for AD-aware generation
 - **Documentation**: Usage guides, tutorials, and examples
-- **Platform support**: Windows/Linux testing, native image compilation
+- **Oracle support**: Testing Oracle database workflows and seed import
 
 ---
 

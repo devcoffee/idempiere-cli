@@ -22,12 +22,20 @@ public class DatabaseManager {
     SessionLogger sessionLogger;
 
     public boolean setupDatabase(SetupConfig config) {
-        if (config.isUseDocker() && "postgresql".equals(config.getDbType())) {
-            if (!createDockerPostgres(config)) {
-                return false;
+        if (config.isUseDocker()) {
+            if ("postgresql".equals(config.getDbType())) {
+                if (!createDockerPostgres(config)) {
+                    return false;
+                }
+                // Wait for PostgreSQL to be ready
+                waitForDatabase(config, 30);
+            } else if ("oracle".equals(config.getDbType())) {
+                if (!createDockerOracle(config)) {
+                    return false;
+                }
+                // Wait for Oracle to be ready (takes longer than PostgreSQL)
+                waitForOracleReady(config, 60);
             }
-            // Wait for PostgreSQL to be ready
-            waitForDatabase(config, 30);
         }
 
         if (!validateConnection(config)) {
@@ -150,6 +158,115 @@ public class DatabaseManager {
         return true;
     }
 
+    public boolean createDockerOracle(SetupConfig config) {
+        // First, check if Docker daemon is running
+        if (!isDockerRunning()) {
+            System.err.println("  Docker is not running.");
+            System.err.println();
+            System.err.println("  Troubleshooting:");
+            String os = System.getProperty("os.name", "").toLowerCase();
+            if (os.contains("mac")) {
+                System.err.println("    1. Start Docker Desktop: open -a Docker");
+                System.err.println("    2. Wait for Docker to finish starting (icon stops animating)");
+                System.err.println("    3. Run this command again");
+            } else if (os.contains("linux")) {
+                System.err.println("    1. Start Docker daemon: sudo systemctl start docker");
+                System.err.println("    2. Ensure your user is in the docker group: sudo usermod -aG docker $USER");
+                System.err.println("    3. Run this command again");
+            } else {
+                System.err.println("    1. Start Docker Desktop");
+                System.err.println("    2. Wait for Docker to finish starting");
+                System.err.println("    3. Run this command again");
+            }
+            System.err.println();
+            return false;
+        }
+
+        String containerName = config.getOracleDockerContainer();
+        System.out.println("  Creating Docker Oracle XE container...");
+
+        // Check if container already exists
+        ProcessRunner.RunResult result = processRunner.run(
+                "docker", "inspect", containerName
+        );
+
+        if (result.isSuccess()) {
+            System.out.println("  Container '" + containerName + "' already exists.");
+
+            // Check if it's running
+            ProcessRunner.RunResult statusResult = processRunner.run(
+                    "docker", "inspect", "-f", "{{.State.Running}}", containerName
+            );
+
+            if (statusResult.isSuccess() && statusResult.output().trim().equals("true")) {
+                System.out.println("  Container is already running.");
+                return true;
+            }
+
+            // Start existing container
+            System.out.println("  Starting existing container...");
+            int exitCode = processRunner.runLive(
+                    "docker", "start", containerName
+            );
+            return exitCode == 0;
+        }
+
+        // Create new container using gvenzl/oracle-xe image
+        // This image supports APP_USER and APP_USER_PASSWORD environment variables
+        int exitCode = processRunner.runLive(
+                "docker", "run", "-d",
+                "--name", containerName,
+                "-p", config.getDbPort() + ":1521",
+                "-e", "ORACLE_PASSWORD=" + config.getDbAdminPass(),
+                "-e", "APP_USER=" + config.getDbUser(),
+                "-e", "APP_USER_PASSWORD=" + config.getDbPass(),
+                config.getOracleDockerImage()
+        );
+
+        if (exitCode != 0) {
+            System.err.println("  Failed to create Docker Oracle XE container.");
+            System.err.println("  Make sure Docker is installed and running.");
+            System.err.println();
+            System.err.println("  Note: Oracle XE image is ~1GB. First pull may take a few minutes.");
+            return false;
+        }
+
+        System.out.println("  Container '" + containerName + "' created successfully.");
+        System.out.println("  Oracle XE takes 1-2 minutes to initialize. Please wait...");
+        return true;
+    }
+
+    private boolean waitForOracleReady(SetupConfig config, int maxRetries) {
+        System.out.println("  Waiting for Oracle database to be ready...");
+        for (int i = 0; i < maxRetries; i++) {
+            // Use docker exec to check if Oracle is ready
+            // The gvenzl/oracle-xe image has sqlplus available
+            ProcessRunner.RunResult result = processRunner.run(
+                    "docker", "exec", config.getOracleDockerContainer(),
+                    "sqlplus", "-S", "-L",
+                    "system/" + config.getDbAdminPass() + "@//localhost:1521/XEPDB1",
+                    "<<EOF", "SELECT 1 FROM DUAL;", "EXIT;", "EOF"
+            );
+
+            if (result.isSuccess() && result.output().contains("1")) {
+                System.out.println();
+                System.out.println("  Oracle database is ready.");
+                return true;
+            }
+
+            try {
+                Thread.sleep(5000); // Oracle takes longer to start than PostgreSQL
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+            System.out.print(".");
+        }
+        System.out.println();
+        System.err.println("  Oracle database did not become ready in time.");
+        return false;
+    }
+
     public boolean validateConnection(SetupConfig config) {
         if ("postgresql".equals(config.getDbType())) {
             return validatePostgresConnection(config);
@@ -182,6 +299,18 @@ public class DatabaseManager {
     }
 
     private boolean validateOracleConnection(SetupConfig config) {
+        if (config.isUseDocker()) {
+            // Use docker exec to run sqlplus inside the container
+            ProcessRunner.RunResult result = processRunner.run(
+                    "docker", "exec", config.getOracleDockerContainer(),
+                    "sqlplus", "-S", "-L",
+                    config.getDbUser() + "/" + config.getDbPass() + "@//localhost:1521/XEPDB1",
+                    "<<EOF", "SELECT 1 FROM DUAL;", "EXIT;", "EOF"
+            );
+            return result.isSuccess() && result.output().contains("1");
+        }
+
+        // Otherwise, use local sqlplus client
         String connStr = config.getDbUser() + "/" + config.getDbPass() + "@"
                 + config.getDbHost() + ":" + config.getDbPort() + "/" + config.getDbName();
         ProcessRunner.RunResult result = processRunner.run("sqlplus", "-S", connStr, "<<EOF\nSELECT 1 FROM DUAL;\nEOF");

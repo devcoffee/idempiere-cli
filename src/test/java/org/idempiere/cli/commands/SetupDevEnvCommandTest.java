@@ -25,6 +25,10 @@ class SetupDevEnvCommandTest {
         assertTrue(output.contains("--skip-workspace"));
         assertTrue(output.contains("--include-rest"));
         assertTrue(output.contains("--non-interactive"));
+        // Oracle Docker options
+        assertTrue(output.contains("--oracle-docker-container"));
+        assertTrue(output.contains("--oracle-docker-image"));
+        assertTrue(output.contains("--oracle-docker-home"));
     }
 
     @Test
@@ -39,10 +43,19 @@ class SetupDevEnvCommandTest {
     }
 
     @Test
-    @Launch(value = {"setup-dev-env", "--db=oracle", "--with-docker", "--non-interactive"}, exitCode = 1)
-    void testOracleWithDockerFails(LaunchResult result) {
+    @Launch({"setup-dev-env", "--db=oracle", "--with-docker", "--docker-postgres-name=custom-pg", "--skip-db", "--skip-workspace", "--non-interactive"})
+    void testOracleWithDockerWarnsAboutPostgresOptions(LaunchResult result) {
+        // Oracle + Docker is now supported, but PostgreSQL options should be warned
         String output = result.getErrorOutput();
-        assertTrue(output.contains("--db=oracle is not compatible with --with-docker"));
+        assertTrue(output.contains("--docker-postgres-name is ignored"));
+    }
+
+    @Test
+    @Launch({"setup-dev-env", "--db=postgresql", "--with-docker", "--oracle-docker-container=custom-oracle", "--skip-db", "--skip-workspace", "--non-interactive"})
+    void testPostgresWithDockerWarnsAboutOracleOptions(LaunchResult result) {
+        // PostgreSQL + Docker should warn about Oracle options
+        String output = result.getErrorOutput();
+        assertTrue(output.contains("--oracle-docker-container is ignored"));
     }
 
     @Test

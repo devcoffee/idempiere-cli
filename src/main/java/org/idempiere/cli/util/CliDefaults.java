@@ -28,6 +28,12 @@ public final class CliDefaults {
     public static final String DOCKER_CONTAINER_NAME = "idempiere-postgres";
     public static final String DOCKER_POSTGRES_VERSION = "15.3";
 
+    // ========== Oracle Docker Configuration ==========
+    public static final String DOCKER_ORACLE_CONTAINER = "idempiere-oracle";
+    public static final String DOCKER_ORACLE_IMAGE = "gvenzl/oracle-xe:21-slim";
+    public static final String DOCKER_ORACLE_HOME = "/opt/oracle";
+    public static final int DOCKER_ORACLE_PORT = 1521;
+
     // ========== HTTP/HTTPS Configuration ==========
     public static final int HTTP_PORT = 8080;
     public static final int HTTPS_PORT = 8443;

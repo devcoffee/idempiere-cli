@@ -81,6 +81,18 @@ public class SetupDevEnvCommand implements Callable<Integer> {
             defaultValue = "15.3")
     String dockerPostgresVersion;
 
+    @Option(names = "--oracle-docker-container", description = "Oracle Docker container name (default: idempiere-oracle)",
+            defaultValue = "idempiere-oracle")
+    String oracleDockerContainer;
+
+    @Option(names = "--oracle-docker-image", description = "Oracle Docker image (default: gvenzl/oracle-xe:21-slim)",
+            defaultValue = "gvenzl/oracle-xe:21-slim")
+    String oracleDockerImage;
+
+    @Option(names = "--oracle-docker-home", description = "Oracle Docker home directory (default: /opt/oracle)",
+            defaultValue = "/opt/oracle")
+    String oracleDockerHome;
+
     @Option(names = "--non-interactive", description = "Run without prompting for confirmation")
     boolean nonInteractive;
 
@@ -136,6 +148,9 @@ public class SetupDevEnvCommand implements Callable<Integer> {
         config.setUseDocker(withDocker);
         config.setDockerContainerName(dockerContainerName);
         config.setDockerPostgresVersion(dockerPostgresVersion);
+        config.setOracleDockerContainer(oracleDockerContainer);
+        config.setOracleDockerImage(oracleDockerImage);
+        config.setOracleDockerHome(oracleDockerHome);
         config.setSkipDb(skipDb);
         config.setSkipWorkspace(skipWorkspace);
         config.setIncludeRest(includeRest);
@@ -153,13 +168,6 @@ public class SetupDevEnvCommand implements Callable<Integer> {
      */
     private boolean validateParameters() {
         boolean hasErrors = false;
-
-        // Error: Oracle + Docker is not supported
-        if ("oracle".equalsIgnoreCase(dbType) && withDocker) {
-            System.err.println("Error: --db=oracle is not compatible with --with-docker.");
-            System.err.println("       Docker setup is only available for PostgreSQL.");
-            hasErrors = true;
-        }
 
         // Warning: --skip-db makes database options redundant
         if (skipDb) {
@@ -210,11 +218,43 @@ public class SetupDevEnvCommand implements Callable<Integer> {
             if (!"15.3".equals(dockerPostgresVersion)) {
                 System.err.println("Warning: --docker-postgres-version is ignored without --with-docker.");
             }
+            if (!"idempiere-oracle".equals(oracleDockerContainer)) {
+                System.err.println("Warning: --oracle-docker-container is ignored without --with-docker.");
+            }
+            if (!"gvenzl/oracle-xe:21-slim".equals(oracleDockerImage)) {
+                System.err.println("Warning: --oracle-docker-image is ignored without --with-docker.");
+            }
+            if (!"/opt/oracle".equals(oracleDockerHome)) {
+                System.err.println("Warning: --oracle-docker-home is ignored without --with-docker.");
+            }
         }
 
         // Warning: --with-docker with non-localhost db-host
         if (withDocker && !"localhost".equals(dbHost)) {
             System.err.println("Warning: --db-host is ignored when --with-docker is set (Docker uses localhost).");
+        }
+
+        // Warning: PostgreSQL Docker options used with Oracle
+        if (withDocker && "oracle".equalsIgnoreCase(dbType)) {
+            if (!"idempiere-postgres".equals(dockerContainerName)) {
+                System.err.println("Warning: --docker-postgres-name is ignored with --db=oracle.");
+            }
+            if (!"15.3".equals(dockerPostgresVersion)) {
+                System.err.println("Warning: --docker-postgres-version is ignored with --db=oracle.");
+            }
+        }
+
+        // Warning: Oracle Docker options used with PostgreSQL
+        if (withDocker && "postgresql".equalsIgnoreCase(dbType)) {
+            if (!"idempiere-oracle".equals(oracleDockerContainer)) {
+                System.err.println("Warning: --oracle-docker-container is ignored with --db=postgresql.");
+            }
+            if (!"gvenzl/oracle-xe:21-slim".equals(oracleDockerImage)) {
+                System.err.println("Warning: --oracle-docker-image is ignored with --db=postgresql.");
+            }
+            if (!"/opt/oracle".equals(oracleDockerHome)) {
+                System.err.println("Warning: --oracle-docker-home is ignored with --db=postgresql.");
+            }
         }
 
         return !hasErrors;

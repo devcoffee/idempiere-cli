@@ -533,11 +533,11 @@ public class DoctorService {
         boolean gitFailed = results.stream().anyMatch(r -> r.tool().equals("Git") && r.status() == Status.FAIL);
         boolean postgresFailed = results.stream().anyMatch(r -> r.tool().equals("PostgreSQL") && r.status() == Status.FAIL);
 
+        // Note: Maven is not available on winget (distributed as ZIP only)
         List<String[]> packagesToInstall = new ArrayList<>();
         if (javaFailed || jarFailed) packagesToInstall.add(new String[]{"EclipseAdoptium.Temurin.21.JDK", "Java 21 (Temurin)"});
-        if (mavenFailed) packagesToInstall.add(new String[]{"Apache.Maven", "Maven"});
         if (gitFailed) packagesToInstall.add(new String[]{"Git.Git", "Git"});
-        if (postgresFailed) packagesToInstall.add(new String[]{"PostgreSQL.PostgreSQL", "PostgreSQL"});
+        if (postgresFailed) packagesToInstall.add(new String[]{"PostgreSQL.PostgreSQL.17", "PostgreSQL 17"});
 
         if (packagesToInstall.isEmpty()) {
             System.out.println();
@@ -561,12 +561,22 @@ public class DoctorService {
 
         System.out.println();
         if (allSucceeded) {
-            System.out.println("Installation complete. Restart your terminal and run 'idempiere-cli doctor' to verify.");
+            System.out.println("Installation complete.");
         } else {
             System.out.println("Some packages may have failed. Check output above and install manually if needed.");
         }
+
+        // Maven is not available on winget - show manual instructions
+        if (mavenFailed) {
+            System.out.println();
+            System.out.println("Maven is not available via winget. Install manually:");
+            System.out.println("  1. Download from: https://maven.apache.org/download.cgi");
+            System.out.println("  2. Extract ZIP to C:\\Program Files\\Maven");
+            System.out.println("  3. Add C:\\Program Files\\Maven\\bin to your PATH");
+        }
+
         System.out.println();
-        System.out.println("Note: You may need to restart your terminal for PATH changes to take effect.");
+        System.out.println("Restart your terminal and run 'idempiere-cli doctor' to verify.");
     }
 
     private void runAutoFixLinux(List<CheckResult> results) {

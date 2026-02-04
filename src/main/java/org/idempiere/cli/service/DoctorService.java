@@ -19,9 +19,12 @@ import java.util.stream.Stream;
 @ApplicationScoped
 public class DoctorService {
 
-    private static final String CHECK = "\u2714";
-    private static final String CROSS = "\u2718";
-    private static final String WARN = "\u26A0";
+    private static final boolean IS_WINDOWS = System.getProperty("os.name", "").toLowerCase().contains("win");
+
+    // Use ASCII on Windows to avoid encoding issues
+    private static final String CHECK = IS_WINDOWS ? "[OK]" : "\u2714";
+    private static final String CROSS = IS_WINDOWS ? "[FAIL]" : "\u2718";
+    private static final String WARN = IS_WINDOWS ? "[WARN]" : "\u26A0";
 
     // Pre-compiled patterns for version detection (avoids re-compilation on each call)
     private static final Pattern REQUIRE_BUNDLE_PATTERN = Pattern.compile("(?:Require-Bundle|Fragment-Host):\\s*(.+)", Pattern.DOTALL);
@@ -442,10 +445,28 @@ public class DoctorService {
                     System.out.println("    sudo apt install " + String.join(" ", aptPackages));
                     System.out.println();
                 }
+            } else if (os.contains("win")) {
+                // Windows with winget
+                List<String> wingetPackages = new ArrayList<>();
+                if (javaFailed || jarFailed) wingetPackages.add("EclipseAdoptium.Temurin.21.JDK");
+                if (mavenFailed) wingetPackages.add("Apache.Maven");
+                if (gitFailed) wingetPackages.add("Git.Git");
+                if (postgresFailed) wingetPackages.add("PostgreSQL.PostgreSQL");
+
+                if (!wingetPackages.isEmpty()) {
+                    System.out.println("  Install with winget:");
+                    System.out.println();
+                    for (String pkg : wingetPackages) {
+                        System.out.println("    winget install --id " + pkg);
+                    }
+                    System.out.println();
+                    System.out.println("  Or run: idempiere-cli doctor --fix");
+                    System.out.println();
+                }
             } else {
-                // Windows or other
+                // Other OS - show URLs
                 if (javaFailed || jarFailed) {
-                    System.out.println("  Java 17+: https://adoptium.net/");
+                    System.out.println("  Java 21+: https://adoptium.net/");
                 }
                 if (mavenFailed) {
                     System.out.println("  Maven: https://maven.apache.org/download.cgi");
@@ -480,13 +501,70 @@ public class DoctorService {
     private void runAutoFix(List<CheckResult> results) {
         String os = System.getProperty("os.name", "").toLowerCase();
 
-        if (!os.contains("mac")) {
+        if (os.contains("win")) {
+            runAutoFixWindows(results);
+        } else if (os.contains("mac")) {
+            runAutoFixMac(results);
+        } else {
             System.out.println();
-            System.out.println("Auto-fix is currently only supported on macOS with Homebrew.");
+            System.out.println("Auto-fix is currently only supported on macOS (Homebrew) and Windows (winget).");
             System.out.println("Please install the missing tools manually.");
+        }
+    }
+
+    private void runAutoFixWindows(List<CheckResult> results) {
+        // Check if winget is available
+        if (!processRunner.isAvailable("winget")) {
+            System.out.println();
+            System.out.println("winget not found. Please install Windows Package Manager or install tools manually.");
+            System.out.println("winget is included in Windows 10/11. Update Windows or install from:");
+            System.out.println("  https://aka.ms/getwinget");
             return;
         }
 
+        boolean javaFailed = results.stream().anyMatch(r -> r.tool().equals("Java") && r.status() == Status.FAIL);
+        boolean jarFailed = results.stream().anyMatch(r -> r.tool().equals("jar") && r.status() == Status.FAIL);
+        boolean mavenFailed = results.stream().anyMatch(r -> r.tool().equals("Maven") && r.status() == Status.FAIL);
+        boolean gitFailed = results.stream().anyMatch(r -> r.tool().equals("Git") && r.status() == Status.FAIL);
+        boolean postgresFailed = results.stream().anyMatch(r -> r.tool().equals("PostgreSQL") && r.status() == Status.FAIL);
+
+        List<String[]> packagesToInstall = new ArrayList<>();
+        if (javaFailed || jarFailed) packagesToInstall.add(new String[]{"EclipseAdoptium.Temurin.21.JDK", "Java 21 (Temurin)"});
+        if (mavenFailed) packagesToInstall.add(new String[]{"Apache.Maven", "Maven"});
+        if (gitFailed) packagesToInstall.add(new String[]{"Git.Git", "Git"});
+        if (postgresFailed) packagesToInstall.add(new String[]{"PostgreSQL.PostgreSQL", "PostgreSQL"});
+
+        if (packagesToInstall.isEmpty()) {
+            System.out.println();
+            System.out.println("Nothing to fix!");
+            return;
+        }
+
+        System.out.println();
+        System.out.println("Installing missing packages with winget...");
+        System.out.println();
+
+        boolean allSucceeded = true;
+        for (String[] pkg : packagesToInstall) {
+            System.out.println("Installing " + pkg[1] + "...");
+            int exitCode = processRunner.runLive("winget", "install", "--id", pkg[0], "--accept-source-agreements", "--accept-package-agreements");
+            if (exitCode != 0) {
+                System.out.println("  Warning: " + pkg[1] + " installation may have failed.");
+                allSucceeded = false;
+            }
+        }
+
+        System.out.println();
+        if (allSucceeded) {
+            System.out.println("Installation complete. Restart your terminal and run 'idempiere-cli doctor' to verify.");
+        } else {
+            System.out.println("Some packages may have failed. Check output above and install manually if needed.");
+        }
+        System.out.println();
+        System.out.println("Note: You may need to restart your terminal for PATH changes to take effect.");
+    }
+
+    private void runAutoFixMac(List<CheckResult> results) {
         // Check if Homebrew is available
         if (!processRunner.isAvailable("brew")) {
             System.out.println();
@@ -504,7 +582,7 @@ public class DoctorService {
         boolean postgresFailed = results.stream().anyMatch(r -> r.tool().equals("PostgreSQL") && r.status() == Status.FAIL);
         boolean greadlinkFailed = results.stream().anyMatch(r -> r.tool().equals("greadlink") && r.status() == Status.FAIL);
 
-        if (javaFailed || jarFailed) packagesToInstall.add("openjdk@17");
+        if (javaFailed || jarFailed) packagesToInstall.add("openjdk@21");
         if (mavenFailed) packagesToInstall.add("maven");
         if (gitFailed) packagesToInstall.add("git");
         if (postgresFailed) packagesToInstall.add("postgresql");
@@ -529,7 +607,7 @@ public class DoctorService {
 
         if (exitCode == 0) {
             System.out.println();
-            System.out.println("Installation complete. Run 'idempiere doctor' to verify.");
+            System.out.println("Installation complete. Run 'idempiere-cli doctor' to verify.");
         } else {
             System.out.println();
             System.out.println("Some packages may have failed to install. Check output above.");

@@ -74,6 +74,12 @@ Download the appropriate binary from [GitHub Releases](https://github.com/devcof
 | macOS | Apple Silicon | `idempiere-cli-darwin-arm64` |
 | Windows | x64 | `idempiere-cli-windows-amd64.exe` |
 
+### Windows Prerequisites
+
+The Windows native binary requires the **Visual C++ Redistributable** runtime. If you see an error about `VCRUNTIME140_1.dll`, install it from:
+
+👉 https://aka.ms/vs/17/release/vc_redist.x64.exe
+
 ### Verify Installation
 
 ```bash

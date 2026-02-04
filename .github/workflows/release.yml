@@ -38,6 +38,30 @@ jobs:
           name: idempiere-cli-linux-amd64
           path: target/idempiere-cli-linux-amd64
 
+  build-linux-arm64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up GraalVM
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'graalvm'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build native image
+        run: mvn -B package -Pnative -DskipTests
+
+      - name: Rename binary
+        run: mv target/*-runner target/idempiere-cli-linux-arm64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: idempiere-cli-linux-arm64
+          path: target/idempiere-cli-linux-arm64
+
   build-macos-arm64:
     runs-on: macos-latest
     steps:
@@ -116,7 +140,7 @@ jobs:
           path: target/idempiere-cli-windows-amd64.exe
 
   release:
-    needs: [build-linux-amd64, build-macos-arm64, build-macos-amd64, build-windows]
+    needs: [build-linux-amd64, build-linux-arm64, build-macos-arm64, build-macos-amd64, build-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -132,6 +156,7 @@ jobs:
         run: |
           mkdir -p release
           cp artifacts/idempiere-cli-linux-amd64/idempiere-cli-linux-amd64 release/
+          cp artifacts/idempiere-cli-linux-arm64/idempiere-cli-linux-arm64 release/
           cp artifacts/idempiere-cli-darwin-amd64/idempiere-cli-darwin-amd64 release/
           cp artifacts/idempiere-cli-darwin-arm64/idempiere-cli-darwin-arm64 release/
           cp artifacts/idempiere-cli-windows-amd64/idempiere-cli-windows-amd64.exe release/
@@ -168,6 +193,7 @@ jobs:
             | Platform | Architecture | File |
             |----------|--------------|------|
             | Linux | x64 | `idempiere-cli-linux-amd64` |
+            | Linux | ARM64 | `idempiere-cli-linux-arm64` |
             | macOS | Intel | `idempiere-cli-darwin-amd64` |
             | macOS | Apple Silicon | `idempiere-cli-darwin-arm64` |
             | Windows | x64 | `idempiere-cli-windows-amd64.exe` |

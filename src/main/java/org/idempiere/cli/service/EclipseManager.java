@@ -380,7 +380,8 @@ public class EclipseManager {
 
         String fileName;
         if (os.contains("linux")) {
-            fileName = "eclipse-jee-" + ECLIPSE_VERSION + "-" + ECLIPSE_RELEASE + "-linux-gtk-x86_64.tar.gz";
+            String archSuffix = arch.contains("aarch64") || arch.contains("arm") ? "aarch64" : "x86_64";
+            fileName = "eclipse-jee-" + ECLIPSE_VERSION + "-" + ECLIPSE_RELEASE + "-linux-gtk-" + archSuffix + ".tar.gz";
         } else if (os.contains("mac")) {
             String archSuffix = arch.contains("aarch64") || arch.contains("arm") ? "aarch64" : "x86_64";
             fileName = "eclipse-jee-" + ECLIPSE_VERSION + "-" + ECLIPSE_RELEASE + "-macosx-cocoa-" + archSuffix + ".tar.gz";

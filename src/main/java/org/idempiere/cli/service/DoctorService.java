@@ -549,6 +549,7 @@ public class DoctorService {
 
         boolean hasWingetPackages = !packagesToInstall.isEmpty();
         boolean anythingInstalled = false;
+        boolean hasPathIssue = false;
 
         if (hasWingetPackages) {
             System.out.println();
@@ -556,10 +557,12 @@ public class DoctorService {
             System.out.println();
 
             for (String[] pkg : packagesToInstall) {
-                // Check if already installed
+                // Check if already installed via winget
                 if (isWingetPackageInstalled(pkg[0])) {
-                    System.out.println(pkg[1] + " is already installed.");
+                    System.out.println(pkg[1] + " is already installed but not in PATH.");
+                    System.out.println("  This usually means you need to restart your terminal.");
                     anythingInstalled = true;
+                    hasPathIssue = true;
                     continue;
                 }
 
@@ -590,7 +593,14 @@ public class DoctorService {
         System.out.println();
         if (anythingInstalled) {
             System.out.println("Installation complete.");
-            System.out.println("Restart your terminal and run 'idempiere-cli doctor' to verify.");
+            if (hasPathIssue) {
+                System.out.println();
+                System.out.println("IMPORTANT: Some tools are installed but not yet in your PATH.");
+                System.out.println("Please close this terminal and open a NEW terminal window,");
+                System.out.println("then run 'idempiere-cli doctor' to verify.");
+            } else {
+                System.out.println("Restart your terminal and run 'idempiere-cli doctor' to verify.");
+            }
         }
     }
 
@@ -600,7 +610,7 @@ public class DoctorService {
         return result.exitCode() == 0 && result.output().contains(packageId);
     }
 
-    private static final String MAVEN_VERSION = "3.9.9";
+    private static final String MAVEN_VERSION = "3.9.12";
     private static final String MAVEN_URL = "https://dlcdn.apache.org/maven/maven-3/" + MAVEN_VERSION + "/binaries/apache-maven-" + MAVEN_VERSION + "-bin.zip";
 
     private boolean installMavenWindows() {
@@ -775,8 +785,26 @@ public class DoctorService {
         System.out.println("Installing missing packages with " + pkgManager + "...");
         System.out.println();
 
+        boolean isRoot = isRunningAsRoot();
+
+        // For apt, run update first (needed in Docker containers)
+        if ("apt".equals(pkgManager)) {
+            System.out.println("Updating package lists...");
+            List<String> updateCmd = new ArrayList<>();
+            if (!isRoot) {
+                updateCmd.add("sudo");
+            }
+            updateCmd.add("apt-get");
+            updateCmd.add("update");
+            processRunner.runLive(updateCmd.toArray(new String[0]));
+            System.out.println();
+        }
+
         List<String> command = new ArrayList<>();
-        command.add("sudo");
+        // Skip sudo if already running as root
+        if (!isRoot) {
+            command.add("sudo");
+        }
         command.add(pkgManager);
 
         // Add install subcommand and flags
@@ -848,6 +876,26 @@ public class DoctorService {
             System.out.println();
             System.out.println("Some packages may have failed to install. Check output above.");
         }
+    }
+
+    /**
+     * Check if running as root (UID 0) on Unix-like systems.
+     * Used to skip sudo when already running as root (e.g., in Docker containers).
+     */
+    private boolean isRunningAsRoot() {
+        // Check USER environment variable first (works in most shells)
+        String user = System.getenv("USER");
+        if ("root".equals(user)) {
+            return true;
+        }
+
+        // Check UID via id command as fallback
+        ProcessRunner.RunResult result = processRunner.run("id", "-u");
+        if (result.exitCode() == 0) {
+            return "0".equals(result.output().trim());
+        }
+
+        return false;
     }
 
     private enum Status {

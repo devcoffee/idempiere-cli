@@ -92,6 +92,11 @@ public class SetupDevEnvCommand implements Callable<Integer> {
 
     @Override
     public Integer call() {
+        // Validate parameter combinations
+        if (!validateParameters()) {
+            return 1;
+        }
+
         // Check for headless environment BEFORE doing any work
         if (isHeadlessEnvironment()) {
             System.err.println("Error: setup-dev-env requires a graphical environment (display).");
@@ -140,6 +145,79 @@ public class SetupDevEnvCommand implements Callable<Integer> {
 
         setupDevEnvService.setup(config);
         return 0;
+    }
+
+    /**
+     * Validate parameter combinations for consistency.
+     * Returns true if validation passes, false if there are errors.
+     */
+    private boolean validateParameters() {
+        boolean hasErrors = false;
+
+        // Error: Oracle + Docker is not supported
+        if ("oracle".equalsIgnoreCase(dbType) && withDocker) {
+            System.err.println("Error: --db=oracle is not compatible with --with-docker.");
+            System.err.println("       Docker setup is only available for PostgreSQL.");
+            hasErrors = true;
+        }
+
+        // Warning: --skip-db makes database options redundant
+        if (skipDb) {
+            if (withDocker) {
+                System.err.println("Warning: --with-docker is ignored when --skip-db is set.");
+            }
+            if (!"localhost".equals(dbHost)) {
+                System.err.println("Warning: --db-host is ignored when --skip-db is set.");
+            }
+            if (dbPort != 5432) {
+                System.err.println("Warning: --db-port is ignored when --skip-db is set.");
+            }
+            if (!"idempiere".equals(dbName)) {
+                System.err.println("Warning: --db-name is ignored when --skip-db is set.");
+            }
+            if (!"adempiere".equals(dbUser)) {
+                System.err.println("Warning: --db-user is ignored when --skip-db is set.");
+            }
+            if (!"adempiere".equals(dbPass)) {
+                System.err.println("Warning: --db-pass is ignored when --skip-db is set.");
+            }
+            if (!"postgres".equals(dbAdminPass)) {
+                System.err.println("Warning: --db-admin-pass is ignored when --skip-db is set.");
+            }
+            if (!"idempiere-postgres".equals(dockerContainerName)) {
+                System.err.println("Warning: --docker-postgres-name is ignored when --skip-db is set.");
+            }
+            if (!"15.3".equals(dockerPostgresVersion)) {
+                System.err.println("Warning: --docker-postgres-version is ignored when --skip-db is set.");
+            }
+        }
+
+        // Warning: --skip-workspace makes Eclipse options redundant
+        if (skipWorkspace) {
+            if (eclipseDir != null) {
+                System.err.println("Warning: --eclipse-dir is ignored when --skip-workspace is set.");
+            }
+            if (installCopilot) {
+                System.err.println("Warning: --install-copilot is ignored when --skip-workspace is set.");
+            }
+        }
+
+        // Warning: Docker options without --with-docker
+        if (!withDocker && !skipDb) {
+            if (!"idempiere-postgres".equals(dockerContainerName)) {
+                System.err.println("Warning: --docker-postgres-name is ignored without --with-docker.");
+            }
+            if (!"15.3".equals(dockerPostgresVersion)) {
+                System.err.println("Warning: --docker-postgres-version is ignored without --with-docker.");
+            }
+        }
+
+        // Warning: --with-docker with non-localhost db-host
+        if (withDocker && !"localhost".equals(dbHost)) {
+            System.err.println("Warning: --db-host is ignored when --with-docker is set (Docker uses localhost).");
+        }
+
+        return !hasErrors;
     }
 
     /**

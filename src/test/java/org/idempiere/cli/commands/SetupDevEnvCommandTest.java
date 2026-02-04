@@ -37,4 +37,26 @@ class SetupDevEnvCommandTest {
         assertTrue(output.contains("init"));
         assertTrue(output.contains("add"));
     }
+
+    @Test
+    @Launch(value = {"setup-dev-env", "--db=oracle", "--with-docker", "--non-interactive"}, exitCode = 1)
+    void testOracleWithDockerFails(LaunchResult result) {
+        String output = result.getErrorOutput();
+        assertTrue(output.contains("--db=oracle is not compatible with --with-docker"));
+    }
+
+    @Test
+    @Launch({"setup-dev-env", "--skip-db", "--with-docker", "--skip-workspace", "--non-interactive"})
+    void testSkipDbWarnsAboutDockerOption(LaunchResult result) {
+        // Should warn but not fail validation (will fail later due to headless/missing source)
+        String output = result.getErrorOutput();
+        assertTrue(output.contains("--with-docker is ignored when --skip-db is set"));
+    }
+
+    @Test
+    @Launch({"setup-dev-env", "--skip-workspace", "--install-copilot", "--skip-db", "--non-interactive"})
+    void testSkipWorkspaceWarnsAboutCopilot(LaunchResult result) {
+        String output = result.getErrorOutput();
+        assertTrue(output.contains("--install-copilot is ignored when --skip-workspace is set"));
+    }
 }

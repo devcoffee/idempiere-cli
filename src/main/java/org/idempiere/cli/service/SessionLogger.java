@@ -19,7 +19,11 @@ public class SessionLogger {
 
     private static final DateTimeFormatter FILE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd-HHmmss");
     private static final DateTimeFormatter LOG_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
-    private static final Path LOGS_DIR = Path.of(System.getProperty("user.home"), ".idempiere-cli", "logs");
+
+    // Lazy initialization to avoid GraalVM native-image capturing build-time user.home
+    private static Path getLogsDir() {
+        return Path.of(System.getProperty("user.home"), ".idempiere-cli", "logs");
+    }
 
     private volatile Path sessionLogFile;
     private volatile LocalDateTime sessionStart;
@@ -37,10 +41,10 @@ public class SessionLogger {
         this.initialized = true;
 
         try {
-            Files.createDirectories(LOGS_DIR);
+            Files.createDirectories(getLogsDir());
 
             String filename = "session-" + sessionStart.format(FILE_FORMAT) + ".log";
-            this.sessionLogFile = LOGS_DIR.resolve(filename);
+            this.sessionLogFile = getLogsDir().resolve(filename);
 
             // Write session header
             StringBuilder header = new StringBuilder();
@@ -215,7 +219,7 @@ public class SessionLogger {
     }
 
     private void updateLatestSymlink() {
-        Path latestLink = LOGS_DIR.resolve("latest.log");
+        Path latestLink = getLogsDir().resolve("latest.log");
         try {
             Files.deleteIfExists(latestLink);
             Files.createSymbolicLink(latestLink, sessionLogFile.getFileName());
@@ -241,9 +245,9 @@ public class SessionLogger {
      */
     public void cleanOldLogs(int keepCount) {
         try {
-            if (!Files.exists(LOGS_DIR)) return;
+            if (!Files.exists(getLogsDir())) return;
 
-            var logFiles = Files.list(LOGS_DIR)
+            var logFiles = Files.list(getLogsDir())
                     .filter(p -> p.getFileName().toString().startsWith("session-"))
                     .filter(p -> p.getFileName().toString().endsWith(".log"))
                     .sorted((a, b) -> {

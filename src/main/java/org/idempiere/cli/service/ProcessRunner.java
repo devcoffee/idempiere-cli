@@ -15,6 +15,8 @@ import java.util.Map;
 @ApplicationScoped
 public class ProcessRunner {
 
+    private static final boolean IS_WINDOWS = System.getProperty("os.name", "").toLowerCase().contains("win");
+
     @Inject
     SessionLogger sessionLogger;
 
@@ -28,12 +30,29 @@ public class ProcessRunner {
         return runInDir(null, command);
     }
 
+    /**
+     * On Windows, wrap the command with "cmd /c" to ensure .cmd/.bat files are resolved.
+     * This is needed because ProcessBuilder doesn't automatically resolve extensions on Windows.
+     */
+    private String[] wrapCommandForWindows(String... command) {
+        if (!IS_WINDOWS || command.length == 0) {
+            return command;
+        }
+        // Create new array: cmd, /c, original command...
+        String[] wrapped = new String[command.length + 2];
+        wrapped[0] = "cmd";
+        wrapped[1] = "/c";
+        System.arraycopy(command, 0, wrapped, 2, command.length);
+        return wrapped;
+    }
+
     public RunResult runInDir(Path workDir, String... command) {
         long startTime = System.currentTimeMillis();
         sessionLogger.logCommand(workDir, command);
 
         try {
-            ProcessBuilder pb = new ProcessBuilder(command);
+            String[] effectiveCommand = wrapCommandForWindows(command);
+            ProcessBuilder pb = new ProcessBuilder(effectiveCommand);
             pb.redirectErrorStream(true);
             if (workDir != null) {
                 pb.directory(workDir.toFile());

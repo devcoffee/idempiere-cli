@@ -116,8 +116,9 @@ public class DoctorService {
     private CheckResult checkManifest(Path pluginDir) {
         Path manifest = pluginDir.resolve("META-INF/MANIFEST.MF");
         if (!Files.exists(manifest)) {
-            printResult(Status.FAIL, "MANIFEST.MF", "Not found at META-INF/MANIFEST.MF");
-            return new CheckResult("MANIFEST.MF", Status.FAIL);
+            String msg = "Not found at META-INF/MANIFEST.MF";
+            printResult(Status.FAIL, "MANIFEST.MF", msg);
+            return new CheckResult("MANIFEST.MF", Status.FAIL, msg);
         }
         try {
             String content = Files.readString(manifest);
@@ -128,23 +129,27 @@ public class DoctorService {
             if (!content.contains("Require-Bundle") && !content.contains("Fragment-Host")) missing.add("Require-Bundle or Fragment-Host");
 
             if (missing.isEmpty()) {
-                printResult(Status.OK, "MANIFEST.MF", "All required headers present");
-                return new CheckResult("MANIFEST.MF", Status.OK);
+                String msg = "All required headers present";
+                printResult(Status.OK, "MANIFEST.MF", msg);
+                return new CheckResult("MANIFEST.MF", Status.OK, msg);
             } else {
-                printResult(Status.FAIL, "MANIFEST.MF", "Missing: " + String.join(", ", missing));
-                return new CheckResult("MANIFEST.MF", Status.FAIL);
+                String msg = "Missing: " + String.join(", ", missing);
+                printResult(Status.FAIL, "MANIFEST.MF", msg);
+                return new CheckResult("MANIFEST.MF", Status.FAIL, msg);
             }
         } catch (IOException e) {
-            printResult(Status.FAIL, "MANIFEST.MF", "Error reading: " + e.getMessage());
-            return new CheckResult("MANIFEST.MF", Status.FAIL);
+            String msg = "Error reading: " + e.getMessage();
+            printResult(Status.FAIL, "MANIFEST.MF", msg);
+            return new CheckResult("MANIFEST.MF", Status.FAIL, msg);
         }
     }
 
     private CheckResult checkBuildProperties(Path pluginDir) {
         Path buildProps = pluginDir.resolve("build.properties");
         if (!Files.exists(buildProps)) {
-            printResult(Status.FAIL, "build.properties", "Not found");
-            return new CheckResult("build.properties", Status.FAIL);
+            String msg = "Not found";
+            printResult(Status.FAIL, "build.properties", msg);
+            return new CheckResult("build.properties", Status.FAIL, msg);
         }
         try {
             String content = Files.readString(buildProps);
@@ -154,23 +159,27 @@ public class DoctorService {
             if (!content.contains("bin.includes")) missing.add("bin.includes");
 
             if (missing.isEmpty()) {
-                printResult(Status.OK, "build.properties", "All required entries present");
-                return new CheckResult("build.properties", Status.OK);
+                String msg = "All required entries present";
+                printResult(Status.OK, "build.properties", msg);
+                return new CheckResult("build.properties", Status.OK, msg);
             } else {
-                printResult(Status.WARN, "build.properties", "Missing: " + String.join(", ", missing));
-                return new CheckResult("build.properties", Status.WARN);
+                String msg = "Missing: " + String.join(", ", missing);
+                printResult(Status.WARN, "build.properties", msg);
+                return new CheckResult("build.properties", Status.WARN, msg);
             }
         } catch (IOException e) {
-            printResult(Status.FAIL, "build.properties", "Error reading: " + e.getMessage());
-            return new CheckResult("build.properties", Status.FAIL);
+            String msg = "Error reading: " + e.getMessage();
+            printResult(Status.FAIL, "build.properties", msg);
+            return new CheckResult("build.properties", Status.FAIL, msg);
         }
     }
 
     private CheckResult checkPomXml(Path pluginDir) {
         Path pom = pluginDir.resolve("pom.xml");
         if (!Files.exists(pom)) {
-            printResult(Status.FAIL, "pom.xml", "Not found");
-            return new CheckResult("pom.xml", Status.FAIL);
+            String msg = "Not found";
+            printResult(Status.FAIL, "pom.xml", msg);
+            return new CheckResult("pom.xml", Status.FAIL, msg);
         }
         try {
             String content = Files.readString(pom);
@@ -179,33 +188,39 @@ public class DoctorService {
             if (!content.contains("<packaging>bundle</packaging>")) issues.add("packaging is not 'bundle'");
 
             if (issues.isEmpty()) {
-                printResult(Status.OK, "pom.xml", "Tycho plugin and bundle packaging present");
-                return new CheckResult("pom.xml", Status.OK);
+                String msg = "Tycho plugin and bundle packaging present";
+                printResult(Status.OK, "pom.xml", msg);
+                return new CheckResult("pom.xml", Status.OK, msg);
             } else {
-                printResult(Status.FAIL, "pom.xml", String.join(", ", issues));
-                return new CheckResult("pom.xml", Status.FAIL);
+                String msg = String.join(", ", issues);
+                printResult(Status.FAIL, "pom.xml", msg);
+                return new CheckResult("pom.xml", Status.FAIL, msg);
             }
         } catch (IOException e) {
-            printResult(Status.FAIL, "pom.xml", "Error reading: " + e.getMessage());
-            return new CheckResult("pom.xml", Status.FAIL);
+            String msg = "Error reading: " + e.getMessage();
+            printResult(Status.FAIL, "pom.xml", msg);
+            return new CheckResult("pom.xml", Status.FAIL, msg);
         }
     }
 
     private CheckResult checkOsgiInf(Path pluginDir) {
         Path osgiInf = pluginDir.resolve("OSGI-INF");
         if (Files.exists(osgiInf) && Files.isDirectory(osgiInf)) {
-            printResult(Status.OK, "OSGI-INF", "Directory exists");
-            return new CheckResult("OSGI-INF", Status.OK);
+            String msg = "Directory exists";
+            printResult(Status.OK, "OSGI-INF", msg);
+            return new CheckResult("OSGI-INF", Status.OK, msg);
         }
-        printResult(Status.WARN, "OSGI-INF", "Directory not found");
-        return new CheckResult("OSGI-INF", Status.WARN);
+        String msg = "Directory not found";
+        printResult(Status.WARN, "OSGI-INF", msg);
+        return new CheckResult("OSGI-INF", Status.WARN, msg);
     }
 
     private CheckResult checkImportsVsRequireBundle(Path pluginDir) {
         Path manifest = pluginDir.resolve("META-INF/MANIFEST.MF");
         if (!Files.exists(manifest)) {
-            printResult(Status.WARN, "Dependencies", "Cannot check — no MANIFEST.MF");
-            return new CheckResult("Dependencies", Status.WARN);
+            String msg = "Cannot check — no MANIFEST.MF";
+            printResult(Status.WARN, "Dependencies", msg);
+            return new CheckResult("Dependencies", Status.WARN, msg);
         }
 
         try {
@@ -223,8 +238,9 @@ public class DoctorService {
             // Scan java imports
             Path srcDir = pluginDir.resolve("src");
             if (!Files.exists(srcDir)) {
-                printResult(Status.WARN, "Dependencies", "No src/ directory found");
-                return new CheckResult("Dependencies", Status.WARN);
+                String msg = "No src/ directory found";
+                printResult(Status.WARN, "Dependencies", msg);
+                return new CheckResult("Dependencies", Status.WARN, msg);
             }
 
             Set<String> externalPackages = new HashSet<>();
@@ -256,15 +272,18 @@ public class DoctorService {
             }
 
             if (uncoveredPrefixes.isEmpty()) {
-                printResult(Status.OK, "Dependencies", "Imports match declared bundles");
-                return new CheckResult("Dependencies", Status.OK);
+                String msg = "Imports match declared bundles";
+                printResult(Status.OK, "Dependencies", msg);
+                return new CheckResult("Dependencies", Status.OK, msg);
             } else {
-                printResult(Status.WARN, "Dependencies", "Missing bundles: " + String.join(", ", uncoveredPrefixes));
-                return new CheckResult("Dependencies", Status.WARN);
+                String msg = "Missing bundles: " + String.join(", ", uncoveredPrefixes);
+                printResult(Status.WARN, "Dependencies", msg);
+                return new CheckResult("Dependencies", Status.WARN, msg);
             }
         } catch (IOException e) {
-            printResult(Status.WARN, "Dependencies", "Error checking: " + e.getMessage());
-            return new CheckResult("Dependencies", Status.WARN);
+            String msg = "Error checking: " + e.getMessage();
+            printResult(Status.WARN, "Dependencies", msg);
+            return new CheckResult("Dependencies", Status.WARN, msg);
         }
     }
 
@@ -272,137 +291,161 @@ public class DoctorService {
         ProcessRunner.RunResult result = processRunner.run("java", "-version");
         if (result.exitCode() < 0 || result.output() == null) {
             // On Windows, check if installed via winget but not in PATH
+            String msg;
             if (IS_WINDOWS && isWingetPackageInstalled("EclipseAdoptium.Temurin")) {
-                printResult(Status.FAIL, "Java", "Installed but not in PATH (restart terminal)");
+                msg = "Installed but not in PATH (restart terminal)";
             } else {
-                printResult(Status.FAIL, "Java", "Not found");
+                msg = "Not found";
             }
-            return new CheckResult("Java", Status.FAIL);
+            printResult(Status.FAIL, "Java", msg);
+            return new CheckResult("Java", Status.FAIL, msg);
         }
 
         Matcher matcher = JAVA_VERSION_PATTERN.matcher(result.output());
         if (matcher.find()) {
             int majorVersion = Integer.parseInt(matcher.group(1));
             if (majorVersion >= 17) {
-                printResult(Status.OK, "Java", "Version " + majorVersion + " detected");
-                return new CheckResult("Java", Status.OK);
+                String msg = "Version " + majorVersion + " detected";
+                printResult(Status.OK, "Java", msg);
+                return new CheckResult("Java", Status.OK, msg);
             } else {
-                printResult(Status.FAIL, "Java", "Version " + majorVersion + " found, but 17+ is required");
-                return new CheckResult("Java", Status.FAIL);
+                String msg = "Version " + majorVersion + " found, but 17+ is required";
+                printResult(Status.FAIL, "Java", msg);
+                return new CheckResult("Java", Status.FAIL, msg);
             }
         }
 
-        printResult(Status.WARN, "Java", "Found but could not determine version");
-        return new CheckResult("Java", Status.WARN);
+        String msg = "Found but could not determine version";
+        printResult(Status.WARN, "Java", msg);
+        return new CheckResult("Java", Status.WARN, msg);
     }
 
     private CheckResult checkMaven() {
         ProcessRunner.RunResult result = processRunner.run("mvn", "-version");
         if (result.exitCode() < 0 || result.output() == null) {
             // On Windows, check if Maven was installed by doctor --fix but not in PATH
+            String msg;
             if (IS_WINDOWS) {
                 String programFiles = System.getenv("ProgramFiles");
                 if (programFiles == null) programFiles = "C:\\Program Files";
                 Path mavenBin = Path.of(programFiles, "apache-maven-" + MAVEN_VERSION, "bin", "mvn.cmd");
                 if (Files.exists(mavenBin)) {
-                    printResult(Status.FAIL, "Maven", "Installed but not in PATH (add " + mavenBin.getParent() + " to PATH)");
-                    return new CheckResult("Maven", Status.FAIL);
+                    msg = "Installed but not in PATH (add " + mavenBin.getParent() + " to PATH)";
+                    printResult(Status.FAIL, "Maven", msg);
+                    return new CheckResult("Maven", Status.FAIL, msg);
                 }
             }
-            printResult(Status.FAIL, "Maven", "Not found");
-            return new CheckResult("Maven", Status.FAIL);
+            msg = "Not found";
+            printResult(Status.FAIL, "Maven", msg);
+            return new CheckResult("Maven", Status.FAIL, msg);
         }
 
         Matcher matcher = MAVEN_VERSION_PATTERN.matcher(result.output());
         if (matcher.find()) {
-            printResult(Status.OK, "Maven", "Version " + matcher.group(1) + " detected");
-            return new CheckResult("Maven", Status.OK);
+            String msg = "Version " + matcher.group(1) + " detected";
+            printResult(Status.OK, "Maven", msg);
+            return new CheckResult("Maven", Status.OK, msg);
         }
 
-        printResult(Status.OK, "Maven", "Found");
-        return new CheckResult("Maven", Status.OK);
+        String msg = "Found";
+        printResult(Status.OK, "Maven", msg);
+        return new CheckResult("Maven", Status.OK, msg);
     }
 
     private CheckResult checkGit() {
         ProcessRunner.RunResult result = processRunner.run("git", "--version");
         if (result.exitCode() < 0 || result.output() == null) {
-            printResult(Status.FAIL, "Git", "Not found");
-            return new CheckResult("Git", Status.FAIL);
+            String msg = "Not found";
+            printResult(Status.FAIL, "Git", msg);
+            return new CheckResult("Git", Status.FAIL, msg);
         }
 
         Matcher matcher = GIT_VERSION_PATTERN.matcher(result.output());
         if (matcher.find()) {
-            printResult(Status.OK, "Git", "Version " + matcher.group(1) + " detected");
-            return new CheckResult("Git", Status.OK);
+            String msg = "Version " + matcher.group(1) + " detected";
+            printResult(Status.OK, "Git", msg);
+            return new CheckResult("Git", Status.OK, msg);
         }
 
-        printResult(Status.OK, "Git", "Found");
-        return new CheckResult("Git", Status.OK);
+        String msg = "Found";
+        printResult(Status.OK, "Git", msg);
+        return new CheckResult("Git", Status.OK, msg);
     }
 
     private CheckResult checkDocker() {
         ProcessRunner.RunResult result = processRunner.run("docker", "--version");
         if (result.exitCode() < 0 || result.output() == null) {
-            printResult(Status.WARN, "Docker", "Not found (optional)");
-            return new CheckResult("Docker", Status.WARN);
+            String msg = "Not found (optional)";
+            printResult(Status.WARN, "Docker", msg);
+            return new CheckResult("Docker", Status.WARN, msg);
         }
 
         Matcher matcher = DOCKER_VERSION_PATTERN.matcher(result.output());
         if (matcher.find()) {
-            printResult(Status.OK, "Docker", "Version " + matcher.group(1) + " detected");
-            return new CheckResult("Docker", Status.OK);
+            String msg = "Version " + matcher.group(1) + " detected";
+            printResult(Status.OK, "Docker", msg);
+            return new CheckResult("Docker", Status.OK, msg);
         }
 
-        printResult(Status.OK, "Docker", "Found");
-        return new CheckResult("Docker", Status.OK);
+        String msg = "Found";
+        printResult(Status.OK, "Docker", msg);
+        return new CheckResult("Docker", Status.OK, msg);
     }
 
     private CheckResult checkPostgres() {
         ProcessRunner.RunResult result = processRunner.run("psql", "--version");
         if (result.exitCode() < 0 || result.output() == null) {
             // On Windows, check if installed via winget but not in PATH
+            String msg;
             if (IS_WINDOWS && isWingetPackageInstalled("PostgreSQL.PostgreSQL")) {
-                printResult(Status.FAIL, "PostgreSQL", "Installed but psql not in PATH (restart terminal or add to PATH)");
+                msg = "Installed but psql not in PATH (restart terminal or add to PATH)";
             } else {
-                printResult(Status.FAIL, "PostgreSQL", "psql client not found (required for database import)");
+                msg = "psql client not found (required for database import)";
             }
-            return new CheckResult("PostgreSQL", Status.FAIL);
+            printResult(Status.FAIL, "PostgreSQL", msg);
+            return new CheckResult("PostgreSQL", Status.FAIL, msg);
         }
 
         Matcher matcher = PSQL_VERSION_PATTERN.matcher(result.output());
         if (matcher.find()) {
-            printResult(Status.OK, "PostgreSQL", "psql version " + matcher.group(1) + " detected");
-            return new CheckResult("PostgreSQL", Status.OK);
+            String msg = "psql version " + matcher.group(1) + " detected";
+            printResult(Status.OK, "PostgreSQL", msg);
+            return new CheckResult("PostgreSQL", Status.OK, msg);
         }
 
-        printResult(Status.OK, "PostgreSQL", "psql found");
-        return new CheckResult("PostgreSQL", Status.OK);
+        String msg = "psql found";
+        printResult(Status.OK, "PostgreSQL", msg);
+        return new CheckResult("PostgreSQL", Status.OK, msg);
     }
 
     private CheckResult checkJar() {
         ProcessRunner.RunResult result = processRunner.run("jar", "--version");
         if (result.exitCode() < 0 || result.output() == null) {
-            printResult(Status.FAIL, "jar", "Not found (required for database seed extraction)");
-            return new CheckResult("jar", Status.FAIL);
+            String msg = "Not found (required for database seed extraction)";
+            printResult(Status.FAIL, "jar", msg);
+            return new CheckResult("jar", Status.FAIL, msg);
         }
-        printResult(Status.OK, "jar", "Found (part of JDK)");
-        return new CheckResult("jar", Status.OK);
+        String msg = "Found (part of JDK)";
+        printResult(Status.OK, "jar", msg);
+        return new CheckResult("jar", Status.OK, msg);
     }
 
     private CheckResult checkGreadlink() {
         String os = System.getProperty("os.name", "").toLowerCase();
         if (!os.contains("mac")) {
             // greadlink is only needed on macOS
-            return new CheckResult("greadlink", Status.OK);
+            return new CheckResult("greadlink", Status.OK, "N/A");
         }
 
         ProcessRunner.RunResult result = processRunner.run("greadlink", "--version");
         if (result.exitCode() < 0 || result.output() == null) {
-            printResult(Status.FAIL, "greadlink", "Not found (required on macOS for database import)");
-            return new CheckResult("greadlink", Status.FAIL);
+            String msg = "Not found (required on macOS for database import)";
+            printResult(Status.FAIL, "greadlink", msg);
+            return new CheckResult("greadlink", Status.FAIL, msg);
         }
-        printResult(Status.OK, "greadlink", "Found (coreutils)");
-        return new CheckResult("greadlink", Status.OK);
+        String msg = "Found (coreutils)";
+        printResult(Status.OK, "greadlink", msg);
+        return new CheckResult("greadlink", Status.OK, msg);
     }
 
     private void printResult(Status status, String tool, String message) {
@@ -417,13 +460,21 @@ public class DoctorService {
     private void printFixSuggestions(List<CheckResult> results) {
         String os = System.getProperty("os.name", "").toLowerCase();
 
-        boolean javaFailed = results.stream().anyMatch(r -> r.tool().equals("Java") && r.status() == Status.FAIL);
-        boolean jarFailed = results.stream().anyMatch(r -> r.tool().equals("jar") && r.status() == Status.FAIL);
-        boolean mavenFailed = results.stream().anyMatch(r -> r.tool().equals("Maven") && r.status() == Status.FAIL);
-        boolean gitFailed = results.stream().anyMatch(r -> r.tool().equals("Git") && r.status() == Status.FAIL);
-        boolean postgresFailed = results.stream().anyMatch(r -> r.tool().equals("PostgreSQL") && r.status() == Status.FAIL);
-        boolean greadlinkFailed = results.stream().anyMatch(r -> r.tool().equals("greadlink") && r.status() == Status.FAIL);
+        // Get failed results with their messages
+        CheckResult javaResult = results.stream().filter(r -> r.tool().equals("Java") && r.status() == Status.FAIL).findFirst().orElse(null);
+        CheckResult jarResult = results.stream().filter(r -> r.tool().equals("jar") && r.status() == Status.FAIL).findFirst().orElse(null);
+        CheckResult mavenResult = results.stream().filter(r -> r.tool().equals("Maven") && r.status() == Status.FAIL).findFirst().orElse(null);
+        CheckResult gitResult = results.stream().filter(r -> r.tool().equals("Git") && r.status() == Status.FAIL).findFirst().orElse(null);
+        CheckResult postgresResult = results.stream().filter(r -> r.tool().equals("PostgreSQL") && r.status() == Status.FAIL).findFirst().orElse(null);
+        CheckResult greadlinkResult = results.stream().filter(r -> r.tool().equals("greadlink") && r.status() == Status.FAIL).findFirst().orElse(null);
         boolean dockerMissing = results.stream().anyMatch(r -> r.tool().equals("Docker") && r.status() != Status.OK);
+
+        boolean javaFailed = javaResult != null;
+        boolean jarFailed = jarResult != null;
+        boolean mavenFailed = mavenResult != null;
+        boolean gitFailed = gitResult != null;
+        boolean postgresFailed = postgresResult != null;
+        boolean greadlinkFailed = greadlinkResult != null;
 
         boolean hasCriticalFailures = javaFailed || jarFailed || mavenFailed || gitFailed || postgresFailed || greadlinkFailed;
 
@@ -477,24 +528,97 @@ public class DoctorService {
                     System.out.println();
                 }
             } else if (os.contains("win")) {
-                // Windows with winget
+                // Windows: separate tools into "need install" vs "need PATH"
                 List<String> wingetPackages = new ArrayList<>();
-                if (javaFailed || jarFailed) wingetPackages.add("EclipseAdoptium.Temurin.21.JDK");
-                if (gitFailed) wingetPackages.add("Git.Git");
-                if (postgresFailed) wingetPackages.add("PostgreSQL.PostgreSQL.17");
+                List<String[]> pathIssues = new ArrayList<>(); // {tool name, path to add}
 
-                if (!wingetPackages.isEmpty() || mavenFailed) {
-                    System.out.println("  Install with winget:");
-                    System.out.println();
-                    for (String pkg : wingetPackages) {
-                        System.out.println("    winget install --id " + pkg + " --source winget");
+                // Check Java
+                if (javaFailed || jarFailed) {
+                    if (javaResult != null && isInstalledButNotInPath(javaResult)) {
+                        String path = detectWingetToolPath("EclipseAdoptium.Temurin");
+                        if (path != null) pathIssues.add(new String[]{"Java", path});
+                    } else {
+                        wingetPackages.add("EclipseAdoptium.Temurin.21.JDK");
                     }
-                    if (mavenFailed) {
+                }
+
+                // Check Git
+                if (gitFailed) {
+                    if (isInstalledButNotInPath(gitResult)) {
+                        String path = detectWingetToolPath("Git.Git");
+                        if (path != null) pathIssues.add(new String[]{"Git", path});
+                    } else {
+                        wingetPackages.add("Git.Git");
+                    }
+                }
+
+                // Check PostgreSQL
+                if (postgresFailed) {
+                    if (isInstalledButNotInPath(postgresResult)) {
+                        String path = detectWingetToolPath("PostgreSQL.PostgreSQL");
+                        if (path != null) pathIssues.add(new String[]{"PostgreSQL", path});
+                    } else {
+                        wingetPackages.add("PostgreSQL.PostgreSQL.17");
+                    }
+                }
+
+                // Check Maven
+                boolean mavenNeedsInstall = false;
+                if (mavenFailed) {
+                    if (isInstalledButNotInPath(mavenResult)) {
+                        String programFiles = System.getenv("ProgramFiles");
+                        if (programFiles == null) programFiles = "C:\\Program Files";
+                        Path mavenBin = Path.of(programFiles, "apache-maven-" + MAVEN_VERSION, "bin");
+                        if (Files.exists(mavenBin)) {
+                            pathIssues.add(new String[]{"Maven", mavenBin.toString()});
+                        } else {
+                            mavenNeedsInstall = true;
+                        }
+                    } else {
+                        mavenNeedsInstall = true;
+                    }
+                }
+
+                // Show PATH instructions first (tools already installed)
+                if (!pathIssues.isEmpty()) {
+                    System.out.println("  Tools installed but not in PATH:");
+                    System.out.println();
+                    StringBuilder allPaths = new StringBuilder();
+                    for (String[] issue : pathIssues) {
+                        System.out.println("    " + issue[0] + ": " + issue[1]);
+                        if (allPaths.length() > 0) allPaths.append(";");
+                        allPaths.append(issue[1]);
+                    }
+                    System.out.println();
+                    System.out.println("  Option 1: Restart your terminal");
+                    System.out.println();
+                    System.out.println("  Option 2: Add to PATH (run as Administrator in PowerShell):");
+                    System.out.println();
+                    System.out.println("    [Environment]::SetEnvironmentVariable(\"Path\",");
+                    System.out.println("      [Environment]::GetEnvironmentVariable(\"Path\", \"Machine\") + \";\" +");
+                    System.out.println("      \"" + allPaths + "\", \"Machine\")");
+                    System.out.println();
+                }
+
+                // Show install instructions (tools not installed)
+                if (!wingetPackages.isEmpty() || mavenNeedsInstall) {
+                    if (!pathIssues.isEmpty()) {
+                        System.out.println("  Tools that need to be installed:");
                         System.out.println();
+                    }
+                    if (!wingetPackages.isEmpty()) {
+                        System.out.println("  Install with winget:");
+                        System.out.println();
+                        for (String pkg : wingetPackages) {
+                            System.out.println("    winget install --id " + pkg + " --source winget");
+                        }
+                        System.out.println();
+                    }
+                    if (mavenNeedsInstall) {
                         System.out.println("  Maven (manual download):");
                         System.out.println("    https://maven.apache.org/download.cgi");
+                        System.out.println();
                     }
-                    System.out.println();
                     System.out.println("  Or run: idempiere-cli doctor --fix");
                     System.out.println();
                 }
@@ -515,7 +639,7 @@ public class DoctorService {
                 System.out.println();
             }
 
-            System.out.println("After installing, run 'idempiere doctor' again.");
+            System.out.println("After fixing, run 'idempiere-cli doctor' again.");
         }
 
         if (dockerMissing) {
@@ -531,6 +655,15 @@ public class DoctorService {
             System.out.println();
             System.out.println("  With Docker, use: idempiere setup-dev-env --with-docker");
         }
+    }
+
+    /**
+     * Check if a tool is installed but not in PATH based on the check result message.
+     */
+    private boolean isInstalledButNotInPath(CheckResult result) {
+        if (result == null || result.message() == null) return false;
+        String msg = result.message().toLowerCase();
+        return msg.contains("not in path") || msg.contains("installed but");
     }
 
     private void runAutoFix(List<CheckResult> results) {
@@ -1003,6 +1136,6 @@ public class DoctorService {
         OK, WARN, FAIL
     }
 
-    private record CheckResult(String tool, Status status) {
+    private record CheckResult(String tool, Status status, String message) {
     }
 }

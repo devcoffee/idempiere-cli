@@ -3,8 +3,14 @@ package org.idempiere.cli.service;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -12,6 +18,8 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 /**
  * Validates development environment and plugin structure.
@@ -533,50 +541,162 @@ public class DoctorService {
         boolean gitFailed = results.stream().anyMatch(r -> r.tool().equals("Git") && r.status() == Status.FAIL);
         boolean postgresFailed = results.stream().anyMatch(r -> r.tool().equals("PostgreSQL") && r.status() == Status.FAIL);
 
-        // Note: Maven is not available on winget (distributed as ZIP only)
+        // Packages to install via winget (Maven not available on winget)
         List<String[]> packagesToInstall = new ArrayList<>();
         if (javaFailed || jarFailed) packagesToInstall.add(new String[]{"EclipseAdoptium.Temurin.21.JDK", "Java 21 (Temurin)"});
         if (gitFailed) packagesToInstall.add(new String[]{"Git.Git", "Git"});
         if (postgresFailed) packagesToInstall.add(new String[]{"PostgreSQL.PostgreSQL.17", "PostgreSQL 17"});
 
-        if (packagesToInstall.isEmpty()) {
+        boolean hasWingetPackages = !packagesToInstall.isEmpty();
+        boolean anythingInstalled = false;
+
+        if (hasWingetPackages) {
+            System.out.println();
+            System.out.println("Installing packages with winget...");
+            System.out.println();
+
+            for (String[] pkg : packagesToInstall) {
+                // Check if already installed
+                if (isWingetPackageInstalled(pkg[0])) {
+                    System.out.println(pkg[1] + " is already installed.");
+                    anythingInstalled = true;
+                    continue;
+                }
+
+                System.out.println("Installing " + pkg[1] + "...");
+                int exitCode = processRunner.runLive("winget", "install", "--id", pkg[0], "--source", "winget", "--accept-source-agreements", "--accept-package-agreements");
+                if (exitCode == 0) {
+                    anythingInstalled = true;
+                } else {
+                    System.out.println("  Warning: " + pkg[1] + " installation may have failed.");
+                }
+            }
+        }
+
+        // Maven: download and install automatically
+        if (mavenFailed) {
+            System.out.println();
+            if (installMavenWindows()) {
+                anythingInstalled = true;
+            }
+        }
+
+        if (!hasWingetPackages && !mavenFailed) {
             System.out.println();
             System.out.println("Nothing to fix!");
             return;
         }
 
         System.out.println();
-        System.out.println("Installing missing packages with winget...");
-        System.out.println();
+        if (anythingInstalled) {
+            System.out.println("Installation complete.");
+            System.out.println("Restart your terminal and run 'idempiere-cli doctor' to verify.");
+        }
+    }
 
-        boolean allSucceeded = true;
-        for (String[] pkg : packagesToInstall) {
-            System.out.println("Installing " + pkg[1] + "...");
-            int exitCode = processRunner.runLive("winget", "install", "--id", pkg[0], "--source", "winget", "--accept-source-agreements", "--accept-package-agreements");
-            if (exitCode != 0) {
-                System.out.println("  Warning: " + pkg[1] + " installation may have failed.");
-                allSucceeded = false;
+    private boolean isWingetPackageInstalled(String packageId) {
+        ProcessRunner.RunResult result = processRunner.run("winget", "list", "--id", packageId, "--source", "winget");
+        // winget list returns 0 if found, and output contains the package name
+        return result.exitCode() == 0 && result.output().contains(packageId);
+    }
+
+    private static final String MAVEN_VERSION = "3.9.9";
+    private static final String MAVEN_URL = "https://dlcdn.apache.org/maven/maven-3/" + MAVEN_VERSION + "/binaries/apache-maven-" + MAVEN_VERSION + "-bin.zip";
+
+    private boolean installMavenWindows() {
+        System.out.println("Installing Maven " + MAVEN_VERSION + "...");
+
+        String programFiles = System.getenv("ProgramFiles");
+        if (programFiles == null) {
+            programFiles = "C:\\Program Files";
+        }
+        Path mavenDir = Path.of(programFiles, "Maven");
+        Path mavenExtracted = Path.of(programFiles, "apache-maven-" + MAVEN_VERSION);
+
+        // Check if already installed
+        if (Files.exists(mavenExtracted.resolve("bin").resolve("mvn.cmd"))) {
+            System.out.println("  Maven is already installed at: " + mavenExtracted);
+            addMavenToPathInstructions(mavenExtracted);
+            return true;
+        }
+
+        try {
+            // Download Maven ZIP
+            System.out.println("  Downloading from: " + MAVEN_URL);
+            Path tempZip = Files.createTempFile("maven-", ".zip");
+
+            HttpClient client = HttpClient.newBuilder()
+                    .followRedirects(HttpClient.Redirect.ALWAYS)
+                    .build();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(MAVEN_URL))
+                    .GET()
+                    .build();
+
+            HttpResponse<InputStream> response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            if (response.statusCode() != 200) {
+                System.out.println("  Failed to download Maven. HTTP status: " + response.statusCode());
+                showMavenManualInstructions();
+                return false;
+            }
+
+            Files.copy(response.body(), tempZip, StandardCopyOption.REPLACE_EXISTING);
+            System.out.println("  Downloaded successfully.");
+
+            // Extract ZIP to Program Files
+            System.out.println("  Extracting to: " + programFiles);
+            extractZip(tempZip, Path.of(programFiles));
+            Files.deleteIfExists(tempZip);
+
+            if (!Files.exists(mavenExtracted.resolve("bin").resolve("mvn.cmd"))) {
+                System.out.println("  Extraction failed - Maven not found at expected location.");
+                showMavenManualInstructions();
+                return false;
+            }
+
+            System.out.println("  Maven installed successfully!");
+            addMavenToPathInstructions(mavenExtracted);
+            return true;
+
+        } catch (IOException | InterruptedException e) {
+            System.out.println("  Failed to install Maven: " + e.getMessage());
+            showMavenManualInstructions();
+            return false;
+        }
+    }
+
+    private void extractZip(Path zipFile, Path destDir) throws IOException {
+        try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(zipFile))) {
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                Path entryPath = destDir.resolve(entry.getName());
+                if (entry.isDirectory()) {
+                    Files.createDirectories(entryPath);
+                } else {
+                    Files.createDirectories(entryPath.getParent());
+                    Files.copy(zis, entryPath, StandardCopyOption.REPLACE_EXISTING);
+                }
+                zis.closeEntry();
             }
         }
+    }
 
+    private void addMavenToPathInstructions(Path mavenPath) {
+        Path binPath = mavenPath.resolve("bin");
         System.out.println();
-        if (allSucceeded) {
-            System.out.println("Installation complete.");
-        } else {
-            System.out.println("Some packages may have failed. Check output above and install manually if needed.");
-        }
-
-        // Maven is not available on winget - show manual instructions
-        if (mavenFailed) {
-            System.out.println();
-            System.out.println("Maven is not available via winget. Install manually:");
-            System.out.println("  1. Download from: https://maven.apache.org/download.cgi");
-            System.out.println("  2. Extract ZIP to C:\\Program Files\\Maven");
-            System.out.println("  3. Add C:\\Program Files\\Maven\\bin to your PATH");
-        }
-
+        System.out.println("  Add Maven to your PATH by running (as Administrator):");
+        System.out.println("    setx /M PATH \"%PATH%;" + binPath + "\"");
         System.out.println();
-        System.out.println("Restart your terminal and run 'idempiere-cli doctor' to verify.");
+        System.out.println("  Or manually add to System Environment Variables:");
+        System.out.println("    " + binPath);
+    }
+
+    private void showMavenManualInstructions() {
+        System.out.println();
+        System.out.println("  Install Maven manually:");
+        System.out.println("    1. Download from: https://maven.apache.org/download.cgi");
+        System.out.println("    2. Extract ZIP to C:\\Program Files\\");
+        System.out.println("    3. Add the bin folder to your PATH");
     }
 
     private void runAutoFixLinux(List<CheckResult> results) {

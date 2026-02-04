@@ -552,7 +552,7 @@ public class DoctorService {
         boolean allSucceeded = true;
         for (String[] pkg : packagesToInstall) {
             System.out.println("Installing " + pkg[1] + "...");
-            int exitCode = processRunner.runLive("winget", "install", "--id", pkg[0], "--accept-source-agreements", "--accept-package-agreements");
+            int exitCode = processRunner.runLive("winget", "install", "--id", pkg[0], "--source", "winget", "--accept-source-agreements", "--accept-package-agreements");
             if (exitCode != 0) {
                 System.out.println("  Warning: " + pkg[1] + " installation may have failed.");
                 allSucceeded = false;

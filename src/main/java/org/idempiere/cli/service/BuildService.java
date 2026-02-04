@@ -67,25 +67,36 @@ public class BuildService {
     }
 
     private String detectMvnCommand(Path dir) {
-        // Check for wrapper in plugin directory
-        Path mvnw = dir.resolve("mvnw");
-        if (Files.exists(mvnw)) {
-            // Make executable if needed (common issue after git clone)
-            if (!Files.isExecutable(mvnw)) {
-                try {
-                    mvnw.toFile().setExecutable(true);
-                } catch (Exception ignored) {
-                    // Fall through to check again
-                }
-            }
-            if (Files.isExecutable(mvnw)) {
-                return mvnw.toAbsolutePath().toString();
-            }
-        }
+        boolean isWindows = System.getProperty("os.name", "").toLowerCase().contains("win");
+
+        // On Windows, check for .cmd wrapper first (Unix mvnw is a bash script)
         Path mvnwCmd = dir.resolve("mvnw.cmd");
-        if (Files.exists(mvnwCmd)) {
+        if (isWindows && Files.exists(mvnwCmd)) {
             return mvnwCmd.toAbsolutePath().toString();
         }
+
+        // Check for Unix wrapper
+        if (!isWindows) {
+            Path mvnw = dir.resolve("mvnw");
+            if (Files.exists(mvnw)) {
+                if (!Files.isExecutable(mvnw)) {
+                    try {
+                        mvnw.toFile().setExecutable(true);
+                    } catch (Exception ignored) {
+                        // Fall through
+                    }
+                }
+                if (Files.isExecutable(mvnw)) {
+                    return mvnw.toAbsolutePath().toString();
+                }
+            }
+        }
+
+        // Check for .cmd even on non-Windows (unlikely but safe)
+        if (!isWindows && Files.exists(mvnwCmd)) {
+            return mvnwCmd.toAbsolutePath().toString();
+        }
+
         // Fallback to system Maven
         if (processRunner.isAvailable("mvn")) {
             return "mvn";

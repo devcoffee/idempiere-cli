@@ -65,20 +65,28 @@ public class PackageService {
         System.out.println("  Generating p2 update site...");
 
         // Detect Maven
+        boolean isWindows = System.getProperty("os.name", "").toLowerCase().contains("win");
         String mvnCmd = "mvn";
-        Path mvnw = pluginDir.resolve("mvnw");
-        if (Files.exists(mvnw)) {
-            if (!Files.isExecutable(mvnw)) {
-                try {
-                    mvnw.toFile().setExecutable(true);
-                } catch (Exception ignored) {
+        Path mvnwCmd = pluginDir.resolve("mvnw.cmd");
+
+        // On Windows, check for .cmd wrapper first (Unix mvnw is a bash script)
+        if (isWindows && Files.exists(mvnwCmd)) {
+            mvnCmd = mvnwCmd.toAbsolutePath().toString();
+        } else if (!isWindows) {
+            Path mvnw = pluginDir.resolve("mvnw");
+            if (Files.exists(mvnw)) {
+                if (!Files.isExecutable(mvnw)) {
+                    try {
+                        mvnw.toFile().setExecutable(true);
+                    } catch (Exception ignored) {
+                    }
                 }
+                if (Files.isExecutable(mvnw)) {
+                    mvnCmd = "./mvnw";
+                }
+            } else if (Files.exists(mvnwCmd)) {
+                mvnCmd = mvnwCmd.toAbsolutePath().toString();
             }
-            if (Files.isExecutable(mvnw)) {
-                mvnCmd = "./mvnw";
-            }
-        } else if (Files.exists(pluginDir.resolve("mvnw.cmd"))) {
-            mvnCmd = "mvnw.cmd";
         }
 
         ProcessRunner.RunResult result = processRunner.runInDir(pluginDir,

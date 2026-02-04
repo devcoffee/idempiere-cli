@@ -87,7 +87,8 @@ public class ProcessRunner {
         sessionLogger.logCommand(workDir, command);
 
         try {
-            ProcessBuilder pb = new ProcessBuilder(command);
+            String[] effectiveCommand = wrapCommandForWindows(command);
+            ProcessBuilder pb = new ProcessBuilder(effectiveCommand);
             pb.inheritIO();
             if (workDir != null) {
                 pb.directory(workDir.toFile());
@@ -116,7 +117,8 @@ public class ProcessRunner {
         sessionLogger.logCommand(workDir, command);
 
         try {
-            ProcessBuilder pb = new ProcessBuilder(command);
+            String[] effectiveCommand = wrapCommandForWindows(command);
+            ProcessBuilder pb = new ProcessBuilder(effectiveCommand);
             pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
             pb.redirectError(ProcessBuilder.Redirect.INHERIT);
             if (workDir != null) {
@@ -176,7 +178,8 @@ public class ProcessRunner {
         sessionLogger.logCommand(workDir, command);
 
         try {
-            ProcessBuilder pb = new ProcessBuilder(command);
+            String[] effectiveCommand = wrapCommandForWindows(command);
+            ProcessBuilder pb = new ProcessBuilder(effectiveCommand);
             pb.redirectErrorStream(true);
             if (workDir != null) {
                 pb.directory(workDir.toFile());
@@ -264,7 +267,8 @@ public class ProcessRunner {
         sessionLogger.logCommand(workDir, command);
 
         try {
-            ProcessBuilder pb = new ProcessBuilder(command);
+            String[] effectiveCommand = wrapCommandForWindows(command);
+            ProcessBuilder pb = new ProcessBuilder(effectiveCommand);
             pb.redirectErrorStream(true);
             if (workDir != null) {
                 pb.directory(workDir.toFile());

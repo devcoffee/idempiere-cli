@@ -434,7 +434,7 @@ public class DoctorService {
                 }
             } else if (os.contains("linux")) {
                 List<String> aptPackages = new ArrayList<>();
-                if (javaFailed || jarFailed) aptPackages.add("openjdk-17-jdk");
+                if (javaFailed || jarFailed) aptPackages.add("openjdk-21-jdk");
                 if (mavenFailed) aptPackages.add("maven");
                 if (gitFailed) aptPackages.add("git");
                 if (postgresFailed) aptPackages.add("postgresql-client");
@@ -443,6 +443,9 @@ public class DoctorService {
                     System.out.println("  Install with apt (Debian/Ubuntu):");
                     System.out.println();
                     System.out.println("    sudo apt install " + String.join(" ", aptPackages));
+                    System.out.println();
+                    System.out.println("  Or run: idempiere-cli doctor --fix");
+                    System.out.println("  (auto-detects apt, dnf, yum, pacman, zypper)");
                     System.out.println();
                 }
             } else if (os.contains("win")) {
@@ -505,9 +508,11 @@ public class DoctorService {
             runAutoFixWindows(results);
         } else if (os.contains("mac")) {
             runAutoFixMac(results);
+        } else if (os.contains("linux") || os.contains("nix")) {
+            runAutoFixLinux(results);
         } else {
             System.out.println();
-            System.out.println("Auto-fix is currently only supported on macOS (Homebrew) and Windows (winget).");
+            System.out.println("Auto-fix is not supported on this platform.");
             System.out.println("Please install the missing tools manually.");
         }
     }
@@ -562,6 +567,107 @@ public class DoctorService {
         }
         System.out.println();
         System.out.println("Note: You may need to restart your terminal for PATH changes to take effect.");
+    }
+
+    private void runAutoFixLinux(List<CheckResult> results) {
+        // Detect package manager
+        String pkgManager = null;
+        String installCmd = null;
+        String sudoPrefix = "sudo ";
+
+        if (processRunner.isAvailable("apt")) {
+            pkgManager = "apt";
+            installCmd = "apt install -y";
+        } else if (processRunner.isAvailable("dnf")) {
+            pkgManager = "dnf";
+            installCmd = "dnf install -y";
+        } else if (processRunner.isAvailable("yum")) {
+            pkgManager = "yum";
+            installCmd = "yum install -y";
+        } else if (processRunner.isAvailable("pacman")) {
+            pkgManager = "pacman";
+            installCmd = "pacman -S --noconfirm";
+        } else if (processRunner.isAvailable("zypper")) {
+            pkgManager = "zypper";
+            installCmd = "zypper install -y";
+        }
+
+        if (pkgManager == null) {
+            System.out.println();
+            System.out.println("Could not detect package manager (apt, dnf, yum, pacman, zypper).");
+            System.out.println("Please install the missing tools manually.");
+            return;
+        }
+
+        boolean javaFailed = results.stream().anyMatch(r -> r.tool().equals("Java") && r.status() == Status.FAIL);
+        boolean jarFailed = results.stream().anyMatch(r -> r.tool().equals("jar") && r.status() == Status.FAIL);
+        boolean mavenFailed = results.stream().anyMatch(r -> r.tool().equals("Maven") && r.status() == Status.FAIL);
+        boolean gitFailed = results.stream().anyMatch(r -> r.tool().equals("Git") && r.status() == Status.FAIL);
+        boolean postgresFailed = results.stream().anyMatch(r -> r.tool().equals("PostgreSQL") && r.status() == Status.FAIL);
+
+        List<String> packagesToInstall = new ArrayList<>();
+
+        // Package names vary by distribution
+        switch (pkgManager) {
+            case "apt" -> {
+                if (javaFailed || jarFailed) packagesToInstall.add("openjdk-21-jdk");
+                if (mavenFailed) packagesToInstall.add("maven");
+                if (gitFailed) packagesToInstall.add("git");
+                if (postgresFailed) packagesToInstall.add("postgresql-client");
+            }
+            case "dnf", "yum" -> {
+                if (javaFailed || jarFailed) packagesToInstall.add("java-21-openjdk-devel");
+                if (mavenFailed) packagesToInstall.add("maven");
+                if (gitFailed) packagesToInstall.add("git");
+                if (postgresFailed) packagesToInstall.add("postgresql");
+            }
+            case "pacman" -> {
+                if (javaFailed || jarFailed) packagesToInstall.add("jdk-openjdk");
+                if (mavenFailed) packagesToInstall.add("maven");
+                if (gitFailed) packagesToInstall.add("git");
+                if (postgresFailed) packagesToInstall.add("postgresql-libs");
+            }
+            case "zypper" -> {
+                if (javaFailed || jarFailed) packagesToInstall.add("java-21-openjdk-devel");
+                if (mavenFailed) packagesToInstall.add("maven");
+                if (gitFailed) packagesToInstall.add("git");
+                if (postgresFailed) packagesToInstall.add("postgresql");
+            }
+        }
+
+        if (packagesToInstall.isEmpty()) {
+            System.out.println();
+            System.out.println("Nothing to fix!");
+            return;
+        }
+
+        System.out.println();
+        System.out.println("Installing missing packages with " + pkgManager + "...");
+        System.out.println();
+
+        List<String> command = new ArrayList<>();
+        command.add("sudo");
+        command.add(pkgManager);
+
+        // Add install subcommand and flags
+        switch (pkgManager) {
+            case "apt" -> { command.add("install"); command.add("-y"); }
+            case "dnf", "yum" -> { command.add("install"); command.add("-y"); }
+            case "pacman" -> { command.add("-S"); command.add("--noconfirm"); }
+            case "zypper" -> { command.add("install"); command.add("-y"); }
+        }
+
+        command.addAll(packagesToInstall);
+
+        int exitCode = processRunner.runLive(command.toArray(new String[0]));
+
+        if (exitCode == 0) {
+            System.out.println();
+            System.out.println("Installation complete. Run 'idempiere-cli doctor' to verify.");
+        } else {
+            System.out.println();
+            System.out.println("Some packages may have failed to install. Check output above.");
+        }
     }
 
     private void runAutoFixMac(List<CheckResult> results) {

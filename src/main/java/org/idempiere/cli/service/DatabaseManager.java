@@ -15,6 +15,8 @@ import java.util.Map;
 @ApplicationScoped
 public class DatabaseManager {
 
+    private static final boolean IS_WINDOWS = System.getProperty("os.name", "").toLowerCase().contains("win");
+
     @Inject
     ProcessRunner processRunner;
 
@@ -353,15 +355,16 @@ public class DatabaseManager {
 
         Map<String, String> importEnv = Map.of(
                 "PGPASSWORD", config.getDbAdminPass(),
-                "IDEMPIERE_HOME", productDir.toAbsolutePath().toString()
+                "IDEMPIERE_HOME", toBashPath(productDir.toAbsolutePath().toString())
         );
 
         // Pipe newline to skip "Press enter to continue..." prompt
         // Run quietly - capture output and only show on failure
+        String importScriptPath = toBashPath(importScript.toAbsolutePath().toString());
         ProcessRunner.RunResult importResult = processRunner.runQuietInDirWithEnvAndInput(
                 utilsDir, importEnv,
                 "\n",
-                importScript.toAbsolutePath().toString()
+                "bash", importScriptPath
         );
 
         if (!importResult.isSuccess()) {
@@ -428,7 +431,8 @@ public class DatabaseManager {
         //         KEY_STORE_O, KEY_STORE_L, KEY_STORE_S, KEY_STORE_C, IDEMPIERE_HOST, IDEMPIERE_PORT,
         //         IDEMPIERE_SSL_PORT, SSL (N), DB_TYPE (2=postgres), DB_HOST, DB_PORT, DB_NAME,
         //         DB_USER, DB_PASS, DB_SYSTEM, MAIL_HOST, MAIL_USER, MAIL_PASS, MAIL_ADMIN, SAVE (Y)
-        String javaHome = System.getProperty("java.home");
+        String javaHome = toBashPath(System.getProperty("java.home"));
+        String productDirPath = toBashPath(productDir.toAbsolutePath().toString());
         String dbTypeNum = "postgresql".equals(config.getDbType()) ? "2" : "1";
 
         // Use higher ports by default to avoid conflicts with common services
@@ -439,7 +443,7 @@ public class DatabaseManager {
         StringBuilder input = new StringBuilder();
         input.append(javaHome).append("\n");           // JAVA_HOME
         input.append("-Xmx2048M").append("\n");        // JAVA_OPTIONS
-        input.append(productDir.toAbsolutePath()).append("\n"); // IDEMPIERE_HOME
+        input.append(productDirPath).append("\n");     // IDEMPIERE_HOME
         input.append("myPassword").append("\n");       // KEY_STORE_PASS
         input.append("idempiere.org").append("\n");    // KEY_STORE_ON
         input.append("iDempiere").append("\n");        // KEY_STORE_OU
@@ -469,19 +473,11 @@ public class DatabaseManager {
                 "PGPASSWORD", config.getDbAdminPass()
         );
 
-        // Use bash -c with printf to pipe input correctly (like hengsin's approach)
-        // This ensures stdin is available from the start, avoiding race conditions
-        // Replace newlines with \n for printf, and escape single quotes
-        String escapedInput = input.toString()
-                .replace("\\", "\\\\")
-                .replace("'", "'\\''")
-                .replace("\n", "\\n");
-
-        // Run quietly - capture output and only show on failure
-        ProcessRunner.RunResult result = processRunner.runQuietInDirWithEnv(
-                productDir, env,
-                "bash", "-c",
-                "printf '" + escapedInput + "' | " + consoleSetup.toAbsolutePath().toString()
+        // Pipe input via stdin directly (avoids printf escaping issues with Windows paths)
+        String scriptPath = toBashPath(consoleSetup.toAbsolutePath().toString());
+        ProcessRunner.RunResult result = processRunner.runQuietInDirWithEnvAndInput(
+                productDir, env, input.toString(),
+                "bash", scriptPath
         );
 
         if (!result.isSuccess()) {
@@ -559,14 +555,15 @@ public class DatabaseManager {
 
         Map<String, String> env = Map.of(
                 "PGPASSWORD", config.getDbAdminPass(),
-                "IDEMPIERE_HOME", productDir.toAbsolutePath().toString()
+                "IDEMPIERE_HOME", toBashPath(productDir.toAbsolutePath().toString())
         );
 
         // Run quietly - capture output and only show on failure
         System.out.print("  Running database migrations");
+        String syncScriptPath = toBashPath(syncScript.toAbsolutePath().toString());
         ProcessRunner.RunResult syncResult = processRunner.runQuietInDirWithEnv(
                 utilsDir, env,
-                syncScript.toAbsolutePath().toString()
+                "bash", syncScriptPath
         );
 
         // Log output to session log
@@ -588,9 +585,10 @@ public class DatabaseManager {
         Path signScript = productDir.resolve("sign-database-build-alt.sh");
         if (Files.exists(signScript)) {
             System.out.print("  Signing database");
+            String signScriptPath = toBashPath(signScript.toAbsolutePath().toString());
             ProcessRunner.RunResult signResult = processRunner.runQuietInDirWithEnv(
                     productDir, env,
-                    signScript.toAbsolutePath().toString()
+                    "bash", signScriptPath
             );
 
             // Log output to session log
@@ -713,5 +711,16 @@ public class DatabaseManager {
         }
 
         return true;
+    }
+
+    /**
+     * Convert a Windows path to forward slashes for use in bash commands.
+     * On non-Windows systems, returns the path unchanged.
+     */
+    private String toBashPath(String path) {
+        if (IS_WINDOWS) {
+            return path.replace("\\", "/");
+        }
+        return path;
     }
 }

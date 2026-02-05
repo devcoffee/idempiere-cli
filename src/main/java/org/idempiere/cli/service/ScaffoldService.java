@@ -12,6 +12,22 @@ import java.util.Map;
 
 /**
  * Creates new iDempiere plugin projects and adds components to existing plugins.
+ *
+ * <h2>Shared Components</h2>
+ * <p>Some components share infrastructure classes that only need to exist once per plugin:</p>
+ * <ul>
+ *   <li><b>CalloutFactory</b> - One {@code AnnotationBasedColumnCalloutFactory} per plugin handles
+ *       all callouts. Additional callouts are automatically discovered via package scanning.</li>
+ *   <li><b>Activator</b> - One {@code Incremental2PackActivator} per plugin is shared between
+ *       process-mapped and jasper-report components for 2Pack support.</li>
+ * </ul>
+ *
+ * <p>When adding components, this service detects existing shared infrastructure by scanning
+ * file contents (not names), ensuring compatibility with custom-named classes.</p>
+ *
+ * <h2>File Protection</h2>
+ * <p>Existing files are never overwritten. When a file already exists, it is skipped with
+ * a warning message.</p>
  */
 @ApplicationScoped
 public class ScaffoldService {
@@ -75,8 +91,16 @@ public class ScaffoldService {
                 case "callout" -> {
                     templateRenderer.render("callout/Callout.java", data,
                             srcDir.resolve(name + ".java"));
-                    templateRenderer.render("callout/CalloutFactory.java", data,
-                            srcDir.resolve(name + "Factory.java"));
+                    // Only create factory if none exists (one factory handles all callouts in package)
+                    if (!hasCalloutFactory(srcDir)) {
+                        String pluginBaseName = toPascalCase(extractPluginName(pluginId));
+                        data.put("className", pluginBaseName + "Callout");
+                        templateRenderer.render("callout/CalloutFactory.java", data,
+                                srcDir.resolve(pluginBaseName + "CalloutFactory.java"));
+                        data.put("className", name); // restore
+                    } else {
+                        System.out.println("  Using existing CalloutFactory (scans package for all @Callout classes)");
+                    }
                 }
                 case "event-handler" -> {
                     templateRenderer.render("event-handler/EventHandler.java", data,
@@ -114,13 +138,16 @@ public class ScaffoldService {
                     data.put("className", name + "Process");
                     templateRenderer.render("process/Process.java", data,
                             srcDir.resolve(name + "Process.java"));
-                    // Activator template adds "Activator" suffix
-                    data.put("className", name);
-                    templateRenderer.render("process-mapped/Activator.java", data,
-                            srcDir.resolve(name + "Activator.java"));
-                    System.out.println();
-                    System.out.println("  Note: Make sure your plugin has an Activator that extends Incremental2PackActivator");
-                    System.out.println("  and calls Core.getMappedProcessFactory().scan() in start().");
+                    // Only create Activator if none exists (shared by process-mapped and jasper-report)
+                    if (!hasPluginActivator(srcDir)) {
+                        String pluginBaseName = toPascalCase(extractPluginName(pluginId));
+                        data.put("className", pluginBaseName + "Activator");
+                        templateRenderer.render("process-mapped/Activator.java", data,
+                                srcDir.resolve(pluginBaseName + "Activator.java"));
+                    } else {
+                        System.out.println("  Using existing Activator (shared by process-mapped and jasper-report)");
+                    }
+                    data.put("className", name); // restore
                 }
                 case "listbox-group" -> {
                     // Form references Model and Renderer
@@ -311,8 +338,8 @@ public class ScaffoldService {
             // Process template expects className to be the full class name
             data.put("className", baseName + "Process");
             templateRenderer.render("process/Process.java", data, srcDir.resolve(baseName + "Process.java"));
-            // Activator template adds "Activator" suffix
-            data.put("className", baseName);
+            // Shared Activator (also used by jasper-report)
+            data.put("className", baseName + "Activator");
             templateRenderer.render("process-mapped/Activator.java", data, srcDir.resolve(baseName + "Activator.java"));
         }
 
@@ -356,9 +383,11 @@ public class ScaffoldService {
         if (descriptor.hasFeature("jasper-report")) {
             String baseName = toPascalCase(descriptor.getPluginName());
             data.put("pluginName", descriptor.getPluginName());
-            // Activator class
-            data.put("className", baseName + "ReportActivator");
-            templateRenderer.render("jasper-report/Activator.java", data, srcDir.resolve(baseName + "ReportActivator.java"));
+            // Only create Activator if process-mapped didn't already create one (shared Activator)
+            if (!descriptor.hasFeature("process-mapped")) {
+                data.put("className", baseName + "Activator");
+                templateRenderer.render("jasper-report/Activator.java", data, srcDir.resolve(baseName + "Activator.java"));
+            }
             // Create reports folder and sample .jrxml
             Path reportsDir = baseDir.resolve("reports");
             Files.createDirectories(reportsDir);
@@ -445,6 +474,46 @@ public class ScaffoldService {
     }
 
     /**
+     * Check if a shared component already exists in the source directory.
+     * Searches by content patterns to detect the type regardless of file name.
+     */
+    private boolean hasSharedComponent(Path srcDir, String... contentPatterns) {
+        if (!Files.exists(srcDir)) {
+            return false;
+        }
+        try (var files = Files.list(srcDir)) {
+            return files
+                    .filter(f -> f.getFileName().toString().endsWith(".java"))
+                    .anyMatch(f -> containsAnyPattern(f, contentPatterns));
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private boolean containsAnyPattern(Path file, String... patterns) {
+        try {
+            String content = Files.readString(file);
+            for (String pattern : patterns) {
+                if (content.contains(pattern)) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    // Convenience methods for specific shared components
+    private boolean hasCalloutFactory(Path srcDir) {
+        return hasSharedComponent(srcDir, "AnnotationBasedColumnCalloutFactory", "IColumnCalloutFactory");
+    }
+
+    private boolean hasPluginActivator(Path srcDir) {
+        return hasSharedComponent(srcDir, "Incremental2PackActivator");
+    }
+
+    /**
      * Extract the simple plugin name from a full plugin ID.
      * e.g., "org.example.myplugin" -> "myplugin"
      */
@@ -511,10 +580,15 @@ public class ScaffoldService {
 
             Path srcDir = pluginDir.resolve("src").resolve(pluginId.replace('.', '/'));
 
-            // Activator class - user's name + "Activator" suffix
-            data.put("className", name + "Activator");
-            templateRenderer.render("jasper-report/Activator.java", data,
-                    srcDir.resolve(name + "Activator.java"));
+            // Only create Activator if none exists (shared by process-mapped and jasper-report)
+            if (!hasPluginActivator(srcDir)) {
+                String pluginBaseName = toPascalCase(extractPluginName(pluginId));
+                data.put("className", pluginBaseName + "Activator");
+                templateRenderer.render("jasper-report/Activator.java", data,
+                        srcDir.resolve(pluginBaseName + "Activator.java"));
+            } else {
+                System.out.println("  Using existing Activator (shared by process-mapped and jasper-report)");
+            }
 
             // Create reports folder and sample .jrxml - use name directly
             Path reportsDir = pluginDir.resolve("reports");

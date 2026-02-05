@@ -24,6 +24,15 @@ public class TemplateRenderer {
     private final Map<String, Template> templateCache = new ConcurrentHashMap<>();
 
     public void render(String templatePath, Map<String, Object> data, Path outputFile) throws IOException {
+        render(templatePath, data, outputFile, false);
+    }
+
+    public void render(String templatePath, Map<String, Object> data, Path outputFile, boolean allowOverwrite) throws IOException {
+        if (!allowOverwrite && Files.exists(outputFile)) {
+            System.err.println("  Skipped: " + outputFile + " (already exists)");
+            return;
+        }
+
         Template template = templateCache.computeIfAbsent(templatePath, this::loadTemplate);
 
         var instance = template.instance();
@@ -40,6 +49,15 @@ public class TemplateRenderer {
      * Use this for files that have syntax conflicts with Qute (e.g., ZUL files that use ${...}).
      */
     public void copyResource(String resourcePath, Path outputFile) throws IOException {
+        copyResource(resourcePath, outputFile, false);
+    }
+
+    public void copyResource(String resourcePath, Path outputFile, boolean allowOverwrite) throws IOException {
+        if (!allowOverwrite && Files.exists(outputFile)) {
+            System.err.println("  Skipped: " + outputFile + " (already exists)");
+            return;
+        }
+
         String fullPath = "templates/" + resourcePath;
         try (InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream(fullPath)) {
             if (is == null) {

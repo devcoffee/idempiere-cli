@@ -498,6 +498,11 @@ public class DatabaseManager {
             fixLineEndings(productDir.resolve("idempiereEnv.properties"));
         }
 
+        // Fix upstream getVar.sh bug: the grep pattern is not anchored, so searching for
+        // ADEMPIERE_DB_SYSTEM also matches ADEMPIERE_DB_SYSTEM_USER, causing multi-line
+        // variable values and authentication failures.
+        fixGetVarScript(productDir.resolve("utils/getVar.sh"));
+
         return true;
     }
 
@@ -511,6 +516,28 @@ public class DatabaseManager {
         } catch (IOException e) {
             // Non-fatal - log warning and continue
             System.err.println("  Warning: Could not fix line endings in " + file.getFileName() + ": " + e.getMessage());
+        }
+    }
+
+    /**
+     * Fix upstream getVar.sh bug where grep pattern is not anchored.
+     * The original uses: grep "${VARIABLE}" which matches any line containing the variable name.
+     * For example, grep "ADEMPIERE_DB_SYSTEM" also matches "ADEMPIERE_DB_SYSTEM_USER=",
+     * producing a multi-line value that breaks password authentication.
+     * Fix: change to grep "^${VARIABLE}=" for exact key matching.
+     */
+    private void fixGetVarScript(Path getVarScript) {
+        if (!Files.exists(getVarScript)) return;
+        try {
+            String content = Files.readString(getVarScript);
+            String buggyPattern = "grep \"${VARIABLE}\" \"${ENVFILE}\"";
+            String fixedPattern = "grep \"^${VARIABLE}=\" \"${ENVFILE}\"";
+            if (content.contains(buggyPattern)) {
+                Files.writeString(getVarScript, content.replace(buggyPattern, fixedPattern));
+                sessionLogger.logInfo("Patched getVar.sh: anchored grep pattern to fix variable matching");
+            }
+        } catch (IOException e) {
+            System.err.println("  Warning: Could not patch getVar.sh: " + e.getMessage());
         }
     }
 

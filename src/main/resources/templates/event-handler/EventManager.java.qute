@@ -1,6 +1,6 @@
 package {pluginId};
 
-import org.adempiere.base.event.annotations.AnnotationBasedEventManager;
+import org.adempiere.base.AnnotationBasedEventManager;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.event.EventHandler;
 
@@ -8,7 +8,7 @@ import org.osgi.service.event.EventHandler;
 public class {className}Manager extends AnnotationBasedEventManager {
 
     @Override
-    protected String[] getPackages() {
+    public String[] getPackages() {
         return new String[]{"{pluginId}"};
     }
 }

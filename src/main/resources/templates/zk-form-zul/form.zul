@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?page title="${arg.title}"?>
+<zk>
+    <vlayout width="100%" height="100%" style="padding: 10px;">
+        <!-- Title -->
+        <label value="${arg.title}" style="font-size: 18px; font-weight: bold;"/>
+
+        <separator height="20px"/>
+
+        <!-- Input area -->
+        <hlayout>
+            <label value="Enter text:"/>
+            <textbox id="inputField" width="300px"/>
+            <button id="submitButton" label="Submit"/>
+        </hlayout>
+
+        <separator height="10px"/>
+
+        <!-- Message display -->
+        <label id="messageLabel" value="Enter something and click Submit" style="color: #666;"/>
+
+        <!--
+        Add more ZUL components here.
+        See ZK documentation: https://www.zkoss.org/wiki/ZK_Component_Reference
+        -->
+    </vlayout>
+</zk>

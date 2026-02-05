@@ -1,0 +1,47 @@
+package {pluginId};
+
+import org.adempiere.webui.panel.ADForm;
+import org.adempiere.webui.panel.IFormController;
+import org.idempiere.ui.zk.annotation.Form;
+import org.zkoss.zk.ui.select.Selectors;
+import org.zkoss.zk.ui.select.annotation.Listen;
+
+/**
+ * Controller for {className}Form.
+ *
+ * The @Form annotation registers this form with iDempiere's form factory.
+ * The @Listen annotations handle events from ZUL components.
+ */
+@Form
+public class {className} implements IFormController {
+
+    private {formClassName} form;
+
+    public {className}() {
+        form = new {formClassName}();
+        // Wire event listeners from this controller to the form
+        Selectors.wireEventListeners(form, this);
+    }
+
+    @Override
+    public ADForm getForm() {
+        return form;
+    }
+
+    /**
+     * Handle click on submit button (id="submitButton" in form.zul)
+     */
+    @Listen("onClick=#submitButton")
+    public void onSubmit() {
+        String input = form.inputField.getValue();
+        form.messageLabel.setValue("You entered: " + input);
+    }
+
+    /**
+     * Handle Enter key in input field
+     */
+    @Listen("onOK=#inputField")
+    public void onInputEnter() {
+        onSubmit();
+    }
+}

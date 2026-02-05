@@ -1,8 +1,8 @@
 package {pluginId};
 
 import org.compiere.process.SvrProcess;
-import org.idempiere.process.annotation.Parameter;
-import org.idempiere.process.annotation.Process;
+import org.adempiere.base.annotation.Parameter;
+import org.adempiere.base.annotation.Process;
 
 @Process
 public class {className} extends SvrProcess {

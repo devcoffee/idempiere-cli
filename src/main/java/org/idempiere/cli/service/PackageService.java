@@ -1,7 +1,6 @@
 package org.idempiere.cli.service;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -14,9 +13,6 @@ import java.util.zip.ZipOutputStream;
  */
 @ApplicationScoped
 public class PackageService {
-
-    @Inject
-    ProcessRunner processRunner;
 
     public void packageZip(Path jarFile, String pluginId, String pluginVersion, Path pluginDir, Path outputDir) {
         try {
@@ -46,10 +42,18 @@ public class PackageService {
                         "========================\n\n" +
                         "Plugin: " + pluginId + "\n" +
                         "Version: " + pluginVersion + "\n\n" +
-                        "1. Copy the .jar file to your iDempiere plugins/ directory\n" +
-                        "2. Restart iDempiere\n\n" +
-                        "Or use hot deploy:\n" +
-                        "  idempiere-cli deploy --target /path/to/idempiere --hot\n";
+                        "Option 1: Using idempiere-cli\n" +
+                        "  idempiere-cli deploy --target /path/to/idempiere\n" +
+                        "  idempiere-cli deploy --target /path/to/idempiere --hot\n\n" +
+                        "Option 2: Copy to plugins folder\n" +
+                        "  Copy the .jar to <idempiere>/plugins/ and restart\n\n" +
+                        "Option 3: OSGi Console (hot deploy)\n" +
+                        "  telnet localhost 12612\n" +
+                        "  install file:/path/to/" + jarFile.getFileName() + "\n" +
+                        "  start <bundle-id>\n\n" +
+                        "Option 4: WebUI\n" +
+                        "  System Admin > General Rules > System Rules > OSGi Management\n\n" +
+                        "See: https://wiki.idempiere.org/en/Developing_Plug-Ins_-_Get_your_Plug-In_running\n";
                 zos.putNextEntry(new ZipEntry("README.txt"));
                 zos.write(readme.getBytes());
                 zos.closeEntry();
@@ -61,54 +65,49 @@ public class PackageService {
         }
     }
 
-    public void packageP2(Path pluginDir, Path outputDir) {
+    public void packageP2(Path pluginDir, Path outputDir, Path jarFile) {
         System.out.println("  Generating p2 update site...");
 
-        // Detect Maven
-        boolean isWindows = System.getProperty("os.name", "").toLowerCase().contains("win");
-        String mvnCmd = isWindows ? "mvn.cmd" : "mvn";
-        Path mvnwCmd = pluginDir.resolve("mvnw.cmd");
+        Path targetDir = pluginDir.resolve("target");
+        Path p2Content = targetDir.resolve("p2content.xml");
+        Path p2Artifacts = targetDir.resolve("p2artifacts.xml");
 
-        // On Windows, check for .cmd wrapper first (Unix mvnw is a bash script)
-        if (isWindows && Files.exists(mvnwCmd)) {
-            mvnCmd = mvnwCmd.toAbsolutePath().toString();
-        } else if (!isWindows) {
-            Path mvnw = pluginDir.resolve("mvnw");
-            if (Files.exists(mvnw)) {
-                if (!Files.isExecutable(mvnw)) {
-                    try {
-                        mvnw.toFile().setExecutable(true);
-                    } catch (Exception ignored) {
-                    }
-                }
-                if (Files.isExecutable(mvnw)) {
-                    mvnCmd = "./mvnw";
-                }
-            } else if (Files.exists(mvnwCmd)) {
-                mvnCmd = mvnwCmd.toAbsolutePath().toString();
-            }
-        }
-
-        ProcessRunner.RunResult result = processRunner.runInDir(pluginDir,
-                mvnCmd, "tycho-p2-repository:assemble-repository");
-
-        if (result.exitCode() != 0) {
-            System.err.println("  Error: p2 repository generation failed.");
-            System.err.println("  Ensure the plugin has a proper Tycho build configuration.");
+        // Check if Tycho generated p2 metadata
+        if (!Files.exists(p2Content) || !Files.exists(p2Artifacts)) {
+            System.err.println("  Error: p2 metadata not found in target/");
+            System.err.println("  Make sure to build the plugin first: idempiere-cli build");
             return;
         }
 
-        Path repoDir = pluginDir.resolve("target/repository");
-        if (Files.exists(repoDir)) {
-            try {
-                Files.createDirectories(outputDir);
-                copyDirectory(repoDir, outputDir.resolve("repository"));
-                System.out.println("  Created p2 repository at: " + outputDir.resolve("repository").toAbsolutePath());
-            } catch (IOException e) {
-                System.err.println("  Error copying p2 repository: " + e.getMessage());
-            }
-        } else {
-            System.err.println("  Error: target/repository not found after build.");
+        try {
+            // Create p2 repository structure
+            Path repoDir = outputDir.resolve("repository");
+            Path pluginsDir = repoDir.resolve("plugins");
+            Files.createDirectories(pluginsDir);
+
+            // Copy the plugin jar
+            Files.copy(jarFile, pluginsDir.resolve(jarFile.getFileName()),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+
+            // Copy p2 metadata as content.xml and artifacts.xml
+            Files.copy(p2Content, repoDir.resolve("content.xml"),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(p2Artifacts, repoDir.resolve("artifacts.xml"),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+
+            System.out.println("  Created p2 repository at: " + repoDir.toAbsolutePath());
+            System.out.println();
+            System.out.println("  To deploy the plugin:");
+            System.out.println();
+            System.out.println("  Using idempiere-cli:");
+            System.out.println("    idempiere-cli deploy --target /path/to/idempiere");
+            System.out.println();
+            System.out.println("  Or copy directly:");
+            System.out.println("    cp " + pluginsDir.resolve(jarFile.getFileName()) + " /path/to/idempiere/plugins/");
+            System.out.println();
+            System.out.println("  See: https://wiki.idempiere.org/en/Developing_Plug-Ins_-_Get_your_Plug-In_running");
+        } catch (IOException e) {
+            System.err.println("  Error creating p2 repository: " + e.getMessage());
         }
     }
 
@@ -116,21 +115,5 @@ public class PackageService {
         zos.putNextEntry(new ZipEntry(entryName));
         Files.copy(file, zos);
         zos.closeEntry();
-    }
-
-    private void copyDirectory(Path source, Path target) throws IOException {
-        Files.walk(source).forEach(src -> {
-            Path dest = target.resolve(source.relativize(src));
-            try {
-                if (Files.isDirectory(src)) {
-                    Files.createDirectories(dest);
-                } else {
-                    Files.createDirectories(dest.getParent());
-                    Files.copy(src, dest);
-                }
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        });
     }
 }

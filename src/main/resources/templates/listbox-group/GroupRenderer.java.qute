@@ -1,0 +1,72 @@
+package {pluginId};
+
+import org.zkoss.zul.Group;
+import org.zkoss.zul.Groupfoot;
+import org.zkoss.zul.Label;
+import org.zkoss.zul.Listcell;
+import org.zkoss.zul.Listgroup;
+import org.zkoss.zul.Listgroupfoot;
+import org.zkoss.zul.Listitem;
+import org.zkoss.zul.ListitemRenderer;
+
+/**
+ * Renderer for the grouped listbox.
+ *
+ * Handles rendering of:
+ * - Group headers (Listgroup)
+ * - Data rows (Listitem)
+ * - Group footers (Listgroupfoot)
+ */
+public class {className} implements ListitemRenderer<Object> {
+
+    private int rowCount = 0;
+
+    @Override
+    public void render(Listitem item, Object data, int index) throws Exception {
+        if (item instanceof Listgroup) {
+            // Render group header
+            renderGroupHeader((Listgroup) item, data);
+        } else if (item instanceof Listgroupfoot) {
+            // Render group footer
+            renderGroupFooter((Listgroupfoot) item, data);
+        } else {
+            // Render data row
+            renderDataRow(item, (String[]) data, index);
+        }
+    }
+
+    private void renderGroupHeader(Listgroup group, Object data) {
+        rowCount = 0; // Reset row count for new group
+
+        Listcell cell = new Listcell();
+        group.appendChild(cell);
+
+        Label label = new Label(String.valueOf(data));
+        label.setStyle("font-weight: bold;");
+        cell.appendChild(label);
+    }
+
+    private void renderGroupFooter(Listgroupfoot foot, Object data) {
+        Listcell cell = new Listcell();
+        foot.appendChild(cell);
+        cell.setSpan(4); // Span all columns
+
+        Label label = new Label(String.valueOf(data));
+        label.setStyle("font-style: italic; color: #666;");
+        cell.appendChild(label);
+    }
+
+    private void renderDataRow(Listitem item, String[] data, int index) {
+        rowCount++;
+
+        // Line number
+        Listcell cell = new Listcell(String.valueOf(rowCount));
+        item.appendChild(cell);
+
+        // Data columns
+        for (String value : data) {
+            cell = new Listcell(value != null ? value : "");
+            item.appendChild(cell);
+        }
+    }
+}

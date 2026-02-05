@@ -1,0 +1,134 @@
+package {pluginId};
+
+import java.math.BigDecimal;
+import java.util.Vector;
+
+import org.adempiere.webui.component.Label;
+import org.adempiere.webui.component.ListModelTable;
+import org.adempiere.webui.component.WListItemRenderer;
+import org.adempiere.webui.component.WListbox;
+import org.adempiere.webui.component.WTableColumn;
+import org.adempiere.webui.editor.WEditor;
+import org.adempiere.webui.editor.WNumberEditor;
+import org.adempiere.webui.panel.ADForm;
+import org.compiere.util.Env;
+import org.compiere.util.Msg;
+import org.idempiere.ui.zk.annotation.Form;
+import org.zkoss.zk.ui.Component;
+import org.zkoss.zul.Vlayout;
+
+/**
+ * Form demonstrating WListbox with custom column editors.
+ *
+ * Shows how to customize cell rendering and editing behavior
+ * for specific columns in a WListbox.
+ *
+ * Key concepts:
+ * - WTableColumn.setEditorProvider() for custom editors
+ * - WEditor.getDisplayComponent() for custom display
+ */
+@Form
+public class {className} extends ADForm {
+
+    private static final long serialVersionUID = 1L;
+
+    private WListbox listbox;
+
+    // Column indices
+    private static final int COL_NAME = 0;
+    private static final int COL_VALUE = 1;
+    private static final int COL_AMOUNT = 2;
+
+    @Override
+    protected void initForm() {
+        Vlayout layout = new Vlayout();
+        appendChild(layout);
+        layout.setHeight("100%");
+        layout.setWidth("100%");
+
+        listbox = new WListbox();
+        layout.appendChild(listbox);
+        listbox.setVflex(true);
+        listbox.setHflex("1");
+
+        setupColumns();
+        loadData();
+        setupCustomEditors();
+    }
+
+    private void setupColumns() {
+        Vector<String> columnNames = new Vector<>();
+        columnNames.add(Msg.getElement(Env.getCtx(), "Name"));
+        columnNames.add(Msg.getElement(Env.getCtx(), "Value"));
+        columnNames.add(Msg.translate(Env.getCtx(), "Amount"));
+
+        listbox.clear();
+
+        Vector<Vector<Object>> data = new Vector<>();
+        ListModelTable model = new ListModelTable(data);
+        listbox.setData(model, columnNames);
+
+        // Set column types
+        listbox.setColumnClass(COL_NAME, String.class, true);  // Read-only
+        listbox.setColumnClass(COL_VALUE, String.class, true); // Read-only
+        listbox.setColumnClass(COL_AMOUNT, BigDecimal.class, false); // Editable
+    }
+
+    private void loadData() {
+        // Sample data - replace with your data loading logic
+        Vector<Vector<Object>> data = new Vector<>();
+
+        Vector<Object> row1 = new Vector<>();
+        row1.add("Product A");
+        row1.add("PROD-A");
+        row1.add(new BigDecimal("50.00"));
+        data.add(row1);
+
+        Vector<Object> row2 = new Vector<>();
+        row2.add("Product B");
+        row2.add("PROD-B");
+        row2.add(new BigDecimal("150.00"));
+        data.add(row2);
+
+        Vector<Object> row3 = new Vector<>();
+        row3.add("Product C");
+        row3.add("PROD-C");
+        row3.add(new BigDecimal("75.00"));
+        data.add(row3);
+
+        ListModelTable model = new ListModelTable(data);
+        listbox.setModel(model);
+    }
+
+    /**
+     * Setup custom editor for the Amount column.
+     * Values > 100 are displayed in red, others in green.
+     */
+    private void setupCustomEditors() {
+        WListItemRenderer renderer = (WListItemRenderer) listbox.getItemRenderer();
+        WTableColumn amountColumn = renderer.getColumn(COL_AMOUNT);
+
+        // Set custom editor provider
+        amountColumn.setEditorProvider(params -> createColoredAmountEditor());
+    }
+
+    private WEditor createColoredAmountEditor() {
+        return new WNumberEditor() {
+            @Override
+            public Component getDisplayComponent() {
+                Label label = new Label();
+                BigDecimal value = getValue();
+                if (value != null) {
+                    label.setValue(value.toString());
+                    // Color based on threshold
+                    if (value.compareTo(new BigDecimal("100.00")) > 0) {
+                        label.setStyle("color: red; text-align: right; width: 100%; display: inline-block;");
+                    } else {
+                        label.setStyle("color: green; text-align: right; width: 100%; display: inline-block;");
+                    }
+                }
+                return label;
+            }
+        };
+    }
+}

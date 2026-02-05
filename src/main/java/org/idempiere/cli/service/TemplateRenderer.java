@@ -35,6 +35,22 @@ public class TemplateRenderer {
         System.out.println("  Created: " + outputFile);
     }
 
+    /**
+     * Copy a resource file directly without Qute template processing.
+     * Use this for files that have syntax conflicts with Qute (e.g., ZUL files that use ${...}).
+     */
+    public void copyResource(String resourcePath, Path outputFile) throws IOException {
+        String fullPath = "templates/" + resourcePath;
+        try (InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream(fullPath)) {
+            if (is == null) {
+                throw new IllegalArgumentException("Resource not found: " + fullPath);
+            }
+            Files.createDirectories(outputFile.getParent());
+            Files.copy(is, outputFile);
+            System.out.println("  Created: " + outputFile);
+        }
+    }
+
     private Template loadTemplate(String templatePath) {
         String resourcePath = "templates/" + templatePath + ".qute";
         try (InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream(resourcePath)) {

@@ -1,0 +1,81 @@
+package {pluginId};
+
+import java.util.Comparator;
+import java.util.List;
+
+import org.zkoss.zul.GroupsModelArray;
+
+/**
+ * GroupsModel implementation for the listbox.
+ *
+ * Provides data in groups that can be expanded/collapsed.
+ * Each group has a header and contains multiple data rows.
+ */
+public class {className} extends GroupsModelArray<String[], Object, Object, Object> {
+
+    private static final long serialVersionUID = 1L;
+
+    private List<String> groupNames;
+
+    @SuppressWarnings("unchecked")
+    public {className}(List<List<String[]>> groupedData, List<String> groupNames) {
+        super(flattenData(groupedData), new GroupComparator(groupedData, groupNames));
+        this.groupNames = groupNames;
+        setMultiple(true);
+        setGroupSelectable(true);
+    }
+
+    private static String[][] flattenData(List<List<String[]>> groupedData) {
+        int total = groupedData.stream().mapToInt(List::size).sum();
+        String[][] flat = new String[total][];
+        int idx = 0;
+        for (List<String[]> group : groupedData) {
+            for (String[] row : group) {
+                flat[idx++] = row;
+            }
+        }
+        return flat;
+    }
+
+    @Override
+    protected Object createGroupHead(String[][] groupdata, int index, int col) {
+        if (index < groupNames.size()) {
+            return groupNames.get(index);
+        }
+        return "Group " + (index + 1);
+    }
+
+    @Override
+    protected Object createGroupFoot(String[][] groupdata, int index, int col) {
+        return "Total: " + groupdata.length + " items";
+    }
+
+    /**
+     * Comparator that groups data based on the original grouping structure.
+     */
+    private static class GroupComparator implements Comparator<String[]> {
+        private final List<List<String[]>> groupedData;
+        private final List<String> groupNames;
+
+        public GroupComparator(List<List<String[]>> groupedData, List<String> groupNames) {
+            this.groupedData = groupedData;
+            this.groupNames = groupNames;
+        }
+
+        @Override
+        public int compare(String[] o1, String[] o2) {
+            int g1 = findGroup(o1);
+            int g2 = findGroup(o2);
+            return Integer.compare(g1, g2);
+        }
+
+        private int findGroup(String[] item) {
+            for (int i = 0; i < groupedData.size(); i++) {
+                if (groupedData.get(i).contains(item)) {
+                    return i;
+                }
+            }
+            return -1;
+        }
+    }
+}

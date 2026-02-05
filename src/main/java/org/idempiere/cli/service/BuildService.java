@@ -18,7 +18,8 @@ public class BuildService {
     @Inject
     ProcessRunner processRunner;
 
-    public boolean build(Path pluginDir, Path idempiereHome, boolean clean, boolean skipTests) {
+    public boolean build(Path pluginDir, Path idempiereHome, boolean clean, boolean skipTests,
+                         boolean update, boolean disableP2Mirrors, String mavenArgs) {
         String mvnCmd = detectMvnCommand(pluginDir);
         if (mvnCmd == null) {
             System.err.println("  Maven not found. Install Maven or add a Maven wrapper (mvnw) to your plugin.");
@@ -30,9 +31,17 @@ public class BuildService {
         if (clean) {
             args.add("clean");
         }
+        if (update) {
+            args.add("-U");
+        }
         args.add("verify");
 
-        // Activate standalone build profile with iDempiere as p2 repository
+        // Configure Tycho options
+        if (disableP2Mirrors) {
+            args.add("-Dtycho.disableP2Mirrors=true");
+        }
+
+        // Configure iDempiere p2 repository for dependency resolution
         if (idempiereHome != null) {
             // Find the actual p2 repository path (IDEMPIERE_HOME often points to product dir, not p2 repo)
             Optional<Path> p2Repo = PluginUtils.findP2Repository(idempiereHome);
@@ -41,16 +50,24 @@ public class BuildService {
                 System.err.println("  Make sure iDempiere was built with Maven (mvn verify) to create the p2 repository.");
                 System.err.println("  Expected location: <idempiere-source>/org.idempiere.p2/target/repository/");
                 System.err.println();
-                System.err.println("  Building without target platform (may fail if dependencies are missing)...");
+                System.err.println("  Building with default repository path (may fail if dependencies are missing)...");
             } else {
                 System.out.println("  Using p2 repository: " + p2Repo.get());
-                args.add("-Pstandalone-build");
-                args.add("-Didempiere.home=" + p2Repo.get().toAbsolutePath());
+                args.add("-Didempiere.core.repository.url=file:///" + p2Repo.get().toAbsolutePath());
             }
         }
 
         if (skipTests) {
             args.add("-DskipTests");
+        }
+
+        // Add additional Maven arguments
+        if (mavenArgs != null && !mavenArgs.isBlank()) {
+            for (String arg : mavenArgs.split("\\s+")) {
+                if (!arg.isBlank()) {
+                    args.add(arg);
+                }
+            }
         }
 
         System.out.println("  Building plugin...");

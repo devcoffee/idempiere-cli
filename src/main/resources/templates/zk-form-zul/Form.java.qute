@@ -1,0 +1,52 @@
+package {pluginId};
+
+import java.util.HashMap;
+import java.util.Map;
+
+import org.adempiere.webui.panel.CustomForm;
+import org.compiere.util.Env;
+import org.compiere.util.Msg;
+import org.zkoss.zk.ui.Component;
+import org.zkoss.zk.ui.Executions;
+import org.zkoss.zk.ui.select.Selectors;
+import org.zkoss.zk.ui.select.annotation.Wire;
+import org.zkoss.zul.Button;
+import org.zkoss.zul.Label;
+import org.zkoss.zul.Textbox;
+
+/**
+ * ZUL-based form that loads its UI from a .zul file.
+ *
+ * The @Wire annotations bind to components defined in form.zul by their id.
+ * Place form.zul in src/web/ folder.
+ */
+public class {className} extends CustomForm {
+
+    private static final long serialVersionUID = 1L;
+
+    @Wire("#messageLabel")
+    protected Label messageLabel;
+
+    @Wire("#inputField")
+    protected Textbox inputField;
+
+    @Wire("#submitButton")
+    protected Button submitButton;
+
+    protected Map<String, String> arguments;
+
+    public {className}() {
+        arguments = new HashMap<>();
+        arguments.put("title", Msg.getMsg(Env.getCtx(), "{className}"));
+
+        // Load the ZUL file
+        ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
+            Component form = Executions.createComponents("~./form.zul", this, arguments);
+            Selectors.wireComponents(form, this, false);
+        } finally {
+            Thread.currentThread().setContextClassLoader(cl);
+        }
+    }
+}

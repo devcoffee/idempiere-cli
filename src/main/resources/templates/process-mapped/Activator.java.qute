@@ -1,0 +1,28 @@
+package {pluginId};
+
+import org.adempiere.base.Core;
+import org.adempiere.plugin.utils.Incremental2PackActivator;
+import org.osgi.framework.BundleContext;
+import org.osgi.service.component.annotations.Component;
+
+/**
+ * Bundle Activator that registers processes with the global MappedProcessFactory.
+ *
+ * This approach uses iDempiere's central process factory instead of a plugin-specific one.
+ * Benefits:
+ * - Supports 2Pack import/export
+ * - Processes are registered globally
+ * - Simpler configuration
+ *
+ * @see org.adempiere.base.Core#getMappedProcessFactory()
+ */
+@Component(immediate = true)
+public class {className}Activator extends Incremental2PackActivator {
+
+    @Override
+    public void start(BundleContext context) throws Exception {
+        super.start(context);
+        // Register all @Process annotated classes in this package with the global factory
+        Core.getMappedProcessFactory().scan(context, "{pluginId}");
+    }
+}

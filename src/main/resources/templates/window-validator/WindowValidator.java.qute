@@ -1,17 +1,45 @@
 package {pluginId};
 
+import org.adempiere.util.Callback;
+import org.adempiere.webui.adwindow.ADWindow;
 import org.adempiere.webui.adwindow.validator.WindowValidator;
 import org.adempiere.webui.adwindow.validator.WindowValidatorEvent;
 import org.adempiere.webui.adwindow.validator.WindowValidatorEventType;
+import org.compiere.model.GridTab;
 import org.osgi.service.component.annotations.Component;
 
+/**
+ * Window Validator for {className}.
+ *
+ * To filter by specific window and/or events, add properties to @Component:
+ *   property = \{"AD_Window_UU=your-window-uuid", "events=beforeSave,afterSave"\}
+ *
+ * Available events: beforeSave, afterSave, beforeDelete, afterDelete,
+ *   beforeDocAction, afterDocAction, beforeProcess, afterProcess, etc.
+ *
+ * @see WindowValidatorEventType for all event types
+ */
 @Component(service = WindowValidator.class, immediate = true)
 public class {className} implements WindowValidator {
 
     @Override
-    public void onWindowEvent(WindowValidatorEvent event, WindowValidatorEventType type) {
-        // TODO: implement window validation logic
-        // Available event types: BEFORE_SAVE, AFTER_SAVE, BEFORE_DELETE, AFTER_DELETE,
-        //   BEFORE_PROCESS, AFTER_PROCESS, BEFORE_DOC_ACTION, AFTER_DOC_ACTION, etc.
+    public void onWindowEvent(WindowValidatorEvent event, Callback<Boolean> callback) {
+        ADWindow adWindow = event.getWindow();
+        GridTab gridTab = adWindow.getADWindowContent().getActiveGridTab();
+
+        // Check event type
+        if (event.getName().equals(WindowValidatorEventType.BEFORE_SAVE.getName())) {
+            // TODO: implement before save validation
+            // Example: validate a field value
+            // Object value = gridTab.getValue("ColumnName");
+            // if (value == null) {
+            //     Dialog.error(adWindow.getAD_Window_ID(), "Error", "Field is required");
+            //     callback.onCallback(Boolean.FALSE);
+            //     return;
+            // }
+        }
+
+        // Continue with default behavior
+        callback.onCallback(Boolean.TRUE);
     }
 }

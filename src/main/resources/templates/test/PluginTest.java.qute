@@ -1,0 +1,41 @@
+package {pluginId};
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import org.idempiere.test.AbstractTestCase;
+import org.junit.jupiter.api.Test;
+
+/**
+ * Base test class for {pluginName} plugin.
+ *
+ * Extends AbstractTestCase which provides:
+ * - Database connection setup
+ * - Transaction management (automatic rollback after each test)
+ * - Context initialization (AD_Client_ID, AD_Org_ID, AD_User_ID)
+ * - Helper methods: getAD_Client_ID(), getAD_Org_ID(), getTrxName()
+ *
+ * To run tests:
+ * 1. In Eclipse: Right-click > Run As > JUnit Test
+ * 2. Via Maven: mvn test (requires iDempiere test infrastructure)
+ *
+ * @see org.idempiere.test.AbstractTestCase
+ */
+public class {className} extends AbstractTestCase {
+
+    @Test
+    public void testClientId() {
+        assertEquals(11, getAD_Client_ID(), "Should be running with GardenWorld client");
+    }
+
+    @Test
+    public void testOrgId() {
+        assertTrue(getAD_Org_ID() > 0, "Organization should be set");
+    }
+
+    @Test
+    public void testTransactionAvailable() {
+        assertNotNull(getTrxName(), "Transaction name should be available");
+    }
+
+    // TODO: Add your plugin-specific tests below
+}

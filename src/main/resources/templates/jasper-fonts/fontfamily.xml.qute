@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<fontFamilies>
+  <!--
+    Define your custom font families here.
+    Place .ttf font files in the src/{packagePath}/ folder.
+
+    Example:
+    <fontFamily name="MyCustomFont">
+       <normal>{packagePath}/MyFont-Regular.ttf</normal>
+       <bold>{packagePath}/MyFont-Bold.ttf</bold>
+       <italic>{packagePath}/MyFont-Italic.ttf</italic>
+       <boldItalic>{packagePath}/MyFont-BoldItalic.ttf</boldItalic>
+       <pdfEncoding>Identity-H</pdfEncoding>
+       <pdfEmbedded>true</pdfEmbedded>
+    </fontFamily>
+  -->
+
+  <fontFamily name="{pluginName}Font">
+     <normal>{packagePath}/SampleFont.ttf</normal>
+     <pdfEncoding>Identity-H</pdfEncoding>
+     <pdfEmbedded>true</pdfEmbedded>
+  </fontFamily>
+</fontFamilies>

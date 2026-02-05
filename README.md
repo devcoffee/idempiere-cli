@@ -408,4 +408,4 @@ This project is licensed under the [GNU General Public License v2.0](LICENSE).
 ## Acknowledgments
 
 - Original proposal by **dev&Co. Team**, **Saul Pina**, and **Eduardo Gil**
-- Built on top of [iDempiere](https://www.idempiere.org/), [idempiere-dev-setup](https://github.com/hengsin/idempiere-dev-setup), and [idempiere-examples](https://github.com/hengsin/idempiere-examples)
+- Built on top of [iDempiere](https://www.idempiere.org/), [idempiere-dev-setup](https://github.com/hengsin/idempiere-dev-setup), and [idempiere-examples](https://github.com/idempiere/idempiere-examples)

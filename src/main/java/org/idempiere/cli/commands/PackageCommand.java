@@ -61,7 +61,7 @@ public class PackageCommand implements Runnable {
 
         switch (format) {
             case "zip" -> packageService.packageZip(jar.get(), pluginId, pluginVersion, pluginDir, outputDir);
-            case "p2" -> packageService.packageP2(pluginDir, outputDir);
+            case "p2" -> packageService.packageP2(pluginDir, outputDir, jar.get());
             default -> System.err.println("Error: Unknown format '" + format + "'. Use 'zip' or 'p2'.");
         }
 

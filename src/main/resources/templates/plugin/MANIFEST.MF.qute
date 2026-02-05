@@ -6,8 +6,15 @@ Bundle-Version: {version}
 Bundle-Vendor: {vendor}
 Bundle-RequiredExecutionEnvironment: {javaSeVersion}
 {#if withRestExtension}Fragment-Host: org.idempiere.rest.api
-{#else}Require-Bundle: org.adempiere.base;bundle-version="{bundleVersion}"{#if withZkForm || withWindowValidator},
- org.adempiere.ui.zk;bundle-version="{bundleVersion}"{/if}
-Service-Component: OSGI-INF/*.xml
+{#else}Require-Bundle: org.adempiere.base;bundle-version="{bundleVersion}"{#if needsActivator},
+ org.adempiere.plugin.utils;bundle-version="{bundleVersion}"{/if}{#if needsZkBundle},
+ org.adempiere.ui.zk;bundle-version="{bundleVersion}",
+ zk;bundle-version="10.0.1",
+ zul;bundle-version="10.0.1"{/if}
+{#if withEventHandler || withFactsValidator || needsActivator || withTest}Import-Package: {#if withEventHandler || withFactsValidator}org.osgi.service.event;version="1.4.0"{/if}{#if needsActivator}{#if withEventHandler || withFactsValidator},
+ {/if}org.osgi.framework;version="1.3.0"{/if}{#if withTest}{#if withEventHandler || withFactsValidator || needsActivator},
+ {/if}org.idempiere.test,
+ org.junit.jupiter.api;version="[5.9.0,6.0.0]"{/if}
+{/if}Service-Component: OSGI-INF/*.xml
 {/if}Bundle-ActivationPolicy: lazy
 Automatic-Module-Name: {pluginId}

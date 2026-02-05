@@ -43,6 +43,24 @@ public class InitCommand implements Runnable {
     @Option(names = "--with-facts-validator", description = "Include a facts validator (accounting) stub")
     boolean withFactsValidator;
 
+    @Option(names = "--with-process-mapped", description = "Include a process using MappedProcessFactory (recommended for 2Pack support)")
+    boolean withProcessMapped;
+
+    @Option(names = "--with-test", description = "Include JUnit 5 test infrastructure with AbstractTestCase")
+    boolean withTest;
+
+    @Option(names = "--with-zk-form-zul", description = "Include a ZUL-based form with separate .zul file and Controller")
+    boolean withZkFormZul;
+
+    @Option(names = "--with-listbox-group", description = "Include a form with grouped Listbox (GroupsModel)")
+    boolean withListboxGroup;
+
+    @Option(names = "--with-wlistbox-editor", description = "Include a form with custom WListbox column editors")
+    boolean withWListboxEditor;
+
+    @Option(names = "--with-jasper-report", description = "Include Jasper report with Activator and sample .jrxml")
+    boolean withJasperReport;
+
     @Option(names = "--version", description = "Plugin version (default: 1.0.0.qualifier)", defaultValue = "1.0.0.qualifier")
     String version;
 
@@ -52,8 +70,8 @@ public class InitCommand implements Runnable {
     @Option(names = "--idempiere-version", description = "Target iDempiere version (default: 12)", defaultValue = "12")
     int idempiereVersion;
 
-    @Option(names = "--interactive", negatable = true, description = "Enable interactive mode (default: auto-detect)", defaultValue = "false")
-    boolean interactive;
+    @Option(names = "--interactive", negatable = true, description = "Enable interactive mode (default: auto-detect)")
+    Boolean interactive;
 
     @Inject
     ScaffoldService scaffoldService;
@@ -64,9 +82,22 @@ public class InitCommand implements Runnable {
     @Override
     public void run() {
         boolean hasExplicitFlags = withCallout || withEventHandler || withProcess || withZkForm
-                || withReport || withWindowValidator || withRestExtension || withFactsValidator;
+                || withReport || withWindowValidator || withRestExtension || withFactsValidator
+                || withProcessMapped || withTest || withZkFormZul || withListboxGroup
+                || withWListboxEditor || withJasperReport;
 
-        if (!hasExplicitFlags && (interactive || System.console() != null)) {
+        // Determine interactive mode:
+        // - If user explicitly passed --interactive: use interactive mode
+        // - If user explicitly passed --no-interactive: skip interactive mode
+        // - If neither (interactive == null): auto-detect based on flags and console
+        boolean useInteractive;
+        if (interactive != null) {
+            useInteractive = interactive;
+        } else {
+            useInteractive = !hasExplicitFlags && System.console() != null;
+        }
+
+        if (useInteractive) {
             runInteractive();
         } else {
             runWithFlags();
@@ -93,12 +124,18 @@ public class InitCommand implements Runnable {
 
         if (promptService.confirm("  Include callout?")) withCallout = true;
         if (promptService.confirm("  Include event handler?")) withEventHandler = true;
-        if (promptService.confirm("  Include process?")) withProcess = true;
-        if (promptService.confirm("  Include ZK form?")) withZkForm = true;
-        if (promptService.confirm("  Include report?")) withReport = true;
+        if (promptService.confirm("  Include process (with own factory)?")) withProcess = true;
+        if (promptService.confirm("  Include process (with MappedFactory for 2Pack)?")) withProcessMapped = true;
+        if (promptService.confirm("  Include ZK form (programmatic)?")) withZkForm = true;
+        if (promptService.confirm("  Include ZK form (ZUL-based)?")) withZkFormZul = true;
+        if (promptService.confirm("  Include Listbox with groups?")) withListboxGroup = true;
+        if (promptService.confirm("  Include WListbox with custom editors?")) withWListboxEditor = true;
+        if (promptService.confirm("  Include report (basic)?")) withReport = true;
+        if (promptService.confirm("  Include Jasper report (with Activator)?")) withJasperReport = true;
         if (promptService.confirm("  Include window validator?")) withWindowValidator = true;
         if (promptService.confirm("  Include REST extension?")) withRestExtension = true;
         if (promptService.confirm("  Include facts validator?")) withFactsValidator = true;
+        if (promptService.confirm("  Include unit tests?")) withTest = true;
 
         System.out.println();
         runWithFlags();
@@ -113,11 +150,17 @@ public class InitCommand implements Runnable {
         if (withCallout) descriptor.addFeature("callout");
         if (withEventHandler) descriptor.addFeature("event-handler");
         if (withProcess) descriptor.addFeature("process");
+        if (withProcessMapped) descriptor.addFeature("process-mapped");
         if (withZkForm) descriptor.addFeature("zk-form");
+        if (withZkFormZul) descriptor.addFeature("zk-form-zul");
+        if (withListboxGroup) descriptor.addFeature("listbox-group");
+        if (withWListboxEditor) descriptor.addFeature("wlistbox-editor");
         if (withReport) descriptor.addFeature("report");
+        if (withJasperReport) descriptor.addFeature("jasper-report");
         if (withWindowValidator) descriptor.addFeature("window-validator");
         if (withRestExtension) descriptor.addFeature("rest-extension");
         if (withFactsValidator) descriptor.addFeature("facts-validator");
+        if (withTest) descriptor.addFeature("test");
 
         scaffoldService.createPlugin(descriptor);
     }

@@ -15,11 +15,14 @@ public record PlatformVersion(
         String javaSeVersion,
         String tychoVersion,
         String bundleVersion,
-        String branch
+        String branch,
+        String eclipseRepoUrl
 ) {
 
-    private static final PlatformVersion V12 = new PlatformVersion(12, 17, "JavaSE-17", "4.0.4", "12.0.0", "release-12");
-    private static final PlatformVersion V13 = new PlatformVersion(13, 21, "JavaSE-21", "4.0.8", "13.0.0", "master");
+    private static final PlatformVersion V12 = new PlatformVersion(12, 17, "JavaSE-17", "4.0.4", "12.0.0", "release-12",
+            "https://download.eclipse.org/releases/2023-09/");
+    private static final PlatformVersion V13 = new PlatformVersion(13, 21, "JavaSE-21", "4.0.8", "13.0.0", "master",
+            "https://download.eclipse.org/releases/2024-09/");
 
     private static final List<PlatformVersion> SUPPORTED = List.of(V12, V13);
 

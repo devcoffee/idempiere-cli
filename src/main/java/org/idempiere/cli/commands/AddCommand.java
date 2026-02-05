@@ -1,15 +1,21 @@
 package org.idempiere.cli.commands;
 
+import org.idempiere.cli.commands.add.AddBaseTestCommand;
 import org.idempiere.cli.commands.add.AddCalloutCommand;
 import org.idempiere.cli.commands.add.AddEventHandlerCommand;
 import org.idempiere.cli.commands.add.AddFactsValidatorCommand;
+import org.idempiere.cli.commands.add.AddJasperReportCommand;
+import org.idempiere.cli.commands.add.AddListboxGroupCommand;
 import org.idempiere.cli.commands.add.AddModelCommand;
 import org.idempiere.cli.commands.add.AddProcessCommand;
+import org.idempiere.cli.commands.add.AddProcessMappedCommand;
 import org.idempiere.cli.commands.add.AddReportCommand;
 import org.idempiere.cli.commands.add.AddRestExtensionCommand;
 import org.idempiere.cli.commands.add.AddTestCommand;
+import org.idempiere.cli.commands.add.AddWListboxEditorCommand;
 import org.idempiere.cli.commands.add.AddWindowValidatorCommand;
 import org.idempiere.cli.commands.add.AddZkFormCommand;
+import org.idempiere.cli.commands.add.AddZkFormZulCommand;
 import picocli.CommandLine.Command;
 
 @Command(
@@ -20,13 +26,19 @@ import picocli.CommandLine.Command;
                 AddCalloutCommand.class,
                 AddEventHandlerCommand.class,
                 AddProcessCommand.class,
+                AddProcessMappedCommand.class,
                 AddZkFormCommand.class,
+                AddZkFormZulCommand.class,
+                AddListboxGroupCommand.class,
+                AddWListboxEditorCommand.class,
                 AddReportCommand.class,
+                AddJasperReportCommand.class,
                 AddWindowValidatorCommand.class,
                 AddRestExtensionCommand.class,
                 AddFactsValidatorCommand.class,
                 AddModelCommand.class,
-                AddTestCommand.class
+                AddTestCommand.class,
+                AddBaseTestCommand.class
         }
 )
 public class AddCommand {

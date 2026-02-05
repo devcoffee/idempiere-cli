@@ -1,0 +1,96 @@
+package {pluginId};
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.adempiere.webui.panel.ADForm;
+import org.compiere.util.Env;
+import org.compiere.util.Msg;
+import org.idempiere.ui.zk.annotation.Form;
+import org.zkoss.zul.Listbox;
+import org.zkoss.zul.Listhead;
+import org.zkoss.zul.Listheader;
+import org.zkoss.zul.Vlayout;
+
+/**
+ * Form demonstrating ZK Listbox with grouping support.
+ *
+ * Uses GroupsModel to display data in expandable/collapsible groups.
+ * Customize the data model and renderer for your specific use case.
+ *
+ * @see {modelClassName}
+ * @see {rendererClassName}
+ */
+@Form
+public class {className} extends ADForm {
+
+    private static final long serialVersionUID = 1L;
+
+    private Listbox listbox;
+
+    @Override
+    protected void initForm() {
+        Vlayout layout = new Vlayout();
+        appendChild(layout);
+        layout.setHeight("100%");
+        layout.setWidth("100%");
+
+        listbox = new Listbox();
+        layout.appendChild(listbox);
+        listbox.setVflex(true);
+        listbox.setHflex("1");
+
+        // Setup headers
+        Listhead listhead = new Listhead();
+        listbox.appendChild(listhead);
+        listhead.setSizable(true);
+
+        Listheader header = new Listheader();
+        listhead.appendChild(header);
+        header.setLabel("#");
+        header.setWidth("50px");
+
+        header = new Listheader();
+        listhead.appendChild(header);
+        header.setLabel(Msg.getElement(Env.getCtx(), "Name"));
+        header.setWidth("200px");
+
+        header = new Listheader();
+        listhead.appendChild(header);
+        header.setLabel(Msg.getElement(Env.getCtx(), "Value"));
+        header.setWidth("150px");
+
+        header = new Listheader();
+        listhead.appendChild(header);
+        header.setLabel(Msg.getElement(Env.getCtx(), "Description"));
+        header.setHflex("1");
+
+        // Setup renderer and model
+        {rendererClassName} renderer = new {rendererClassName}();
+        listbox.setItemRenderer(renderer);
+        listbox.setModel(createGroupModel());
+    }
+
+    protected {modelClassName} createGroupModel() {
+        // TODO: Replace with your actual data loading logic
+        List<List<String[]>> groupedData = new ArrayList<>();
+        List<String> groupNames = new ArrayList<>();
+
+        // Sample data - Group 1
+        List<String[]> group1 = new ArrayList<>();
+        group1.add(new String[]{"Item 1", "VAL001", "First item"});
+        group1.add(new String[]{"Item 2", "VAL002", "Second item"});
+        groupedData.add(group1);
+        groupNames.add("Group A");
+
+        // Sample data - Group 2
+        List<String[]> group2 = new ArrayList<>();
+        group2.add(new String[]{"Item 3", "VAL003", "Third item"});
+        group2.add(new String[]{"Item 4", "VAL004", "Fourth item"});
+        group2.add(new String[]{"Item 5", "VAL005", "Fifth item"});
+        groupedData.add(group2);
+        groupNames.add("Group B");
+
+        return new {modelClassName}(groupedData, groupNames);
+    }
+}

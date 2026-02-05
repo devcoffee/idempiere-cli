@@ -1,19 +1,24 @@
 package {pluginId};
 
-import org.adempiere.base.event.annotations.EventTopicDelegate;
-import org.adempiere.base.event.annotations.ModelEventTopic;
-import org.adempiere.base.event.delegate.FactsValidateDelegate;
-import org.compiere.acct.Fact;
+import org.adempiere.base.annotation.EventTopicDelegate;
+import org.adempiere.base.annotation.ModelEventTopic;
+import org.adempiere.base.event.FactsEventData;
+import org.adempiere.base.event.annotations.doc.FactsValidateDelegate;
 import org.compiere.model.MInvoice;
-
-import java.util.List;
+import org.osgi.service.event.Event;
 
 @EventTopicDelegate
 @ModelEventTopic(modelClass = MInvoice.class)
-public class {className} extends FactsValidateDelegate {
+public class {className} extends FactsValidateDelegate<MInvoice> {
+
+    public {className}(MInvoice po, Event event) {
+        super(po, event);
+    }
 
     @Override
-    public void onFactsValidate(List<Fact> facts) {
+    protected void onFactsValidate(FactsEventData data) {
         // TODO: implement accounting facts validation
+        // Access facts via: data.getFacts()
+        // Access accounting schema via: data.getAcctSchema()
     }
 }

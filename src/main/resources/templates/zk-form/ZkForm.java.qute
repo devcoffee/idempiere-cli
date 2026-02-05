@@ -14,8 +14,7 @@ public class {className} extends ADForm implements EventListener<Event> {
     @Override
     protected void initForm() {
         Borderlayout mainLayout = new Borderlayout();
-        mainLayout.setWidth("100%");
-        mainLayout.setHeight("100%");
+        mainLayout.setStyle("width: 100%; height: 100%");
 
         Center center = new Center();
         mainLayout.appendChild(center);

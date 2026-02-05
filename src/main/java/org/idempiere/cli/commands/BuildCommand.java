@@ -27,6 +27,15 @@ public class BuildCommand implements Runnable {
     @Option(names = {"--skip-tests"}, description = "Skip tests during build", defaultValue = "false")
     boolean skipTests;
 
+    @Option(names = {"--update", "-U"}, description = "Force update of snapshots", defaultValue = "false")
+    boolean update;
+
+    @Option(names = {"--disable-p2-mirrors"}, description = "Disable p2 mirrors (recommended for CI)", defaultValue = "true")
+    boolean disableP2Mirrors;
+
+    @Option(names = {"--maven-args", "-A"}, description = "Additional Maven arguments (e.g. -A=\"-X -e\")")
+    String mavenArgs;
+
     @Inject
     BuildService buildService;
 
@@ -53,7 +62,7 @@ public class BuildCommand implements Runnable {
         System.out.println("==========================================");
         System.out.println();
 
-        boolean success = buildService.build(pluginDir, idHome, clean, skipTests);
+        boolean success = buildService.build(pluginDir, idHome, clean, skipTests, update, disableP2Mirrors, mavenArgs);
         if (!success) {
             System.exit(1);
         }

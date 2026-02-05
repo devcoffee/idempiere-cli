@@ -1,0 +1,20 @@
+package {pluginId};
+
+import org.adempiere.plugin.utils.Incremental2PackActivator;
+import org.osgi.service.component.annotations.Component;
+
+/**
+ * Activator for Jasper Report plugin.
+ *
+ * Extends Incremental2PackActivator to support:
+ * - 2Pack import/export of report definitions
+ * - Automatic process registration
+ *
+ * Reports should be placed in the reports/ folder as .jrxml files.
+ * Configure the report in AD_Process with:
+ * - JasperReport = reports/YourReport.jrxml
+ * - IsDirectPrint = N (to show preview)
+ */
+@Component(immediate = true)
+public class {className} extends Incremental2PackActivator {
+}

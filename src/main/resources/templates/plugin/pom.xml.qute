@@ -6,15 +6,16 @@
 
     <groupId>{pluginId}</groupId>
     <artifactId>{pluginId}</artifactId>
-    <version>{version}</version>
+    <version>{mavenVersion}</version>
     <packaging>eclipse-plugin</packaging>
 
     <name>{pluginName}</name>
 
     <properties>
         <maven.compiler.release>{javaRelease}</maven.compiler.release>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <tycho.version>{tychoVersion}</tycho.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <idempiere.core.repository.url>file:///$\{basedir\}/../../idempiere/org.idempiere.p2/target/repository</idempiere.core.repository.url>
     </properties>
 
     <build>
@@ -31,14 +32,44 @@
 
     <profiles>
         <profile>
-            <id>standalone-build</id>
+            <id>build-plugin</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
             <repositories>
                 <repository>
-                    <id>idempiere-local</id>
-                    <url>file:$\{idempiere.home\}</url>
+                    <id>idempiere-core</id>
+                    <url>$\{idempiere.core.repository.url\}</url>
                     <layout>p2</layout>
                 </repository>
             </repositories>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.eclipse.tycho</groupId>
+                        <artifactId>target-platform-configuration</artifactId>
+                        <version>$\{tycho.version\}</version>
+                        <configuration>
+                            <dependency-resolution>
+                                <extraRequirements>
+                                    <requirement>
+                                        <type>eclipse-plugin</type>
+                                        <id>org.eclipse.core.runtime</id>
+                                        <versionRange>0.0.0</versionRange>
+                                    </requirement>
+                                    <requirement>
+                                        <type>eclipse-plugin</type>
+                                        <id>org.eclipse.equinox.common</id>
+                                        <versionRange>0.0.0</versionRange>
+                                    </requirement>
+                                </extraRequirements>
+                            </dependency-resolution>
+                            <executionEnvironmentDefault>{javaSeVersion}</executionEnvironmentDefault>
+                            <executionEnvironment>{javaSeVersion}</executionEnvironment>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
     </profiles>
 </project>

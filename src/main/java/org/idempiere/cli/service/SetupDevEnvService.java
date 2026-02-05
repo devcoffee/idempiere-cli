@@ -12,8 +12,9 @@ import java.util.Scanner;
 @ApplicationScoped
 public class SetupDevEnvService {
 
-    private static final String CHECK = "\u2714";
-    private static final String CROSS = "\u2718";
+    private static final boolean IS_WINDOWS = System.getProperty("os.name", "").toLowerCase().contains("win");
+    private static final String CHECK = IS_WINDOWS ? "[OK]" : "\u2714";
+    private static final String CROSS = IS_WINDOWS ? "[FAIL]" : "\u2718";
 
     @Inject
     SourceManager sourceManager;
@@ -55,6 +56,18 @@ public class SetupDevEnvService {
 
         System.out.println();
 
+        // Pre-flight check: verify Docker is running before starting long operations
+        if (config.isUseDocker() && !config.isSkipDb()) {
+            if (!databaseManager.isDockerRunning()) {
+                System.err.println("Error: Docker is not running.");
+                System.err.println();
+                System.err.println("  Start Docker Desktop and try again, or use --skip-db to skip database setup.");
+                sessionLogger.logError("Docker is not running. Aborting.");
+                sessionLogger.endSession(false);
+                return;
+            }
+        }
+
         int totalSteps = calculateSteps(config);
         int currentStep = 0;
         boolean hadErrors = false;
@@ -75,36 +88,38 @@ public class SetupDevEnvService {
         }
 
         // Step 2: Build source
-        currentStep++;
-        printStep(currentStep, totalSteps, "Building iDempiere with Maven");
-        boolean buildOk = sourceManager.buildSource(config);
-        printStepResult(buildOk, "Maven build");
-        System.out.println();
+        if (!config.isSkipBuild()) {
+            currentStep++;
+            printStep(currentStep, totalSteps, "Building iDempiere with Maven");
+            boolean buildOk = sourceManager.buildSource(config);
+            printStepResult(buildOk, "Maven build");
+            System.out.println();
 
-        if (!buildOk) {
-            hadErrors = true;
-            if (!config.isContinueOnError()) {
-                sessionLogger.logError("Build failed. Aborting.");
-                sessionLogger.endSession(false);
-                System.err.println("Build failed. Aborting. Use --continue-on-error to proceed anyway.");
-                return;
+            if (!buildOk) {
+                hadErrors = true;
+                if (!config.isContinueOnError()) {
+                    sessionLogger.logError("Build failed. Aborting.");
+                    sessionLogger.endSession(false);
+                    System.err.println("Build failed. Aborting. Use --continue-on-error to proceed anyway.");
+                    return;
+                }
             }
-        }
 
-        // Step 3: Download Jython
-        currentStep++;
-        printStep(currentStep, totalSteps, "Downloading Jython");
-        boolean jythonOk = sourceManager.downloadJython(config);
-        printStepResult(jythonOk, "Jython download");
-        System.out.println();
+            // Download Jython (part of build)
+            currentStep++;
+            printStep(currentStep, totalSteps, "Downloading Jython");
+            boolean jythonOk = sourceManager.downloadJython(config);
+            printStepResult(jythonOk, "Jython download");
+            System.out.println();
 
-        if (!jythonOk) {
-            hadErrors = true;
-            if (!config.isContinueOnError()) {
-                sessionLogger.logError("Jython download failed. Aborting.");
-                sessionLogger.endSession(false);
-                System.err.println("Jython download failed. Aborting. Use --continue-on-error to proceed anyway.");
-                return;
+            if (!jythonOk) {
+                hadErrors = true;
+                if (!config.isContinueOnError()) {
+                    sessionLogger.logError("Jython download failed. Aborting.");
+                    sessionLogger.endSession(false);
+                    System.err.println("Jython download failed. Aborting. Use --continue-on-error to proceed anyway.");
+                    return;
+                }
             }
         }
 
@@ -198,8 +213,13 @@ public class SetupDevEnvService {
         if (!config.isSkipDb()) {
             System.out.println("  Database:    " + config.getDbConnectionString());
             if (config.isUseDocker()) {
-                System.out.println("  Docker:      postgres:" + config.getDockerPostgresVersion()
-                        + " (container: " + config.getDockerContainerName() + ")");
+                if ("oracle".equals(config.getDbType())) {
+                    System.out.println("  Docker:      " + config.getOracleDockerImage()
+                            + " (container: " + config.getOracleDockerContainer() + ")");
+                } else {
+                    System.out.println("  Docker:      postgres:" + config.getDockerPostgresVersion()
+                            + " (container: " + config.getDockerContainerName() + ")");
+                }
             }
         }
         if (config.isIncludeRest()) {
@@ -223,7 +243,10 @@ public class SetupDevEnvService {
     }
 
     private int calculateSteps(SetupConfig config) {
-        int steps = 3; // source, build, jython
+        int steps = 1; // source
+        if (!config.isSkipBuild()) {
+            steps += 2; // build, jython
+        }
         if (!config.isSkipWorkspace()) {
             steps += 3; // eclipse install, plugins, workspace
         }
@@ -272,6 +295,9 @@ public class SetupDevEnvService {
         }
         if (config.isUseDocker()) {
             cmd.append(" --with-docker");
+        }
+        if (config.isSkipBuild()) {
+            cmd.append(" --skip-build");
         }
         if (config.isSkipDb()) {
             cmd.append(" --skip-db");

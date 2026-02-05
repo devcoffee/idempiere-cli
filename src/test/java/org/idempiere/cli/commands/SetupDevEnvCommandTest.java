@@ -21,6 +21,7 @@ class SetupDevEnvCommandTest {
         assertTrue(output.contains("--branch"));
         assertTrue(output.contains("--source-dir"));
         assertTrue(output.contains("--eclipse-dir"));
+        assertTrue(output.contains("--skip-build"));
         assertTrue(output.contains("--skip-db"));
         assertTrue(output.contains("--skip-workspace"));
         assertTrue(output.contains("--include-rest"));

@@ -25,6 +25,7 @@ public class SetupConfig {
     private String oracleDockerContainer = CliDefaults.DOCKER_ORACLE_CONTAINER;
     private String oracleDockerImage = CliDefaults.DOCKER_ORACLE_IMAGE;
     private String oracleDockerHome = CliDefaults.DOCKER_ORACLE_HOME;
+    private boolean skipBuild;
     private boolean skipDb;
     private boolean skipWorkspace;
     private boolean includeRest;
@@ -190,6 +191,14 @@ public class SetupConfig {
 
     public void setOracleDockerHome(String oracleDockerHome) {
         this.oracleDockerHome = oracleDockerHome;
+    }
+
+    public boolean isSkipBuild() {
+        return skipBuild;
+    }
+
+    public void setSkipBuild(boolean skipBuild) {
+        this.skipBuild = skipBuild;
     }
 
     public boolean isSkipDb() {

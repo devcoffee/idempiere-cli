@@ -658,7 +658,7 @@ public class DatabaseManager {
         System.out.println();
     }
 
-    private boolean isDockerRunning() {
+    public boolean isDockerRunning() {
         ProcessRunner.RunResult result = processRunner.run("docker", "info");
         return result.isSuccess();
     }

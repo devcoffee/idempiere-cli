@@ -218,7 +218,7 @@ public class DoctorService {
     private CheckResult checkImportsVsRequireBundle(Path pluginDir) {
         Path manifest = pluginDir.resolve("META-INF/MANIFEST.MF");
         if (!Files.exists(manifest)) {
-            String msg = "Cannot check — no MANIFEST.MF";
+            String msg = "Cannot check - no MANIFEST.MF";
             printResult(Status.WARN, "Dependencies", msg);
             return new CheckResult("Dependencies", Status.WARN, msg);
         }

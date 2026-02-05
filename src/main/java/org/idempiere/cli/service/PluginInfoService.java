@@ -24,7 +24,7 @@ public class PluginInfoService {
     public void printInfo(Path pluginDir) {
         Path manifest = pluginDir.resolve("META-INF/MANIFEST.MF");
         if (!Files.exists(manifest)) {
-            System.err.println("Error: Not an iDempiere plugin — META-INF/MANIFEST.MF not found.");
+            System.err.println("Error: Not an iDempiere plugin - META-INF/MANIFEST.MF not found.");
             return;
         }
 

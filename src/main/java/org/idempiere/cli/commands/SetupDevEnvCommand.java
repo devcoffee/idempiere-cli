@@ -61,6 +61,9 @@ public class SetupDevEnvCommand implements Callable<Integer> {
     @Option(names = "--https-port", description = "HTTPS port (default: 8443)", defaultValue = "8443")
     int httpsPort;
 
+    @Option(names = "--skip-build", description = "Skip Maven build (use if source is already built)")
+    boolean skipBuild;
+
     @Option(names = "--skip-db", description = "Skip database setup")
     boolean skipDb;
 
@@ -151,6 +154,7 @@ public class SetupDevEnvCommand implements Callable<Integer> {
         config.setOracleDockerContainer(oracleDockerContainer);
         config.setOracleDockerImage(oracleDockerImage);
         config.setOracleDockerHome(oracleDockerHome);
+        config.setSkipBuild(skipBuild);
         config.setSkipDb(skipDb);
         config.setSkipWorkspace(skipWorkspace);
         config.setIncludeRest(includeRest);

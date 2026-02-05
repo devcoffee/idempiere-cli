@@ -7,7 +7,7 @@
     <groupId>{pluginId}</groupId>
     <artifactId>{pluginId}</artifactId>
     <version>{version}</version>
-    <packaging>bundle</packaging>
+    <packaging>eclipse-plugin</packaging>
 
     <name>{pluginName}</name>
 

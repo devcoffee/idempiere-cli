@@ -34,8 +34,19 @@ public class BuildService {
 
         // Activate standalone build profile with iDempiere as p2 repository
         if (idempiereHome != null) {
-            args.add("-Pstandalone-build");
-            args.add("-Didempiere.home=" + idempiereHome.toAbsolutePath());
+            // Find the actual p2 repository path (IDEMPIERE_HOME often points to product dir, not p2 repo)
+            Optional<Path> p2Repo = PluginUtils.findP2Repository(idempiereHome);
+            if (p2Repo.isEmpty()) {
+                System.err.println("  Warning: Could not find p2 repository at " + idempiereHome);
+                System.err.println("  Make sure iDempiere was built with Maven (mvn verify) to create the p2 repository.");
+                System.err.println("  Expected location: <idempiere-source>/org.idempiere.p2/target/repository/");
+                System.err.println();
+                System.err.println("  Building without target platform (may fail if dependencies are missing)...");
+            } else {
+                System.out.println("  Using p2 repository: " + p2Repo.get());
+                args.add("-Pstandalone-build");
+                args.add("-Didempiere.home=" + p2Repo.get().toAbsolutePath());
+            }
         }
 
         if (skipTests) {

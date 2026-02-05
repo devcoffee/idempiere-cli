@@ -45,7 +45,10 @@ public class ScaffoldService {
             System.out.println("  2. Import in Eclipse: File > Import > Maven > Existing Maven Projects");
             System.out.println("  3. Select this directory as root and click Finish");
             System.out.println();
-            System.out.println("To build and package for distribution:");
+            System.out.println("To build:");
+            System.out.println("  idempiere-cli build");
+            System.out.println();
+            System.out.println("To package for distribution:");
             System.out.println("  idempiere-cli package");
             System.out.println();
         } catch (IOException e) {

@@ -392,6 +392,12 @@ public class DoctorService {
         // Check if daemon is running
         ProcessRunner.RunResult infoResult = processRunner.run("docker", "info");
         if (!infoResult.isSuccess()) {
+            // On Windows, docker CLI may come from WSL while Docker Desktop is not installed
+            if (IS_WINDOWS && !isDockerDesktopInstalled()) {
+                String msg = "CLI found (possibly from WSL) but Docker Desktop is not installed (optional)";
+                printResult(Status.WARN, "Docker", msg);
+                return new CheckResult("Docker", Status.WARN, msg);
+            }
             String msg = version + " installed, but daemon is not running";
             printResult(Status.WARN, "Docker", msg);
             return new CheckResult("Docker", Status.WARN, msg);
@@ -400,6 +406,12 @@ public class DoctorService {
         String msg = version + " detected, daemon running";
         printResult(Status.OK, "Docker", msg);
         return new CheckResult("Docker", Status.OK, msg);
+    }
+
+    private boolean isDockerDesktopInstalled() {
+        String programFiles = System.getenv("ProgramFiles");
+        if (programFiles == null) programFiles = "C:\\Program Files";
+        return Files.exists(Path.of(programFiles, "Docker", "Docker", "Docker Desktop.exe"));
     }
 
     private CheckResult checkPostgres() {
@@ -661,8 +673,14 @@ public class DoctorService {
             if (daemonNotRunning) {
                 System.out.println("Docker is installed but the daemon is not running.");
                 if (os.contains("win")) {
-                    System.out.println("  Start Docker Desktop from the Start menu, or run:");
-                    System.out.println("    & \"C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe\"");
+                    if (isDockerDesktopInstalled()) {
+                        System.out.println("  Start Docker Desktop from the Start menu, or run:");
+                        System.out.println("    & \"C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe\"");
+                    } else {
+                        System.out.println("  Docker Desktop not found. Install it from:");
+                        System.out.println("    https://www.docker.com/products/docker-desktop");
+                        System.out.println("  Or: winget install --id Docker.DockerDesktop --source winget");
+                    }
                 } else if (os.contains("mac")) {
                     System.out.println("  Start Docker Desktop, or run:");
                     System.out.println("    open -a Docker");
@@ -791,7 +809,7 @@ public class DoctorService {
         }
 
         // Docker daemon stopped: try to start it
-        if (dockerDaemonStopped) {
+        if (dockerDaemonStopped && isDockerDesktopInstalled()) {
             System.out.println();
             System.out.println("Starting Docker Desktop...");
             int dockerStart = processRunner.runLive("cmd", "/c", "start", "",

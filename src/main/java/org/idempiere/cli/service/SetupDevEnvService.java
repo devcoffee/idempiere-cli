@@ -61,7 +61,9 @@ public class SetupDevEnvService {
             if (!databaseManager.isDockerRunning()) {
                 System.err.println("Error: Docker is not running.");
                 System.err.println();
-                System.err.println("  Start Docker Desktop and try again, or use --skip-db to skip database setup.");
+                printDockerStartSuggestion();
+                System.err.println("  After starting Docker, run this command again.");
+                System.err.println("  Or use --skip-db to skip database setup.");
                 sessionLogger.logError("Docker is not running. Aborting.");
                 sessionLogger.endSession(false);
                 return;
@@ -240,6 +242,21 @@ public class SetupDevEnvService {
         } else {
             System.out.println("  " + CROSS + " " + component + " had issues (see above).");
         }
+    }
+
+    private void printDockerStartSuggestion() {
+        String os = System.getProperty("os.name", "").toLowerCase();
+        if (os.contains("win")) {
+            System.err.println("  Start Docker Desktop from the Start menu, or run:");
+            System.err.println("    & \"C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe\"");
+        } else if (os.contains("mac")) {
+            System.err.println("  Start Docker Desktop, or run:");
+            System.err.println("    open -a Docker");
+        } else {
+            System.err.println("  Start Docker with:");
+            System.err.println("    sudo systemctl start docker");
+        }
+        System.err.println();
     }
 
     private int calculateSteps(SetupConfig config) {

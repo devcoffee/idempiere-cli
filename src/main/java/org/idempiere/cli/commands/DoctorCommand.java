@@ -15,6 +15,9 @@ public class DoctorCommand implements Runnable {
     @Option(names = {"--fix"}, description = "Attempt to auto-fix missing dependencies")
     boolean fix;
 
+    @Option(names = {"--fix-optional"}, description = "Also install optional tools (e.g. Docker) when using --fix")
+    boolean fixOptional;
+
     @Option(names = {"--dir"}, description = "Validate plugin structure in the given directory")
     String dir;
 
@@ -26,7 +29,9 @@ public class DoctorCommand implements Runnable {
         if (dir != null) {
             doctorService.checkPlugin(java.nio.file.Path.of(dir));
         } else {
-            doctorService.checkEnvironment(fix);
+            // --fix-optional implies --fix
+            if (fixOptional) fix = true;
+            doctorService.checkEnvironment(fix, fixOptional);
         }
     }
 }

@@ -45,7 +45,7 @@ public class DoctorService {
     @Inject
     ProcessRunner processRunner;
 
-    public void checkEnvironment(boolean fix) {
+    public void checkEnvironment(boolean fix, boolean fixOptional) {
         System.out.println();
         System.out.println("iDempiere CLI - Environment Check");
         System.out.println("==================================");
@@ -70,9 +70,12 @@ public class DoctorService {
 
         System.out.printf("Results: %d passed, %d warnings, %d failed%n", passed, warnings, failed);
 
-        if (fix && failed > 0) {
-            runAutoFix(results);
-        } else if (failed > 0) {
+        boolean dockerNotOk = results.stream().anyMatch(r -> r.tool().equals("Docker") && r.status() != Status.OK);
+        boolean hasFixableIssues = failed > 0 || (fixOptional && dockerNotOk);
+
+        if (fix && hasFixableIssues) {
+            runAutoFix(results, fixOptional);
+        } else if (failed > 0 || dockerNotOk) {
             printFixSuggestions(results);
         } else if (passed == results.size()) {
             System.out.println();
@@ -380,14 +383,21 @@ public class DoctorService {
             return new CheckResult("Docker", Status.WARN, msg);
         }
 
+        String version = "Found";
         Matcher matcher = DOCKER_VERSION_PATTERN.matcher(result.output());
         if (matcher.find()) {
-            String msg = "Version " + matcher.group(1) + " detected";
-            printResult(Status.OK, "Docker", msg);
-            return new CheckResult("Docker", Status.OK, msg);
+            version = "Version " + matcher.group(1);
         }
 
-        String msg = "Found";
+        // Check if daemon is running
+        ProcessRunner.RunResult infoResult = processRunner.run("docker", "info");
+        if (!infoResult.isSuccess()) {
+            String msg = version + " installed, but daemon is not running";
+            printResult(Status.WARN, "Docker", msg);
+            return new CheckResult("Docker", Status.WARN, msg);
+        }
+
+        String msg = version + " detected, daemon running";
         printResult(Status.OK, "Docker", msg);
         return new CheckResult("Docker", Status.OK, msg);
     }
@@ -644,13 +654,31 @@ public class DoctorService {
 
         if (dockerMissing) {
             System.out.println();
-            System.out.println("Optional: Docker (for containerized PostgreSQL)");
-            if (os.contains("mac")) {
-                System.out.println("    brew install --cask docker");
-            } else if (os.contains("linux")) {
-                System.out.println("    sudo apt install docker.io");
+            CheckResult dockerResult = results.stream().filter(r -> r.tool().equals("Docker")).findFirst().orElse(null);
+            boolean daemonNotRunning = dockerResult != null && dockerResult.message() != null
+                    && dockerResult.message().contains("daemon is not running");
+
+            if (daemonNotRunning) {
+                System.out.println("Docker is installed but the daemon is not running.");
+                if (os.contains("win")) {
+                    System.out.println("  Start Docker Desktop from the Start menu, or run:");
+                    System.out.println("    & \"C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe\"");
+                } else if (os.contains("mac")) {
+                    System.out.println("  Start Docker Desktop, or run:");
+                    System.out.println("    open -a Docker");
+                } else {
+                    System.out.println("  Start Docker with:");
+                    System.out.println("    sudo systemctl start docker");
+                }
             } else {
-                System.out.println("    https://www.docker.com/products/docker-desktop");
+                System.out.println("Optional: Docker (for containerized PostgreSQL)");
+                if (os.contains("mac")) {
+                    System.out.println("    brew install --cask docker");
+                } else if (os.contains("linux")) {
+                    System.out.println("    sudo apt install docker.io");
+                } else {
+                    System.out.println("    https://www.docker.com/products/docker-desktop");
+                }
             }
             System.out.println();
             System.out.println("  With Docker, use: idempiere setup-dev-env --with-docker");
@@ -666,15 +694,15 @@ public class DoctorService {
         return msg.contains("not in path") || msg.contains("installed but");
     }
 
-    private void runAutoFix(List<CheckResult> results) {
+    private void runAutoFix(List<CheckResult> results, boolean fixOptional) {
         String os = System.getProperty("os.name", "").toLowerCase();
 
         if (os.contains("win")) {
-            runAutoFixWindows(results);
+            runAutoFixWindows(results, fixOptional);
         } else if (os.contains("mac")) {
-            runAutoFixMac(results);
+            runAutoFixMac(results, fixOptional);
         } else if (os.contains("linux") || os.contains("nix")) {
-            runAutoFixLinux(results);
+            runAutoFixLinux(results, fixOptional);
         } else {
             System.out.println();
             System.out.println("Auto-fix is not supported on this platform.");
@@ -682,7 +710,7 @@ public class DoctorService {
         }
     }
 
-    private void runAutoFixWindows(List<CheckResult> results) {
+    private void runAutoFixWindows(List<CheckResult> results, boolean fixOptional) {
         // Check if winget is available
         if (!processRunner.isAvailable("winget")) {
             System.out.println();
@@ -698,6 +726,13 @@ public class DoctorService {
         boolean gitFailed = results.stream().anyMatch(r -> r.tool().equals("Git") && r.status() == Status.FAIL);
         boolean postgresFailed = results.stream().anyMatch(r -> r.tool().equals("PostgreSQL") && r.status() == Status.FAIL);
 
+        // Docker (optional - only with --fix-optional)
+        CheckResult dockerResult = results.stream().filter(r -> r.tool().equals("Docker")).findFirst().orElse(null);
+        boolean dockerNotInstalled = fixOptional && dockerResult != null && dockerResult.status() != Status.OK
+                && dockerResult.message() != null && !dockerResult.message().contains("daemon is not running");
+        boolean dockerDaemonStopped = fixOptional && dockerResult != null && dockerResult.message() != null
+                && dockerResult.message().contains("daemon is not running");
+
         // Track tools that need PATH adjustment
         List<String[]> pathIssues = new ArrayList<>(); // {tool name, path to add}
 
@@ -706,6 +741,7 @@ public class DoctorService {
         if (javaFailed || jarFailed) packagesToInstall.add(new String[]{"EclipseAdoptium.Temurin.21.JDK", "Java 21 (Temurin)"});
         if (gitFailed) packagesToInstall.add(new String[]{"Git.Git", "Git"});
         if (postgresFailed) packagesToInstall.add(new String[]{"PostgreSQL.PostgreSQL.17", "PostgreSQL 17"});
+        if (dockerNotInstalled) packagesToInstall.add(new String[]{"Docker.DockerDesktop", "Docker Desktop"});
 
         boolean hasWingetPackages = !packagesToInstall.isEmpty();
         boolean anythingInstalled = false;
@@ -754,7 +790,21 @@ public class DoctorService {
             }
         }
 
-        if (!hasWingetPackages && !mavenFailed) {
+        // Docker daemon stopped: try to start it
+        if (dockerDaemonStopped) {
+            System.out.println();
+            System.out.println("Starting Docker Desktop...");
+            int dockerStart = processRunner.runLive("cmd", "/c", "start", "",
+                    "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe");
+            if (dockerStart == 0) {
+                System.out.println("  Docker Desktop is starting. It may need a moment to be ready.");
+                anythingInstalled = true;
+            } else {
+                System.out.println("  Could not start Docker Desktop. Start it manually from the Start menu.");
+            }
+        }
+
+        if (!hasWingetPackages && !mavenFailed && !dockerDaemonStopped) {
             System.out.println();
             System.out.println("Nothing to fix!");
             return;
@@ -943,7 +993,7 @@ public class DoctorService {
         System.out.println("    3. Add the bin folder to your PATH");
     }
 
-    private void runAutoFixLinux(List<CheckResult> results) {
+    private void runAutoFixLinux(List<CheckResult> results, boolean fixOptional) {
         // Detect package manager
         String pkgManager = null;
         String installCmd = null;
@@ -979,6 +1029,13 @@ public class DoctorService {
         boolean gitFailed = results.stream().anyMatch(r -> r.tool().equals("Git") && r.status() == Status.FAIL);
         boolean postgresFailed = results.stream().anyMatch(r -> r.tool().equals("PostgreSQL") && r.status() == Status.FAIL);
 
+        // Docker (optional - only with --fix-optional)
+        CheckResult dockerResult = results.stream().filter(r -> r.tool().equals("Docker")).findFirst().orElse(null);
+        boolean dockerNotInstalled = fixOptional && dockerResult != null && dockerResult.status() != Status.OK
+                && dockerResult.message() != null && !dockerResult.message().contains("daemon is not running");
+        boolean dockerDaemonStopped = fixOptional && dockerResult != null && dockerResult.message() != null
+                && dockerResult.message().contains("daemon is not running");
+
         List<String> packagesToInstall = new ArrayList<>();
 
         // Package names vary by distribution
@@ -988,28 +1045,32 @@ public class DoctorService {
                 if (mavenFailed) packagesToInstall.add("maven");
                 if (gitFailed) packagesToInstall.add("git");
                 if (postgresFailed) packagesToInstall.add("postgresql-client");
+                if (dockerNotInstalled) packagesToInstall.add("docker.io");
             }
             case "dnf", "yum" -> {
                 if (javaFailed || jarFailed) packagesToInstall.add("java-21-openjdk-devel");
                 if (mavenFailed) packagesToInstall.add("maven");
                 if (gitFailed) packagesToInstall.add("git");
                 if (postgresFailed) packagesToInstall.add("postgresql");
+                if (dockerNotInstalled) packagesToInstall.add("docker");
             }
             case "pacman" -> {
                 if (javaFailed || jarFailed) packagesToInstall.add("jdk-openjdk");
                 if (mavenFailed) packagesToInstall.add("maven");
                 if (gitFailed) packagesToInstall.add("git");
                 if (postgresFailed) packagesToInstall.add("postgresql-libs");
+                if (dockerNotInstalled) packagesToInstall.add("docker");
             }
             case "zypper" -> {
                 if (javaFailed || jarFailed) packagesToInstall.add("java-21-openjdk-devel");
                 if (mavenFailed) packagesToInstall.add("maven");
                 if (gitFailed) packagesToInstall.add("git");
                 if (postgresFailed) packagesToInstall.add("postgresql");
+                if (dockerNotInstalled) packagesToInstall.add("docker");
             }
         }
 
-        if (packagesToInstall.isEmpty()) {
+        if (packagesToInstall.isEmpty() && !dockerDaemonStopped) {
             System.out.println();
             System.out.println("Nothing to fix!");
             return;
@@ -1060,9 +1121,21 @@ public class DoctorService {
             System.out.println();
             System.out.println("Some packages may have failed to install. Check output above.");
         }
+
+        // Start Docker daemon if it was installed or just stopped
+        if (dockerNotInstalled || dockerDaemonStopped) {
+            System.out.println();
+            System.out.println("Starting Docker daemon...");
+            List<String> startCmd = new ArrayList<>();
+            if (!isRunningAsRoot()) startCmd.add("sudo");
+            startCmd.add("systemctl");
+            startCmd.add("start");
+            startCmd.add("docker");
+            processRunner.runLive(startCmd.toArray(new String[0]));
+        }
     }
 
-    private void runAutoFixMac(List<CheckResult> results) {
+    private void runAutoFixMac(List<CheckResult> results, boolean fixOptional) {
         // Check if Homebrew is available
         if (!processRunner.isAvailable("brew")) {
             System.out.println();
@@ -1080,28 +1153,59 @@ public class DoctorService {
         boolean postgresFailed = results.stream().anyMatch(r -> r.tool().equals("PostgreSQL") && r.status() == Status.FAIL);
         boolean greadlinkFailed = results.stream().anyMatch(r -> r.tool().equals("greadlink") && r.status() == Status.FAIL);
 
+        // Docker (optional - only with --fix-optional)
+        CheckResult dockerResult = results.stream().filter(r -> r.tool().equals("Docker")).findFirst().orElse(null);
+        boolean dockerNotInstalled = fixOptional && dockerResult != null && dockerResult.status() != Status.OK
+                && dockerResult.message() != null && !dockerResult.message().contains("daemon is not running");
+        boolean dockerDaemonStopped = fixOptional && dockerResult != null && dockerResult.message() != null
+                && dockerResult.message().contains("daemon is not running");
+
         if (javaFailed || jarFailed) packagesToInstall.add("openjdk@21");
         if (mavenFailed) packagesToInstall.add("maven");
         if (gitFailed) packagesToInstall.add("git");
         if (postgresFailed) packagesToInstall.add("postgresql");
         if (greadlinkFailed) packagesToInstall.add("coreutils");
 
-        if (packagesToInstall.isEmpty()) {
+        // Docker Desktop is installed as a cask (separate from regular packages)
+        List<String> casksToInstall = new ArrayList<>();
+        if (dockerNotInstalled) casksToInstall.add("docker");
+
+        if (packagesToInstall.isEmpty() && casksToInstall.isEmpty() && !dockerDaemonStopped) {
             System.out.println();
             System.out.println("Nothing to fix!");
             return;
         }
 
-        System.out.println();
-        System.out.println("Installing missing packages with Homebrew...");
-        System.out.println();
+        int exitCode = 0;
 
-        List<String> command = new ArrayList<>();
-        command.add("brew");
-        command.add("install");
-        command.addAll(packagesToInstall);
+        if (!packagesToInstall.isEmpty()) {
+            System.out.println();
+            System.out.println("Installing missing packages with Homebrew...");
+            System.out.println();
 
-        int exitCode = processRunner.runLive(command.toArray(new String[0]));
+            List<String> command = new ArrayList<>();
+            command.add("brew");
+            command.add("install");
+            command.addAll(packagesToInstall);
+
+            exitCode = processRunner.runLive(command.toArray(new String[0]));
+        }
+
+        if (!casksToInstall.isEmpty()) {
+            System.out.println();
+            System.out.println("Installing Docker Desktop with Homebrew...");
+            System.out.println();
+
+            int caskExit = processRunner.runLive("brew", "install", "--cask", "docker");
+            if (caskExit != 0) exitCode = caskExit;
+        }
+
+        if (dockerDaemonStopped) {
+            System.out.println();
+            System.out.println("Starting Docker Desktop...");
+            processRunner.runLive("open", "-a", "Docker");
+            System.out.println("  Docker Desktop is starting. It may need a moment to be ready.");
+        }
 
         if (exitCode == 0) {
             System.out.println();

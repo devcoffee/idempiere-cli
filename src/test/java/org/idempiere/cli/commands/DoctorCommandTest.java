@@ -48,6 +48,7 @@ class DoctorCommandTest {
         String output = result.getOutput();
         assertTrue(output.contains("Check required tools"));
         assertTrue(output.contains("--fix"));
+        assertTrue(output.contains("--fix-optional"));
         assertTrue(output.contains("--dir"));
     }
 }

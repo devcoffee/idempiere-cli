@@ -233,7 +233,8 @@ public class SourceManager {
             }
         }
 
-        return "mvn";
+        // On Windows, use mvn.cmd explicitly to avoid issues with mvn.exe launcher
+        return isWindows ? "mvn.cmd" : "mvn";
     }
 
     private boolean isEmptyDir(Path dir) {

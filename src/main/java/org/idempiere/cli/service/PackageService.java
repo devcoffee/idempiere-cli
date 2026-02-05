@@ -66,7 +66,7 @@ public class PackageService {
 
         // Detect Maven
         boolean isWindows = System.getProperty("os.name", "").toLowerCase().contains("win");
-        String mvnCmd = "mvn";
+        String mvnCmd = isWindows ? "mvn.cmd" : "mvn";
         Path mvnwCmd = pluginDir.resolve("mvnw.cmd");
 
         // On Windows, check for .cmd wrapper first (Unix mvnw is a bash script)

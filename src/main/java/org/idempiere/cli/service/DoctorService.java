@@ -324,7 +324,9 @@ public class DoctorService {
     }
 
     private CheckResult checkMaven() {
-        ProcessRunner.RunResult result = processRunner.run("mvn", "-version");
+        // On Windows, use mvn.cmd explicitly to avoid issues with mvn.exe launcher
+        String mvnCmd = IS_WINDOWS ? "mvn.cmd" : "mvn";
+        ProcessRunner.RunResult result = processRunner.run(mvnCmd, "-version");
         if (result.exitCode() < 0 || result.output() == null) {
             // On Windows, check if Maven was installed by doctor --fix but not in PATH
             String msg;

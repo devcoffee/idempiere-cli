@@ -98,8 +98,15 @@ public class BuildService {
         }
 
         // Fallback to system Maven
-        if (processRunner.isAvailable("mvn")) {
-            return "mvn";
+        // On Windows, use mvn.cmd explicitly to avoid issues with mvn.exe launcher
+        if (isWindows) {
+            if (processRunner.isAvailable("mvn.cmd")) {
+                return "mvn.cmd";
+            }
+        } else {
+            if (processRunner.isAvailable("mvn")) {
+                return "mvn";
+            }
         }
         return null;
     }

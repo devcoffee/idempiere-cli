@@ -39,7 +39,14 @@ public class ScaffoldService {
 
             System.out.println();
             System.out.println("Plugin created successfully!");
-            System.out.println("  cd " + descriptor.getPluginId());
+            System.out.println();
+            System.out.println("Next steps:");
+            System.out.println("  1. cd " + descriptor.getPluginId());
+            System.out.println("  2. Import in Eclipse: File > Import > Maven > Existing Maven Projects");
+            System.out.println("  3. Select this directory as root and click Finish");
+            System.out.println();
+            System.out.println("To build and package for distribution:");
+            System.out.println("  idempiere-cli package");
             System.out.println();
         } catch (IOException e) {
             System.err.println("Error creating plugin: " + e.getMessage());

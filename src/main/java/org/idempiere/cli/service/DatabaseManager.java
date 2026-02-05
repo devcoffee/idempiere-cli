@@ -343,7 +343,9 @@ public class DatabaseManager {
             return false;
         }
 
-        // Step 2: Import the database using RUN_ImportIdempiere.sh from utils
+        // Step 2: Import the database using RUN_ImportIdempiere.sh
+        // This script handles: extract seed, import DB, sync migrations, sign database.
+        // We use live output so the user can see progress in real-time.
         Path utilsDir = productDir.resolve("utils");
         Path importScript = utilsDir.resolve("RUN_ImportIdempiere.sh");
         if (!Files.exists(importScript)) {
@@ -352,29 +354,26 @@ public class DatabaseManager {
         }
 
         System.out.println("  Importing seed database (this may take several minutes)...");
+        System.out.println();
 
         Map<String, String> importEnv = Map.of(
                 "PGPASSWORD", config.getDbAdminPass(),
                 "IDEMPIERE_HOME", toBashPath(productDir.toAbsolutePath().toString())
         );
 
-        // Pipe newline to skip "Press enter to continue..." prompt
-        // Run quietly - capture output and only show on failure
+        // Pipe newlines to skip "Press enter to continue..." prompt.
+        // Use live output so user sees exactly what's happening.
         String importScriptPath = toBashPath(importScript.toAbsolutePath().toString());
-        ProcessRunner.RunResult importResult = processRunner.runQuietInDirWithEnvAndInput(
+        int exitCode = processRunner.runLiveInDirWithInput(
                 utilsDir, importEnv,
                 "\n",
                 "bash", importScriptPath
         );
 
-        if (!importResult.isSuccess()) {
-            System.err.println("  Seed data import failed.");
-            System.err.println("  Import output (last 30 lines):");
-            String[] lines = importResult.output().split("\n");
-            int start = Math.max(0, lines.length - 30);
-            for (int i = start; i < lines.length; i++) {
-                System.err.println("    " + lines[i]);
-            }
+        System.out.println();
+
+        if (exitCode != 0) {
+            System.err.println("  Seed data import failed (exit code " + exitCode + ").");
             return false;
         }
 
@@ -558,51 +557,33 @@ public class DatabaseManager {
                 "IDEMPIERE_HOME", toBashPath(productDir.toAbsolutePath().toString())
         );
 
-        // Run quietly - capture output and only show on failure
-        System.out.print("  Running database migrations");
+        // Run with live output so user can see progress
+        System.out.println("  Running database migrations...");
+        System.out.println();
         String syncScriptPath = toBashPath(syncScript.toAbsolutePath().toString());
-        ProcessRunner.RunResult syncResult = processRunner.runQuietInDirWithEnv(
-                utilsDir, env,
+        int syncExitCode = processRunner.runLiveInDir(utilsDir, env,
                 "bash", syncScriptPath
         );
+        System.out.println();
 
-        // Log output to session log
-        sessionLogger.logCommandOutput("RUN_SyncDB", syncResult.output());
-
-        if (!syncResult.isSuccess()) {
-            System.err.println("  Migration failed. See session log for details.");
-            // Show last 20 lines as summary on screen
-            System.err.println("  Last 20 lines:");
-            String[] lines = syncResult.output().split("\n");
-            int start = Math.max(0, lines.length - 20);
-            for (int i = start; i < lines.length; i++) {
-                System.err.println("    " + lines[i]);
-            }
+        if (syncExitCode != 0) {
+            System.err.println("  Migration failed (exit code " + syncExitCode + ").");
             return false;
         }
 
         // Sign database after migration (like hengsin does)
         Path signScript = productDir.resolve("sign-database-build-alt.sh");
         if (Files.exists(signScript)) {
-            System.out.print("  Signing database");
+            System.out.println("  Signing database...");
+            System.out.println();
             String signScriptPath = toBashPath(signScript.toAbsolutePath().toString());
-            ProcessRunner.RunResult signResult = processRunner.runQuietInDirWithEnv(
-                    productDir, env,
+            int signExitCode = processRunner.runLiveInDir(productDir, env,
                     "bash", signScriptPath
             );
+            System.out.println();
 
-            // Log output to session log
-            sessionLogger.logCommandOutput("sign-database", signResult.output());
-
-            if (!signResult.isSuccess()) {
-                System.err.println("  Database signing failed. See session log for details.");
-                // Show last 20 lines as summary on screen
-                System.err.println("  Last 20 lines:");
-                String[] lines = signResult.output().split("\n");
-                int start = Math.max(0, lines.length - 20);
-                for (int i = start; i < lines.length; i++) {
-                    System.err.println("    " + lines[i]);
-                }
+            if (signExitCode != 0) {
+                System.err.println("  Database signing failed (exit code " + signExitCode + ").");
                 return false;
             }
         }

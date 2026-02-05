@@ -80,7 +80,7 @@ public class DoctorService {
         } else if (passed == results.size()) {
             System.out.println();
             System.out.println("All checks passed! Your environment is ready.");
-            System.out.println("Run 'idempiere setup-dev-env' to bootstrap your development environment.");
+            System.out.println("Run 'idempiere-cli setup-dev-env' to bootstrap your development environment.");
         }
 
         System.out.println();
@@ -503,7 +503,7 @@ public class DoctorService {
         if (!hasCriticalFailures && !dockerMissing) {
             System.out.println();
             System.out.println("All checks passed! Your environment is ready.");
-            System.out.println("Run 'idempiere setup-dev-env' to bootstrap your development environment.");
+            System.out.println("Run 'idempiere-cli setup-dev-env' to bootstrap your development environment.");
             return;
         }
 
@@ -530,7 +530,7 @@ public class DoctorService {
                     System.out.println();
                     System.out.println("    brew install " + String.join(" ", brewPackages));
                     System.out.println();
-                    System.out.println("  Or run: idempiere doctor --fix");
+                    System.out.println("  Or run: idempiere-cli doctor --fix");
                     System.out.println();
                 }
             } else if (os.contains("linux")) {
@@ -691,15 +691,18 @@ public class DoctorService {
             } else {
                 System.out.println("Optional: Docker (for containerized PostgreSQL)");
                 if (os.contains("mac")) {
-                    System.out.println("    brew install --cask docker");
+                    System.out.println("  Install manually:  brew install --cask docker");
                 } else if (os.contains("linux")) {
-                    System.out.println("    sudo apt install docker.io");
+                    System.out.println("  Install manually:  sudo apt install docker.io");
+                } else if (os.contains("win")) {
+                    System.out.println("  Install manually:  winget install --id Docker.DockerDesktop --source winget");
                 } else {
-                    System.out.println("    https://www.docker.com/products/docker-desktop");
+                    System.out.println("  Install manually:  https://www.docker.com/products/docker-desktop");
                 }
+                System.out.println("  Or run:            idempiere-cli doctor --fix-optional");
             }
             System.out.println();
-            System.out.println("  With Docker, use: idempiere setup-dev-env --with-docker");
+            System.out.println("  With Docker, use: idempiere-cli setup-dev-env --with-docker");
         }
     }
 

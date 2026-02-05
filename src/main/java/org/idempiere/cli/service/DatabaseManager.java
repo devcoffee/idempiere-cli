@@ -708,7 +708,7 @@ public class DatabaseManager {
         if (!missing.isEmpty()) {
             System.err.println("  Missing prerequisites: " + String.join(", ", missing));
             System.err.println();
-            System.err.println("  Run 'idempiere doctor --fix' to install missing dependencies.");
+            System.err.println("  Run 'idempiere-cli doctor --fix' to install missing dependencies.");
             return false;
         }
 

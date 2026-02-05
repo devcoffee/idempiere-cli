@@ -56,17 +56,35 @@ public class SetupDevEnvService {
 
         System.out.println();
 
-        // Pre-flight check: verify Docker is running before starting long operations
-        if (config.isUseDocker() && !config.isSkipDb()) {
-            if (!databaseManager.isDockerRunning()) {
-                System.err.println("Error: Docker is not running.");
-                System.err.println();
-                printDockerStartSuggestion();
-                System.err.println("  After starting Docker, run this command again.");
-                System.err.println("  Or use --skip-db to skip database setup.");
-                sessionLogger.logError("Docker is not running. Aborting.");
-                sessionLogger.endSession(false);
-                return;
+        // Pre-flight checks: verify database is reachable before starting long operations
+        if (!config.isSkipDb()) {
+            if (config.isUseDocker()) {
+                if (!databaseManager.isDockerRunning()) {
+                    System.err.println("Error: Docker is not running.");
+                    System.err.println();
+                    printDockerStartSuggestion();
+                    System.err.println("  After starting Docker, run this command again.");
+                    System.err.println("  Or use --skip-db to skip database setup.");
+                    sessionLogger.logError("Docker is not running. Aborting.");
+                    sessionLogger.endSession(false);
+                    return;
+                }
+            } else {
+                // Without Docker, verify PostgreSQL/Oracle is reachable now
+                // to avoid wasting time on clone/build only to fail at the DB step
+                if (!databaseManager.validateConnection(config)) {
+                    System.err.println("Error: Cannot connect to database at "
+                            + config.getDbHost() + ":" + config.getDbPort()
+                            + " (user: postgres).");
+                    System.err.println();
+                    printDbFixSuggestion(config);
+                    System.err.println("  After fixing the database, run this command again.");
+                    System.err.println("  Or use --skip-db to skip database setup.");
+                    System.err.println("  Or use --with-docker to use a Docker container instead.");
+                    sessionLogger.logError("Database not reachable. Aborting.");
+                    sessionLogger.endSession(false);
+                    return;
+                }
             }
         }
 
@@ -255,6 +273,29 @@ public class SetupDevEnvService {
         } else {
             System.err.println("  Start Docker with:");
             System.err.println("    sudo systemctl start docker");
+        }
+        System.err.println();
+    }
+
+    private void printDbFixSuggestion(SetupConfig config) {
+        String os = System.getProperty("os.name", "").toLowerCase();
+        if ("oracle".equals(config.getDbType())) {
+            System.err.println("  Ensure Oracle is running and accessible at "
+                    + config.getDbHost() + ":" + config.getDbPort());
+        } else {
+            System.err.println("  Ensure PostgreSQL is running and accessible:");
+            if (os.contains("win")) {
+                System.err.println("    Check Services (services.msc) for 'postgresql' service.");
+                System.err.println("    Or install: winget install --id PostgreSQL.PostgreSQL --source winget");
+            } else if (os.contains("mac")) {
+                System.err.println("    brew services start postgresql");
+            } else {
+                System.err.println("    sudo systemctl start postgresql");
+            }
+            System.err.println();
+            System.err.println("  Verify connection manually:");
+            System.err.println("    psql -h " + config.getDbHost()
+                    + " -p " + config.getDbPort() + " -U postgres");
         }
         System.err.println();
     }

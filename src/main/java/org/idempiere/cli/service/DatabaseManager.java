@@ -487,9 +487,31 @@ public class DatabaseManager {
             for (int i = start; i < lines.length; i++) {
                 System.err.println("    " + lines[i]);
             }
+            return false;
         }
 
-        return result.isSuccess();
+        // On Windows, console-setup-alt.sh (Java) may write files with \r\n line endings.
+        // When bash sources myEnvironment.sh, the \r gets included in variable values
+        // (e.g. PGPASSWORD becomes "postgres\r" instead of "postgres"), causing auth failures.
+        if (IS_WINDOWS) {
+            fixLineEndings(productDir.resolve("utils/myEnvironment.sh"));
+            fixLineEndings(productDir.resolve("idempiereEnv.properties"));
+        }
+
+        return true;
+    }
+
+    private void fixLineEndings(Path file) {
+        if (!Files.exists(file)) return;
+        try {
+            String content = Files.readString(file);
+            if (content.contains("\r")) {
+                Files.writeString(file, content.replace("\r\n", "\n").replace("\r", "\n"));
+            }
+        } catch (IOException e) {
+            // Non-fatal - log warning and continue
+            System.err.println("  Warning: Could not fix line endings in " + file.getFileName() + ": " + e.getMessage());
+        }
     }
 
     private void copyConfigToSource(Path productDir, Path sourceDir) {

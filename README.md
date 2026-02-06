@@ -161,45 +161,39 @@ Automates: git clone, database setup (PostgreSQL or Oracle, native or Docker), E
 
 ### `init`
 
-Scaffold a new OSGi-ready iDempiere plugin.
+Scaffold a new OSGi-ready iDempiere plugin project.
 
 ```bash
-# With explicit flags
+# Multi-module project (default) - recommended for production
+idempiere-cli init org.mycompany.myplugin
+
+# Multi-module with fragment and feature modules
+idempiere-cli init org.mycompany.myplugin --with-fragment --with-feature
+
+# Standalone single plugin (simpler, no p2 support)
+idempiere-cli init org.mycompany.myplugin --standalone
+
+# With component stubs
 idempiere-cli init org.mycompany.myplugin \
-  --with-callout --with-process --with-event-handler \
-  --idempiere-version 13
+  --with-callout --with-process --with-event-handler
 
 # Interactive mode (prompts for each option)
 idempiere-cli init org.mycompany.myplugin --interactive
 ```
 
-**Example output:**
+**Multi-module structure (default):**
 
 ```
-Creating iDempiere plugin: org.mycompany.myplugin
-==================================================
-
-  Created: org.mycompany.myplugin/pom.xml
-  Created: org.mycompany.myplugin/META-INF/MANIFEST.MF
-  Created: org.mycompany.myplugin/plugin.xml
-  Created: org.mycompany.myplugin/build.properties
-  Created: org.mycompany.myplugin/.mvn/jvm.config
-  Created: org.mycompany.myplugin/src/org/mycompany/myplugin/MyProcess.java
-  Created: org.mycompany.myplugin/src/org/mycompany/myplugin/MyProcessFactory.java
-
-Plugin created successfully!
-
-Next steps:
-  1. cd org.mycompany.myplugin
-  2. Import in Eclipse: File > Import > Maven > Existing Maven Projects
-  3. Select this directory as root and click Finish
-
-To build:
-  idempiere-cli build
-
-To package for distribution:
-  idempiere-cli package
+org.mycompany.myplugin/
+├── org.mycompany.myplugin.parent/    (Maven parent with Tycho config)
+├── org.mycompany.myplugin.base/      (Main plugin code)
+├── org.mycompany.myplugin.base.test/ (JUnit tests)
+├── org.mycompany.myplugin.fragment/  (optional: UI fragments)
+├── org.mycompany.myplugin.feature/   (optional: Eclipse feature)
+└── org.mycompany.myplugin.p2/        (P2 update site generation)
 ```
+
+**Why multi-module?** This structure enables proper p2 update site generation, test isolation, and fragment support.
 
 Generates: `pom.xml`, `MANIFEST.MF`, `plugin.xml`, `build.properties`, and component stubs with OSGi Declarative Services annotations.
 
@@ -207,7 +201,23 @@ Generates: `pom.xml`, `MANIFEST.MF`, `plugin.xml`, `build.properties`, and compo
 
 ### `add <component>`
 
-Add components to an existing plugin.
+Add components or modules to an existing plugin/project.
+
+**Module commands (multi-module projects):**
+
+```bash
+# Add a new plugin module to existing project
+idempiere-cli add plugin org.mycompany.myplugin.reports
+
+# Add a fragment module (extends org.adempiere.ui.zk by default)
+idempiere-cli add fragment
+idempiere-cli add fragment --host=org.adempiere.base
+
+# Add a feature module (groups plugins for installation)
+idempiere-cli add feature
+```
+
+**Component commands (add code to plugins):**
 
 ```bash
 idempiere-cli add callout --name=MyCallout --to=./my-plugin
@@ -323,9 +333,14 @@ Scans Java imports, cross-references against known iDempiere bundle-to-package m
 Package a plugin for distribution.
 
 ```bash
-idempiere-cli package --dir=./my-plugin --format=zip
-idempiere-cli package --dir=./my-plugin --format=p2
+# ZIP format (works for standalone and multi-module)
+idempiere-cli package --format=zip
+
+# P2 update site (requires multi-module project)
+idempiere-cli package --format=p2
 ```
+
+**Note:** The `--format=p2` option requires a multi-module project structure with a `.p2` module. Use `idempiere-cli init` (without `--standalone`) to create a project with p2 support.
 
 ### `diff-schema`
 
@@ -508,35 +523,38 @@ The MCP server gives AI agents **semantic understanding** of the iDempiere platf
 - [x] `setup-dev-env` with Docker PostgreSQL support
 - [x] `setup-dev-env` with Docker Oracle XE support (`--db=oracle --with-docker`)
 - [x] `init` with `--interactive` mode
+- [x] `init` multi-module project structure (parent + plugin + test + p2)
+- [x] `init --standalone` for single plugin projects
+- [x] `init --with-fragment` and `--with-feature` options
 - [x] `add` for all component types (callout, process, event-handler, zk-form, report, window-validator, rest-extension, facts-validator)
+- [x] `add plugin/fragment/feature` for multi-module projects
 - [x] `add model` for I_/X_/M_ class generation from database
 - [x] `add test` for JUnit test stub generation
 - [x] `build` and `deploy` commands
 - [x] `migrate` between iDempiere versions (v12 ↔ v13)
 - [x] `deps` for dependency analysis (imports vs Require-Bundle)
 - [x] `package --format=zip` for distribution
+- [x] `package --format=p2` for multi-module projects (Tycho p2 update site)
 - [x] `diff-schema` for model vs database comparison
 - [x] `generate-completion` for bash/zsh shell completion
 - [x] `upgrade` command for self-updating CLI from GitHub releases
 - [x] Native image distribution (GraalVM for Linux x64/ARM64, macOS Intel/Apple Silicon, Windows x64)
 - [x] Cross-platform compatibility: Windows winget, Linux apt/dnf/yum/pacman/zypper, macOS Homebrew
+- [x] Integration tests with real plugin fixtures (scaffold → build → validate)
+- [x] Add `--config` support for persistent CLI preferences (~/.idempiere-cli.yaml)
+- [x] Template customization (user-defined templates in ~/.idempiere-cli/templates/)
 
 ### Short-term
-- [x] Integration tests with real plugin fixtures (scaffold → build → validate)
-- [ ] Improve `package --format=p2` (full Tycho p2 update site generation)
-- [x] Add `--config` support for persistent CLI preferences (~/.idempiere-cli.yaml)
 - [ ] Expand bundle-to-package mapping in `deps` command
 
 ### Medium-term
 - [ ] MCP-aware commands (e.g., `add callout` receiving AD context from MCP server)
 - [ ] `publish` command (GitHub Releases, Maven deploy)
-- [x] Template customization (user-defined templates in ~/.idempiere-cli/templates/)
 - [ ] IntelliJ / VS Code project file generation (beyond Eclipse PDE)
 
 ### Long-term
 - [ ] Plugin marketplace integration
 - [ ] CI/CD pipeline generation (GitHub Actions, Jenkins)
-- [ ] Multi-plugin workspace management
 - [ ] Migration guides with breaking change detection
 
 ---

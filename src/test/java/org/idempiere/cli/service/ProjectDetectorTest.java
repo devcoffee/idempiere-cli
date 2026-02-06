@@ -122,4 +122,154 @@ class ProjectDetectorTest {
         Optional<String> version = projectDetector.detectPluginVersion(tempDir);
         assertTrue(version.isEmpty());
     }
+
+    // ========================================================================
+    // Multi-module project detection tests
+    // ========================================================================
+
+    @Test
+    void testIsMultiModuleRootWithValidPom() throws IOException {
+        Files.writeString(tempDir.resolve("pom.xml"),
+                "<?xml version=\"1.0\"?>\n" +
+                "<project>\n" +
+                "  <packaging>pom</packaging>\n" +
+                "  <modules>\n" +
+                "    <module>org.test.base</module>\n" +
+                "    <module>org.test.p2</module>\n" +
+                "  </modules>\n" +
+                "</project>\n");
+
+        assertTrue(projectDetector.isMultiModuleRoot(tempDir));
+    }
+
+    @Test
+    void testIsMultiModuleRootWithNoPom() {
+        assertFalse(projectDetector.isMultiModuleRoot(tempDir));
+    }
+
+    @Test
+    void testIsMultiModuleRootWithNonPomPackaging() throws IOException {
+        Files.writeString(tempDir.resolve("pom.xml"),
+                "<?xml version=\"1.0\"?>\n" +
+                "<project>\n" +
+                "  <packaging>eclipse-plugin</packaging>\n" +
+                "</project>\n");
+
+        assertFalse(projectDetector.isMultiModuleRoot(tempDir));
+    }
+
+    @Test
+    void testFindMultiModuleRootFromSubdir() throws IOException {
+        // Create root pom
+        Files.writeString(tempDir.resolve("pom.xml"),
+                "<?xml version=\"1.0\"?>\n" +
+                "<project>\n" +
+                "  <packaging>pom</packaging>\n" +
+                "  <modules>\n" +
+                "    <module>org.test.base</module>\n" +
+                "  </modules>\n" +
+                "</project>\n");
+
+        // Create subdir
+        Path subDir = tempDir.resolve("org.test.base");
+        Files.createDirectories(subDir);
+
+        Optional<Path> root = projectDetector.findMultiModuleRoot(subDir);
+        assertTrue(root.isPresent());
+        assertEquals(tempDir, root.get());
+    }
+
+    @Test
+    void testGetModules() throws IOException {
+        Files.writeString(tempDir.resolve("pom.xml"),
+                "<?xml version=\"1.0\"?>\n" +
+                "<project>\n" +
+                "  <packaging>pom</packaging>\n" +
+                "  <modules>\n" +
+                "    <module>org.test.parent</module>\n" +
+                "    <module>org.test.base</module>\n" +
+                "    <module>org.test.base.test</module>\n" +
+                "    <module>org.test.p2</module>\n" +
+                "  </modules>\n" +
+                "</project>\n");
+
+        var modules = projectDetector.getModules(tempDir);
+        assertEquals(4, modules.size());
+        assertTrue(modules.contains("org.test.parent"));
+        assertTrue(modules.contains("org.test.base"));
+        assertTrue(modules.contains("org.test.base.test"));
+        assertTrue(modules.contains("org.test.p2"));
+    }
+
+    @Test
+    void testHasFragmentModule() throws IOException {
+        Files.writeString(tempDir.resolve("pom.xml"),
+                "<?xml version=\"1.0\"?>\n" +
+                "<project>\n" +
+                "  <packaging>pom</packaging>\n" +
+                "  <modules>\n" +
+                "    <module>org.test.base</module>\n" +
+                "    <module>org.test.fragment</module>\n" +
+                "  </modules>\n" +
+                "</project>\n");
+
+        assertTrue(projectDetector.hasFragment(tempDir));
+    }
+
+    @Test
+    void testHasNoFragmentModule() throws IOException {
+        Files.writeString(tempDir.resolve("pom.xml"),
+                "<?xml version=\"1.0\"?>\n" +
+                "<project>\n" +
+                "  <packaging>pom</packaging>\n" +
+                "  <modules>\n" +
+                "    <module>org.test.base</module>\n" +
+                "  </modules>\n" +
+                "</project>\n");
+
+        assertFalse(projectDetector.hasFragment(tempDir));
+    }
+
+    @Test
+    void testHasFeatureModule() throws IOException {
+        Files.writeString(tempDir.resolve("pom.xml"),
+                "<?xml version=\"1.0\"?>\n" +
+                "<project>\n" +
+                "  <packaging>pom</packaging>\n" +
+                "  <modules>\n" +
+                "    <module>org.test.base</module>\n" +
+                "    <module>org.test.feature</module>\n" +
+                "  </modules>\n" +
+                "</project>\n");
+
+        assertTrue(projectDetector.hasFeature(tempDir));
+    }
+
+    @Test
+    void testDetectProjectBaseIdFromParent() throws IOException {
+        // Create root pom
+        Files.writeString(tempDir.resolve("pom.xml"),
+                "<?xml version=\"1.0\"?>\n" +
+                "<project>\n" +
+                "  <packaging>pom</packaging>\n" +
+                "  <modules>\n" +
+                "    <module>org.example.myproject.parent</module>\n" +
+                "    <module>org.example.myproject.base</module>\n" +
+                "  </modules>\n" +
+                "</project>\n");
+
+        // Create parent module
+        Path parentDir = tempDir.resolve("org.example.myproject.parent");
+        Files.createDirectories(parentDir);
+        Files.writeString(parentDir.resolve("pom.xml"),
+                "<?xml version=\"1.0\"?>\n" +
+                "<project>\n" +
+                "  <artifactId>org.example.myproject.parent</artifactId>\n" +
+                "  <packaging>pom</packaging>\n" +
+                "</project>\n");
+
+        Optional<String> baseId = projectDetector.detectProjectBaseId(tempDir);
+        assertTrue(baseId.isPresent());
+        assertEquals("org.example.myproject", baseId.get());
+    }
 }

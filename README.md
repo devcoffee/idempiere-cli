@@ -517,11 +517,12 @@ The MCP server gives AI agents **semantic understanding** of the iDempiere platf
 - [x] `package --format=zip` for distribution
 - [x] `diff-schema` for model vs database comparison
 - [x] `generate-completion` for bash/zsh shell completion
+- [x] `upgrade` command for self-updating CLI from GitHub releases
 - [x] Native image distribution (GraalVM for Linux x64/ARM64, macOS Intel/Apple Silicon, Windows x64)
 - [x] Cross-platform compatibility: Windows winget, Linux apt/dnf/yum/pacman/zypper, macOS Homebrew
 
 ### Short-term
-- [ ] Integration tests with real plugin fixtures (scaffold → build → validate)
+- [x] Integration tests with real plugin fixtures (scaffold → build → validate)
 - [ ] Improve `package --format=p2` (full Tycho p2 update site generation)
 - [x] Add `--config` support for persistent CLI preferences (~/.idempiere-cli.yaml)
 - [ ] Expand bundle-to-package mapping in `deps` command

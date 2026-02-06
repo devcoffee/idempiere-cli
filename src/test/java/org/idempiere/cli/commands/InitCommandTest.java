@@ -59,7 +59,7 @@ class InitCommandTest {
 
     @Test
     @Order(1)
-    @Launch({"init", "org.test.myplugin"})
+    @Launch({"init", "org.test.myplugin", "--standalone"})
     void testInitBasicPlugin(LaunchResult result) throws IOException {
         assertEquals(0, result.exitCode());
 
@@ -82,7 +82,7 @@ class InitCommandTest {
 
     @Test
     @Order(2)
-    @Launch({"init", "org.test.myplugin", "--with-callout", "--with-process"})
+    @Launch({"init", "org.test.myplugin", "--standalone", "--with-callout", "--with-process"})
     void testInitPluginWithFeatures(LaunchResult result) {
         assertEquals(0, result.exitCode());
 
@@ -96,7 +96,7 @@ class InitCommandTest {
 
     @Test
     @Order(3)
-    @Launch({"init", "org.test.pluginv13", "--idempiere-version=12"})
+    @Launch({"init", "org.test.pluginv13", "--standalone", "--idempiere-version=12"})
     void testInitWithPlatformVersion12(LaunchResult result) throws IOException {
         assertEquals(0, result.exitCode());
 
@@ -115,6 +115,9 @@ class InitCommandTest {
     @Launch(value = {"init", "--help"}, exitCode = 2)
     void testInitHelp(LaunchResult result) {
         String output = result.getOutput() + result.getErrorOutput();
+        assertTrue(output.contains("--standalone"));
+        assertTrue(output.contains("--with-fragment"));
+        assertTrue(output.contains("--with-feature"));
         assertTrue(output.contains("--with-callout"));
         assertTrue(output.contains("--with-event-handler"));
         assertTrue(output.contains("--with-process"));

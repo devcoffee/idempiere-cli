@@ -65,6 +65,45 @@ public class PackageService {
         }
     }
 
+    /**
+     * Packages a p2 update site from a multi-module project.
+     * Copies the Tycho-generated repository to the output directory.
+     *
+     * @param p2Repository the path to the Tycho-generated repository (e.g., *.p2/target/repository)
+     * @param outputDir the output directory
+     */
+    public void packageP2MultiModule(Path p2Repository, Path outputDir) {
+        System.out.println("  Copying p2 update site from: " + p2Repository);
+
+        try {
+            Path repoDir = outputDir.resolve("repository");
+            Files.createDirectories(repoDir);
+
+            // Copy entire repository structure
+            copyDirectory(p2Repository, repoDir);
+
+            System.out.println("  Created p2 repository at: " + repoDir.toAbsolutePath());
+            System.out.println();
+            System.out.println("  To use this update site:");
+            System.out.println();
+            System.out.println("  1. Host on a web server, or");
+            System.out.println("  2. Use locally with file:// URL:");
+            System.out.println("     file://" + repoDir.toAbsolutePath());
+            System.out.println();
+            System.out.println("  To deploy directly to iDempiere:");
+            System.out.println("    idempiere-cli deploy --target /path/to/idempiere");
+            System.out.println();
+            System.out.println("  See: https://wiki.idempiere.org/en/Developing_Plug-Ins_-_Get_your_Plug-In_running");
+        } catch (IOException e) {
+            System.err.println("  Error creating p2 repository: " + e.getMessage());
+        }
+    }
+
+    /**
+     * @deprecated Use packageP2MultiModule for multi-module projects.
+     *             Standalone plugins should use ZIP format.
+     */
+    @Deprecated
     public void packageP2(Path pluginDir, Path outputDir, Path jarFile) {
         System.out.println("  Generating p2 update site...");
 
@@ -109,6 +148,21 @@ public class PackageService {
         } catch (IOException e) {
             System.err.println("  Error creating p2 repository: " + e.getMessage());
         }
+    }
+
+    private void copyDirectory(Path source, Path target) throws IOException {
+        Files.walk(source).forEach(sourcePath -> {
+            try {
+                Path targetPath = target.resolve(source.relativize(sourcePath));
+                if (Files.isDirectory(sourcePath)) {
+                    Files.createDirectories(targetPath);
+                } else {
+                    Files.copy(sourcePath, targetPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to copy " + sourcePath, e);
+            }
+        });
     }
 
     private void addToZip(ZipOutputStream zos, String entryName, Path file) throws IOException {

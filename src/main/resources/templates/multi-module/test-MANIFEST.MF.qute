@@ -1,0 +1,14 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: {pluginName} Tests
+Bundle-SymbolicName: {basePluginId}.test
+Bundle-Version: {version}
+Bundle-Vendor: {vendor}
+Automatic-Module-Name: {basePluginId}.test
+Bundle-RequiredExecutionEnvironment: {javaSeVersion}
+Import-Package: org.idempiere.test,
+ org.junit.jupiter.api;version="[5.9.0,6.0.0]",
+ org.junit.jupiter.api.extension;version="[5.9.0,6.0.0]",
+ org.osgi.framework;version="[1.10.0,2.0.0)"
+Require-Bundle: org.adempiere.base;bundle-version="{bundleVersion}",
+ {basePluginId};bundle-version="{version}"

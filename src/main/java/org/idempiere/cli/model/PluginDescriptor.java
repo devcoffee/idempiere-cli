@@ -18,6 +18,15 @@ public class PluginDescriptor {
     private PlatformVersion platformVersion;
     private Path outputDir;
 
+    // Multi-module support
+    private boolean multiModule = true;  // Default to multi-module
+    private boolean withFragment = false;
+    private boolean withFeature = false;
+    private boolean withTest = true;  // Default to include test module
+    private String groupId;
+    private String basePluginId;  // e.g., org.example.myplugin.base
+    private String fragmentHost = "org.adempiere.ui.zk";  // Default fragment host
+
     public PluginDescriptor() {
         this.version = "1.0.0.qualifier";
         this.vendor = "";
@@ -97,5 +106,82 @@ public class PluginDescriptor {
 
     public void setOutputDir(Path outputDir) {
         this.outputDir = outputDir;
+    }
+
+    // Multi-module getters and setters
+
+    public boolean isMultiModule() {
+        return multiModule;
+    }
+
+    public void setMultiModule(boolean multiModule) {
+        this.multiModule = multiModule;
+    }
+
+    public boolean isWithFragment() {
+        return withFragment;
+    }
+
+    public void setWithFragment(boolean withFragment) {
+        this.withFragment = withFragment;
+    }
+
+    public boolean isWithFeature() {
+        return withFeature;
+    }
+
+    public void setWithFeature(boolean withFeature) {
+        this.withFeature = withFeature;
+    }
+
+    public boolean isWithTest() {
+        return withTest;
+    }
+
+    public void setWithTest(boolean withTest) {
+        this.withTest = withTest;
+    }
+
+    public String getGroupId() {
+        if (groupId == null || groupId.isEmpty()) {
+            // Default: use first two segments of pluginId or pluginId itself
+            String[] parts = pluginId.split("\\.");
+            if (parts.length >= 2) {
+                return parts[0] + "." + parts[1];
+            }
+            return pluginId;
+        }
+        return groupId;
+    }
+
+    public void setGroupId(String groupId) {
+        this.groupId = groupId;
+    }
+
+    public String getBasePluginId() {
+        if (basePluginId == null || basePluginId.isEmpty()) {
+            // Default: pluginId + ".base"
+            return pluginId + ".base";
+        }
+        return basePluginId;
+    }
+
+    public void setBasePluginId(String basePluginId) {
+        this.basePluginId = basePluginId;
+    }
+
+    public String getFragmentHost() {
+        return fragmentHost;
+    }
+
+    public void setFragmentHost(String fragmentHost) {
+        this.fragmentHost = fragmentHost;
+    }
+
+    /**
+     * Get the package path for the base plugin (used in multi-module).
+     */
+    public String getBasePackagePath() {
+        return getBasePluginId().replace('.', '/');
     }
 }

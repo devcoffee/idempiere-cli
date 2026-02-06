@@ -28,9 +28,17 @@ public class InteractivePromptService {
     }
 
     public boolean confirm(String message) {
-        System.out.print(message + " (y/N): ");
+        return confirm(message, false);
+    }
+
+    public boolean confirm(String message, boolean defaultValue) {
+        String hint = defaultValue ? "(Y/n)" : "(y/N)";
+        System.out.print(message + " " + hint + ": ");
         String input = readLine();
-        return input != null && (input.trim().equalsIgnoreCase("y") || input.trim().equalsIgnoreCase("yes"));
+        if (input == null || input.isBlank()) {
+            return defaultValue;
+        }
+        return input.trim().equalsIgnoreCase("y") || input.trim().equalsIgnoreCase("yes");
     }
 
     private String readLine() {

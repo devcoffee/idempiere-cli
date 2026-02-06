@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<site>
+{#if withFeature}   <feature id="{pluginId}.feature" version="{version}">
+      <category name="{categoryName}"/>
+   </feature>
+{#else}   <bundle id="{basePluginId}" version="{version}">
+      <category name="{categoryName}"/>
+   </bundle>
+{#if withFragment}   <bundle id="{pluginId}.fragment" version="{version}">
+      <category name="{categoryName}"/>
+   </bundle>
+{/if}{/if}   <category-def name="{categoryName}" label="{pluginName}"/>
+</site>

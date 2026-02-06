@@ -49,6 +49,23 @@ public class InitCommand implements Runnable {
     @Parameters(index = "0", description = "Plugin ID (e.g., org.mycompany.myplugin)")
     String pluginId;
 
+    // Project structure options
+    @Option(names = "--standalone", description = "Create a single standalone plugin (default: multi-module)")
+    boolean standalone;
+
+    @Option(names = "--with-fragment", description = "Include a fragment module (multi-module only)")
+    boolean withFragment;
+
+    @Option(names = "--with-feature", description = "Include a feature module for grouping plugins (multi-module only)")
+    boolean withFeature;
+
+    @Option(names = "--no-test", description = "Skip test module creation (multi-module only)")
+    boolean noTest;
+
+    @Option(names = "--fragment-host", description = "Fragment host bundle (default: org.adempiere.ui.zk)", defaultValue = "org.adempiere.ui.zk")
+    String fragmentHost;
+
+    // Component options
     @Option(names = "--with-callout", description = "Include a callout stub")
     boolean withCallout;
 
@@ -76,7 +93,7 @@ public class InitCommand implements Runnable {
     @Option(names = "--with-process-mapped", description = "Include a process using MappedProcessFactory (recommended for 2Pack support)")
     boolean withProcessMapped;
 
-    @Option(names = "--with-test", description = "Include JUnit 5 test infrastructure with AbstractTestCase")
+    @Option(names = "--with-test", description = "Include JUnit 5 test class in plugin (standalone) or test module (multi-module)")
     boolean withTest;
 
     @Option(names = "--with-zk-form-zul", description = "Include a ZUL-based form with separate .zul file and Controller")
@@ -157,6 +174,22 @@ public class InitCommand implements Runnable {
         }
 
         System.out.println();
+        System.out.println("Project structure:");
+        System.out.println("  1. Multi-module (recommended): parent + plugin + test + p2");
+        System.out.println("  2. Standalone: single plugin");
+        System.out.println();
+        String structureChoice = promptService.prompt("Choose structure (1/2)", "1");
+        standalone = "2".equals(structureChoice);
+
+        if (!standalone) {
+            System.out.println();
+            System.out.println("Multi-module options:");
+            if (promptService.confirm("  Include fragment module?")) withFragment = true;
+            if (promptService.confirm("  Include feature module (for grouping)?")) withFeature = true;
+            noTest = !promptService.confirm("  Include test module?", true);
+        }
+
+        System.out.println();
         System.out.println("Select components to include:");
         System.out.println();
 
@@ -173,7 +206,7 @@ public class InitCommand implements Runnable {
         if (promptService.confirm("  Include window validator?")) withWindowValidator = true;
         if (promptService.confirm("  Include REST extension?")) withRestExtension = true;
         if (promptService.confirm("  Include facts validator?")) withFactsValidator = true;
-        if (promptService.confirm("  Include unit tests?")) withTest = true;
+        if (standalone && promptService.confirm("  Include unit tests?")) withTest = true;
 
         System.out.println();
         runWithFlags();
@@ -206,6 +239,14 @@ public class InitCommand implements Runnable {
         descriptor.setVendor(vendor);
         descriptor.setPlatformVersion(PlatformVersion.of(idempiereVersion));
 
+        // Multi-module settings (default: multi-module)
+        descriptor.setMultiModule(!standalone);
+        descriptor.setWithFragment(withFragment);
+        descriptor.setWithFeature(withFeature);
+        descriptor.setWithTest(!noTest);  // Default: include test module
+        descriptor.setFragmentHost(fragmentHost);
+
+        // Component features
         if (withCallout) descriptor.addFeature("callout");
         if (withEventHandler) descriptor.addFeature("event-handler");
         if (withProcess) descriptor.addFeature("process");

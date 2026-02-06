@@ -49,12 +49,13 @@ class ScaffoldServiceTest {
 
     @Test
     void testCreateBasicPlugin() throws IOException {
-        // Given
+        // Given - standalone plugin (not multi-module)
         PluginDescriptor descriptor = new PluginDescriptor("org.test.basic");
         descriptor.setVersion("1.0.0.qualifier");
         descriptor.setVendor("Test Vendor");
         descriptor.setPlatformVersion(PlatformVersion.of(12));
         descriptor.setOutputDir(tempDir);
+        descriptor.setMultiModule(false); // Test standalone mode
 
         // When
         Path pluginDir = tempDir.resolve("org.test.basic");
@@ -76,6 +77,7 @@ class ScaffoldServiceTest {
         descriptor.setPlatformVersion(PlatformVersion.of(12));
         descriptor.addFeature("callout");
         descriptor.setOutputDir(tempDir);
+        descriptor.setMultiModule(false);
 
         // When
         scaffoldService.createPlugin(descriptor);
@@ -95,6 +97,7 @@ class ScaffoldServiceTest {
         descriptor.setPlatformVersion(PlatformVersion.of(12));
         descriptor.addFeature("process");
         descriptor.setOutputDir(tempDir);
+        descriptor.setMultiModule(false);
 
         // When
         scaffoldService.createPlugin(descriptor);
@@ -112,6 +115,7 @@ class ScaffoldServiceTest {
         descriptor.setPlatformVersion(PlatformVersion.of(12));
         descriptor.addFeature("zk-form");
         descriptor.setOutputDir(tempDir);
+        descriptor.setMultiModule(false);
 
         // When
         scaffoldService.createPlugin(descriptor);
@@ -133,6 +137,7 @@ class ScaffoldServiceTest {
         descriptor.setPlatformVersion(PlatformVersion.of(12));
         descriptor.addFeature("zk-form-zul");
         descriptor.setOutputDir(tempDir);
+        descriptor.setMultiModule(false);
 
         // When
         scaffoldService.createPlugin(descriptor);
@@ -152,6 +157,7 @@ class ScaffoldServiceTest {
         descriptor.addFeature("zk-form");
         descriptor.addFeature("zk-form-zul");
         descriptor.setOutputDir(tempDir);
+        descriptor.setMultiModule(false);
 
         // When
         scaffoldService.createPlugin(descriptor);
@@ -169,6 +175,7 @@ class ScaffoldServiceTest {
         descriptor.setPlatformVersion(PlatformVersion.of(12));
         descriptor.addFeature("process-mapped");
         descriptor.setOutputDir(tempDir);
+        descriptor.setMultiModule(false);
 
         // When
         scaffoldService.createPlugin(descriptor);
@@ -191,6 +198,7 @@ class ScaffoldServiceTest {
         descriptor.setPlatformVersion(PlatformVersion.of(12));
         descriptor.addFeature("jasper-report");
         descriptor.setOutputDir(tempDir);
+        descriptor.setMultiModule(false);
 
         // When
         scaffoldService.createPlugin(descriptor);
@@ -209,6 +217,7 @@ class ScaffoldServiceTest {
         descriptor.addFeature("process-mapped");
         descriptor.addFeature("jasper-report");
         descriptor.setOutputDir(tempDir);
+        descriptor.setMultiModule(false);
 
         // When
         scaffoldService.createPlugin(descriptor);
@@ -231,6 +240,7 @@ class ScaffoldServiceTest {
         descriptor.setPlatformVersion(PlatformVersion.of(12));
         descriptor.addFeature("wlistbox-editor");
         descriptor.setOutputDir(tempDir);
+        descriptor.setMultiModule(false);
 
         // When
         scaffoldService.createPlugin(descriptor);
@@ -247,6 +257,7 @@ class ScaffoldServiceTest {
         descriptor.setPlatformVersion(PlatformVersion.of(12));
         descriptor.addFeature("test");
         descriptor.setOutputDir(tempDir);
+        descriptor.setMultiModule(false);
 
         // When
         scaffoldService.createPlugin(descriptor);
@@ -267,6 +278,7 @@ class ScaffoldServiceTest {
         PluginDescriptor descriptor = new PluginDescriptor("org.test.v13");
         descriptor.setPlatformVersion(PlatformVersion.of(13));
         descriptor.setOutputDir(tempDir);
+        descriptor.setMultiModule(false);
 
         // When
         scaffoldService.createPlugin(descriptor);
@@ -288,6 +300,7 @@ class ScaffoldServiceTest {
         descriptor.setPlatformVersion(PlatformVersion.of(12));
         descriptor.addFeature("callout");
         descriptor.setOutputDir(tempDir);
+        descriptor.setMultiModule(false);
 
         // When
         scaffoldService.createPlugin(descriptor);

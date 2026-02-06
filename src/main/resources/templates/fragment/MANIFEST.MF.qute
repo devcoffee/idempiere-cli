@@ -1,0 +1,10 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: {pluginName} Fragment
+Bundle-SymbolicName: {pluginId}.fragment
+Bundle-Version: {version}
+Bundle-Vendor: {vendor}
+Fragment-Host: {fragmentHost};bundle-version="{bundleVersion}"
+Automatic-Module-Name: {pluginId}.fragment
+Bundle-RequiredExecutionEnvironment: {javaSeVersion}
+Jetty-WarFragmentFolderPath: /

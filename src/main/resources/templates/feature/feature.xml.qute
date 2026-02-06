@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feature
+      id="{pluginId}.feature"
+      label="{pluginName}"
+      version="{version}"
+      provider-name="{vendor}">
+
+   <description>
+      {pluginName} feature for iDempiere.
+   </description>
+
+   <copyright>
+      Copyright (c) {vendor}
+   </copyright>
+
+   <license url="">
+      GPLv2
+   </license>
+
+   <plugin
+         id="{basePluginId}"
+         download-size="0"
+         install-size="0"
+         version="0.0.0"
+         unpack="false"/>
+{#if withFragment}
+   <plugin
+         id="{pluginId}.fragment"
+         download-size="0"
+         install-size="0"
+         version="0.0.0"
+         fragment="true"
+         unpack="false"/>
+{/if}
+</feature>

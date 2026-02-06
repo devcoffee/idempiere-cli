@@ -141,7 +141,7 @@ class CliConfigServiceTest {
 
         assertNotNull(config);
         assertEquals("Only Vendor", config.getDefaults().getVendor());
-        assertEquals(12, config.getDefaults().getIdempiereVersion()); // default
+        assertEquals(13, config.getDefaults().getIdempiereVersion()); // default
     }
 
     @Test

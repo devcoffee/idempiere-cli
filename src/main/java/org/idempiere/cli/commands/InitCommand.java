@@ -97,7 +97,7 @@ public class InitCommand implements Runnable {
     @Option(names = "--vendor", description = "Plugin vendor name", defaultValue = "")
     String vendor;
 
-    @Option(names = "--idempiere-version", description = "Target iDempiere version (default: 12)", defaultValue = "12")
+    @Option(names = "--idempiere-version", description = "Target iDempiere version (default: 13)", defaultValue = "13")
     int idempiereVersion;
 
     @Option(names = "--interactive", negatable = true, description = "Enable interactive mode (default: auto-detect)")
@@ -192,10 +192,10 @@ public class InitCommand implements Runnable {
             vendor = defaults.getVendor();
         }
 
-        // Apply idempiereVersion from config if still at default value (12)
-        // Note: We can't distinguish between explicit --idempiere-version=12 and default
+        // Apply idempiereVersion from config if still at default value (13)
+        // Note: We can't distinguish between explicit --idempiere-version=13 and default
         // This is a limitation of picocli's defaultValue approach
-        if (idempiereVersion == 12 && defaults.hasIdempiereVersion()) {
+        if (idempiereVersion == 13 && defaults.hasIdempiereVersion()) {
             idempiereVersion = defaults.getIdempiereVersion();
         }
     }

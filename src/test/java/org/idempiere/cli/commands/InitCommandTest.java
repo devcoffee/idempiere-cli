@@ -70,14 +70,14 @@ class InitCommandTest {
         assertTrue(Files.exists(pluginDir.resolve("build.properties")));
         assertTrue(Files.exists(pluginDir.resolve("OSGI-INF")));
 
-        // Default platform version is 12 (stable) → Java 17
+        // Default platform version is 13 (latest) → Java 21
         String pom = Files.readString(pluginDir.resolve("pom.xml"));
-        assertTrue(pom.contains("<maven.compiler.release>17</maven.compiler.release>"));
-        assertTrue(pom.contains("<tycho.version>4.0.4</tycho.version>"));
+        assertTrue(pom.contains("<maven.compiler.release>21</maven.compiler.release>"));
+        assertTrue(pom.contains("<tycho.version>4.0.8</tycho.version>"));
 
         String manifest = Files.readString(pluginDir.resolve("META-INF/MANIFEST.MF"));
-        assertTrue(manifest.contains("Bundle-RequiredExecutionEnvironment: JavaSE-17"));
-        assertTrue(manifest.contains("bundle-version=\"12.0.0\""));
+        assertTrue(manifest.contains("Bundle-RequiredExecutionEnvironment: JavaSE-21"));
+        assertTrue(manifest.contains("bundle-version=\"13.0.0\""));
     }
 
     @Test
@@ -96,18 +96,18 @@ class InitCommandTest {
 
     @Test
     @Order(3)
-    @Launch({"init", "org.test.pluginv13", "--idempiere-version=13"})
-    void testInitWithPlatformVersion13(LaunchResult result) throws IOException {
+    @Launch({"init", "org.test.pluginv13", "--idempiere-version=12"})
+    void testInitWithPlatformVersion12(LaunchResult result) throws IOException {
         assertEquals(0, result.exitCode());
 
         Path pluginDir = Path.of(TEST_PLUGIN_V13);
         String pom = Files.readString(pluginDir.resolve("pom.xml"));
-        assertTrue(pom.contains("<maven.compiler.release>21</maven.compiler.release>"));
-        assertTrue(pom.contains("<tycho.version>4.0.8</tycho.version>"));
+        assertTrue(pom.contains("<maven.compiler.release>17</maven.compiler.release>"));
+        assertTrue(pom.contains("<tycho.version>4.0.4</tycho.version>"));
 
         String manifest = Files.readString(pluginDir.resolve("META-INF/MANIFEST.MF"));
-        assertTrue(manifest.contains("Bundle-RequiredExecutionEnvironment: JavaSE-21"));
-        assertTrue(manifest.contains("bundle-version=\"13.0.0\""));
+        assertTrue(manifest.contains("Bundle-RequiredExecutionEnvironment: JavaSE-17"));
+        assertTrue(manifest.contains("bundle-version=\"12.0.0\""));
     }
 
     @Test

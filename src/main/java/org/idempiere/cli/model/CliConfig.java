@@ -49,7 +49,7 @@ public class CliConfig {
         }
 
         public int getIdempiereVersion() {
-            return idempiereVersion != null ? idempiereVersion : 12;
+            return idempiereVersion != null ? idempiereVersion : 13;
         }
 
         public void setIdempiereVersion(int idempiereVersion) {

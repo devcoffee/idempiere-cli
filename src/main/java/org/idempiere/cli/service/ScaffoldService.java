@@ -7,6 +7,9 @@ import org.idempiere.cli.model.PlatformVersion;
 import org.idempiere.cli.model.PluginDescriptor;
 import org.idempiere.cli.service.generator.ComponentGenerator;
 import org.idempiere.cli.service.generator.GeneratorUtils;
+import org.idempiere.cli.util.XmlUtils;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -14,7 +17,6 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.regex.Pattern;
 
 /**
  * Creates new iDempiere plugin projects and adds components to existing plugins.
@@ -703,35 +705,17 @@ public class ScaffoldService {
             return;
         }
 
-        String content = Files.readString(pomFile);
+        Document doc = XmlUtils.load(pomFile);
 
         // Check if module already exists
-        if (content.contains("<module>" + moduleName + "</module>")) {
+        if (XmlUtils.hasModuleWithName(doc, moduleName)) {
             System.out.println("  Module already registered in pom.xml");
             return;
         }
 
-        // Find the closing </modules> tag and insert before it
-        int modulesEnd = content.indexOf("</modules>");
-        if (modulesEnd == -1) {
-            System.err.println("Warning: Could not find </modules> in pom.xml");
-            return;
-        }
-
-        // Find indentation from previous module line
-        String indent = "\t\t";  // Default
-        int lastModule = content.lastIndexOf("<module>", modulesEnd);
-        if (lastModule != -1) {
-            int lineStart = content.lastIndexOf('\n', lastModule);
-            if (lineStart != -1) {
-                indent = content.substring(lineStart + 1, lastModule);
-            }
-        }
-
-        String newModule = indent + "<module>" + moduleName + "</module>\n";
-        String newContent = content.substring(0, modulesEnd) + newModule + content.substring(modulesEnd);
-
-        Files.writeString(pomFile, newContent);
+        // Add the new module
+        XmlUtils.addModule(doc, moduleName);
+        XmlUtils.save(doc, pomFile);
         System.out.println("  Updated: " + pomFile);
     }
 
@@ -750,37 +734,21 @@ public class ScaffoldService {
             return;
         }
 
-        String content = Files.readString(categoryFile);
+        Document doc = XmlUtils.load(categoryFile);
 
         // Check if bundle already in category
-        if (content.contains("id=\"" + bundleId + "\"")) {
+        if (XmlUtils.hasElementWithAttribute(doc, "bundle", "id", bundleId)) {
             return;
         }
 
-        // Find the category-def closing tag to insert before it
-        int categoryDefEnd = content.indexOf("</category-def>");
-        if (categoryDefEnd == -1) {
-            return;
-        }
+        // Get category name from category-def
+        String categoryName = XmlUtils.getAttributeValue(doc, "category-def", "name").orElse("default");
 
-        // Find the last bundle entry to determine indentation
-        String bundleEntry = String.format(
-                "      <bundle id=\"%s\" version=\"0.0.0\">\n" +
-                "         <category name=\"%s\"/>\n" +
-                "      </bundle>\n",
-                bundleId, extractCategoryName(content)
-        );
+        // Create and add bundle element
+        Element bundleElement = XmlUtils.createBundleElement(doc, bundleId, categoryName);
+        XmlUtils.findElement(doc, "site").ifPresent(site -> site.appendChild(bundleElement));
 
-        // Insert before </category-def>
-        int insertPos = content.lastIndexOf("</bundle>", categoryDefEnd);
-        if (insertPos != -1) {
-            insertPos = content.indexOf('\n', insertPos) + 1;
-        } else {
-            insertPos = content.indexOf('\n', content.indexOf("<category-def")) + 1;
-        }
-
-        String newContent = content.substring(0, insertPos) + bundleEntry + content.substring(insertPos);
-        Files.writeString(categoryFile, newContent);
+        XmlUtils.save(doc, categoryFile);
         System.out.println("  Updated: " + categoryFile);
     }
 
@@ -798,25 +766,23 @@ public class ScaffoldService {
             return;
         }
 
-        String content = Files.readString(categoryFile);
-        String categoryName = extractCategoryName(content);
+        Document doc = XmlUtils.load(categoryFile);
+        String baseFeatureId = featureId.replace(".feature", "");
 
-        // Add iu (installable unit) for feature if not present
-        if (!content.contains("id=\"" + featureId + "\"")) {
-            String featureEntry = String.format(
-                    "   <iu id=\"%s.feature.group\" version=\"0.0.0\">\n" +
-                    "      <category name=\"%s\"/>\n" +
-                    "   </iu>\n",
-                    featureId.replace(".feature", ""), categoryName
-            );
-
-            int categoryDefStart = content.indexOf("<category-def");
-            if (categoryDefStart != -1) {
-                String newContent = content.substring(0, categoryDefStart) + featureEntry + content.substring(categoryDefStart);
-                Files.writeString(categoryFile, newContent);
-                System.out.println("  Updated: " + categoryFile);
-            }
+        // Check if iu already exists
+        if (XmlUtils.hasElementWithAttribute(doc, "iu", "id", baseFeatureId + ".feature.group")) {
+            return;
         }
+
+        // Get category name
+        String categoryName = XmlUtils.getAttributeValue(doc, "category-def", "name").orElse("default");
+
+        // Create and insert iu element before category-def
+        Element iuElement = XmlUtils.createIuElement(doc, baseFeatureId, categoryName);
+        XmlUtils.insertBefore(doc, iuElement, "category-def");
+
+        XmlUtils.save(doc, categoryFile);
+        System.out.println("  Updated: " + categoryFile);
     }
 
     /**
@@ -835,45 +801,18 @@ public class ScaffoldService {
             return;
         }
 
-        String content = Files.readString(featureFile);
+        Document doc = XmlUtils.load(featureFile);
 
         // Check if bundle already in feature
-        if (content.contains("id=\"" + bundleId + "\"")) {
+        if (XmlUtils.hasElementWithAttribute(doc, "plugin", "id", bundleId)) {
             return;
         }
 
-        // Find closing </feature> tag
-        int featureEnd = content.indexOf("</feature>");
-        if (featureEnd == -1) {
-            return;
-        }
+        // Create and add plugin element
+        Element pluginElement = XmlUtils.createPluginElement(doc, bundleId, isFragment);
+        XmlUtils.findElement(doc, "feature").ifPresent(feature -> feature.appendChild(pluginElement));
 
-        String pluginEntry;
-        if (isFragment) {
-            pluginEntry = String.format(
-                    "   <plugin\n" +
-                    "         id=\"%s\"\n" +
-                    "         download-size=\"0\"\n" +
-                    "         install-size=\"0\"\n" +
-                    "         version=\"0.0.0\"\n" +
-                    "         fragment=\"true\"\n" +
-                    "         unpack=\"false\"/>\n",
-                    bundleId
-            );
-        } else {
-            pluginEntry = String.format(
-                    "   <plugin\n" +
-                    "         id=\"%s\"\n" +
-                    "         download-size=\"0\"\n" +
-                    "         install-size=\"0\"\n" +
-                    "         version=\"0.0.0\"\n" +
-                    "         unpack=\"false\"/>\n",
-                    bundleId
-            );
-        }
-
-        String newContent = content.substring(0, featureEnd) + pluginEntry + content.substring(featureEnd);
-        Files.writeString(featureFile, newContent);
+        XmlUtils.save(doc, featureFile);
         System.out.println("  Updated: " + featureFile);
     }
 
@@ -890,18 +829,6 @@ public class ScaffoldService {
         } catch (IOException e) {
             return null;
         }
-    }
-
-    /**
-     * Extracts the category name from category.xml content.
-     */
-    private String extractCategoryName(String content) {
-        Pattern pattern = Pattern.compile("<category-def\\s+name=\"([^\"]+)\"");
-        java.util.regex.Matcher matcher = pattern.matcher(content);
-        if (matcher.find()) {
-            return matcher.group(1);
-        }
-        return "default";
     }
 
     /**

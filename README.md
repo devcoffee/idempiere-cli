@@ -101,6 +101,26 @@ idempiere-cli doctor --fix        # Show fix suggestions with setup-dev-env comm
 idempiere-cli doctor --dir ./my-plugin  # Validate plugin structure
 ```
 
+**Example output:**
+
+```
+iDempiere Development Environment Check
+========================================
+
+Checking required tools:
+
+  [✓] Java 21.0.1 (Eclipse Adoptium)
+  [✓] Maven 3.9.6
+  [✓] Git 2.43.0
+
+Checking optional tools:
+
+  [✓] Docker 24.0.7
+  [✓] PostgreSQL client (psql) 16.1
+
+All checks passed!
+```
+
 **Fix suggestions (`--fix`):**
 - For critical tools (Java, Maven, Git): shows platform-specific installation commands (brew, apt, dnf, or download links)
 - For optional tools (Docker, PostgreSQL): suggests using `setup-dev-env --with-docker` for containerized PostgreSQL
@@ -153,6 +173,34 @@ idempiere-cli init org.mycompany.myplugin \
 idempiere-cli init org.mycompany.myplugin --interactive
 ```
 
+**Example output:**
+
+```
+Creating iDempiere plugin: org.mycompany.myplugin
+==================================================
+
+  Created: org.mycompany.myplugin/pom.xml
+  Created: org.mycompany.myplugin/META-INF/MANIFEST.MF
+  Created: org.mycompany.myplugin/plugin.xml
+  Created: org.mycompany.myplugin/build.properties
+  Created: org.mycompany.myplugin/.mvn/jvm.config
+  Created: org.mycompany.myplugin/src/org/mycompany/myplugin/MyProcess.java
+  Created: org.mycompany.myplugin/src/org/mycompany/myplugin/MyProcessFactory.java
+
+Plugin created successfully!
+
+Next steps:
+  1. cd org.mycompany.myplugin
+  2. Import in Eclipse: File > Import > Maven > Existing Maven Projects
+  3. Select this directory as root and click Finish
+
+To build:
+  idempiere-cli build
+
+To package for distribution:
+  idempiere-cli package
+```
+
 Generates: `pom.xml`, `MANIFEST.MF`, `plugin.xml`, `build.properties`, and component stubs with OSGi Declarative Services annotations.
 
 **Platform version support:** `--idempiere-version` flag controls Java release, Tycho version, bundle version, and target branch (v12 = Java 17/release-12, v13 = Java 21/master).
@@ -187,6 +235,31 @@ Display plugin metadata and detected components.
 idempiere-cli info --dir=./my-plugin
 ```
 
+**Example output:**
+
+```
+Plugin Information
+==================
+
+  Name:           org.mycompany.myplugin
+  Version:        1.0.0.qualifier
+  Vendor:         My Company Inc.
+  Java Version:   21
+  Tycho Version:  4.0.8
+
+Components Detected:
+  - Process: MyProcess (org.mycompany.myplugin.MyProcess)
+  - Callout: MyCallout (org.mycompany.myplugin.MyCallout)
+  - EventHandler: MyHandler (org.mycompany.myplugin.MyHandler)
+
+Dependencies (Require-Bundle):
+  - org.adempiere.base
+  - org.adempiere.ui.zk
+  - org.compiere.model
+
+Build Status: Not built (run 'idempiere-cli build')
+```
+
 ### `build`
 
 Build a plugin using Maven/Tycho.
@@ -219,6 +292,28 @@ Analyze plugin dependencies.
 
 ```bash
 idempiere-cli deps --dir=./my-plugin
+```
+
+**Example output:**
+
+```
+Dependency Analysis: org.mycompany.myplugin
+============================================
+
+Packages imported in source code:
+  - org.compiere.model (→ org.adempiere.base)
+  - org.compiere.process (→ org.adempiere.base)
+  - org.adempiere.webui.component (→ org.adempiere.ui.zk)
+  - org.zkoss.zul (→ org.zkoss.zul)
+
+Current Require-Bundle:
+  [✓] org.adempiere.base
+  [✓] org.adempiere.ui.zk
+  [!] org.zkoss.zul (missing)
+
+Recommendations:
+  Add to MANIFEST.MF Require-Bundle:
+    org.zkoss.zul;bundle-version="9.6.0"
 ```
 
 Scans Java imports, cross-references against known iDempiere bundle-to-package mappings, and reports missing or unused entries in `Require-Bundle`.
@@ -288,6 +383,64 @@ git tag v1.0.0 && git push --tags
 ```
 
 This builds native binaries for all platforms and creates a GitHub Release.
+
+---
+
+## Configuration
+
+`idempiere-cli` supports a YAML configuration file (`.idempiere-cli.yaml`) for persistent defaults.
+
+### Configuration File Locations
+
+Configuration is loaded with the following precedence (highest first):
+
+1. `--config` option: Explicit path passed to command
+2. `IDEMPIERE_CLI_CONFIG` environment variable
+3. Hierarchical search: `.idempiere-cli.yaml` in current directory or any parent
+4. Global config: `~/.idempiere-cli.yaml`
+
+### Example Configuration
+
+```yaml
+# ~/.idempiere-cli.yaml (global) or ./.idempiere-cli.yaml (project)
+defaults:
+  vendor: "My Company Inc."
+  idempiereVersion: 13
+
+templates:
+  path: ~/.idempiere-cli/templates
+```
+
+### Multi-Version Workspace
+
+The hierarchical search enables per-version configuration:
+
+```
+workspace/
+├── idempiere12/
+│   ├── .idempiere-cli.yaml    # idempiereVersion: 12
+│   ├── plugin1/               # inherits version 12
+│   └── plugin2/               # inherits version 12
+└── idempiere13/
+    ├── .idempiere-cli.yaml    # idempiereVersion: 13
+    └── my-plugin/             # inherits version 13
+```
+
+### Custom Templates
+
+Override built-in templates by placing custom versions in your templates directory:
+
+```
+~/.idempiere-cli/templates/
+├── plugin/
+│   ├── pom.xml.qute           # Custom pom.xml template
+│   └── MANIFEST.MF.qute
+├── process/
+│   └── Process.java.qute      # Custom process template
+└── ...
+```
+
+Templates not found in custom path fall back to built-in templates.
 
 ---
 
@@ -370,13 +523,13 @@ The MCP server gives AI agents **semantic understanding** of the iDempiere platf
 ### Short-term
 - [ ] Integration tests with real plugin fixtures (scaffold → build → validate)
 - [ ] Improve `package --format=p2` (full Tycho p2 update site generation)
-- [ ] Add `--config` support for persistent CLI preferences (~/.idempiere-cli.yaml)
+- [x] Add `--config` support for persistent CLI preferences (~/.idempiere-cli.yaml)
 - [ ] Expand bundle-to-package mapping in `deps` command
 
 ### Medium-term
 - [ ] MCP-aware commands (e.g., `add callout` receiving AD context from MCP server)
 - [ ] `publish` command (GitHub Releases, Maven deploy)
-- [ ] Template customization (user-defined templates in ~/.idempiere-cli/templates/)
+- [x] Template customization (user-defined templates in ~/.idempiere-cli/templates/)
 - [ ] IntelliJ / VS Code project file generation (beyond Eclipse PDE)
 
 ### Long-term

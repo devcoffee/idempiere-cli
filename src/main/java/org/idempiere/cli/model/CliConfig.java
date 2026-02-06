@@ -16,7 +16,10 @@ package org.idempiere.cli.model;
  * # .idempiere-cli.yaml
  * defaults:
  *   vendor: "My Company Inc."
- *   idempiere-version: 12
+ *   idempiere-version: 13
+ *
+ * templates:
+ *   path: ~/.idempiere-cli/templates
  * </pre>
  *
  * @see org.idempiere.cli.service.CliConfigService
@@ -24,6 +27,7 @@ package org.idempiere.cli.model;
 public class CliConfig {
 
     private Defaults defaults = new Defaults();
+    private Templates templates = new Templates();
 
     public Defaults getDefaults() {
         return defaults;
@@ -31,6 +35,14 @@ public class CliConfig {
 
     public void setDefaults(Defaults defaults) {
         this.defaults = defaults;
+    }
+
+    public Templates getTemplates() {
+        return templates;
+    }
+
+    public void setTemplates(Templates templates) {
+        this.templates = templates;
     }
 
     /**
@@ -93,6 +105,39 @@ public class CliConfig {
     }
 
     /**
+     * Template configuration for custom template paths.
+     */
+    public static class Templates {
+        private String path;
+
+        public String getPath() {
+            return path;
+        }
+
+        public void setPath(String path) {
+            this.path = path;
+        }
+
+        /**
+         * Checks if a custom template path was set.
+         * @return true if path is set
+         */
+        public boolean hasPath() {
+            return path != null && !path.isEmpty();
+        }
+
+        /**
+         * Merges another Templates instance into this one.
+         * @param other the other Templates to merge from
+         */
+        public void mergeFrom(Templates other) {
+            if (other.hasPath()) {
+                this.path = other.path;
+            }
+        }
+    }
+
+    /**
      * Merges another CliConfig instance into this one.
      * Values from the other instance override this instance.
      *
@@ -101,6 +146,9 @@ public class CliConfig {
     public void mergeFrom(CliConfig other) {
         if (other.defaults != null) {
             this.defaults.mergeFrom(other.defaults);
+        }
+        if (other.templates != null) {
+            this.templates.mergeFrom(other.templates);
         }
     }
 }

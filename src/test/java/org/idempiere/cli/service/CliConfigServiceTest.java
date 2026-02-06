@@ -164,4 +164,65 @@ class CliConfigServiceTest {
     void testGetEnvVarName() {
         assertEquals("IDEMPIERE_CLI_CONFIG", configService.getEnvVarName());
     }
+
+    @Test
+    void testLoadConfigWithTemplatesPath() throws IOException {
+        Path configFile = tempDir.resolve(".idempiere-cli.yaml");
+        Files.writeString(configFile, """
+            templates:
+              path: ~/.idempiere-cli/templates
+            """);
+
+        CliConfig config = configService.loadFromPath(configFile);
+
+        assertNotNull(config);
+        assertNotNull(config.getTemplates());
+        assertEquals("~/.idempiere-cli/templates", config.getTemplates().getPath());
+        assertTrue(config.getTemplates().hasPath());
+    }
+
+    @Test
+    void testLoadConfigWithTemplatesAndDefaults() throws IOException {
+        Path configFile = tempDir.resolve(".idempiere-cli.yaml");
+        Files.writeString(configFile, """
+            defaults:
+              vendor: "My Company"
+              idempiereVersion: 12
+            templates:
+              path: /custom/templates
+            """);
+
+        CliConfig config = configService.loadFromPath(configFile);
+
+        assertNotNull(config);
+        assertEquals("My Company", config.getDefaults().getVendor());
+        assertEquals(12, config.getDefaults().getIdempiereVersion());
+        assertEquals("/custom/templates", config.getTemplates().getPath());
+    }
+
+    @Test
+    void testTemplatesMerge() {
+        CliConfig global = new CliConfig();
+        global.getTemplates().setPath("~/.idempiere-cli/templates");
+
+        CliConfig project = new CliConfig();
+        project.getTemplates().setPath("./my-templates");
+
+        global.mergeFrom(project);
+
+        assertEquals("./my-templates", global.getTemplates().getPath());
+    }
+
+    @Test
+    void testTemplatesMergeDoesNotOverrideWithNull() {
+        CliConfig global = new CliConfig();
+        global.getTemplates().setPath("~/.idempiere-cli/templates");
+
+        CliConfig project = new CliConfig();
+        // templates.path not set in project
+
+        global.mergeFrom(project);
+
+        assertEquals("~/.idempiere-cli/templates", global.getTemplates().getPath());
+    }
 }

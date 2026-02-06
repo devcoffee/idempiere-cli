@@ -17,7 +17,7 @@ import org.osgi.service.component.annotations.Component;
  * @see org.adempiere.base.Core#getMappedProcessFactory()
  */
 @Component(immediate = true)
-public class {className}Activator extends Incremental2PackActivator {
+public class {className} extends Incremental2PackActivator {
 
     @Override
     public void start(BundleContext context) throws Exception {

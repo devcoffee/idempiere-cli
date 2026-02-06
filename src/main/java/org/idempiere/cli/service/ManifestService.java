@@ -30,6 +30,7 @@ public class ManifestService {
     public static final String IMPORT_OSGI_FRAMEWORK = "org.osgi.framework;version=\"1.3.0\"";
     public static final String IMPORT_IDEMPIERE_TEST = "org.idempiere.test";
     public static final String IMPORT_JUNIT = "org.junit.jupiter.api;version=\"[5.9.0,6.0.0]\"";
+    public static final String IMPORT_MINIGRID = "org.compiere.minigrid";
 
     /**
      * Add required bundles and packages to MANIFEST.MF based on the component type.
@@ -122,6 +123,9 @@ public class ManifestService {
             case "base-test" -> {
                 imports.add(IMPORT_IDEMPIERE_TEST);
                 imports.add(IMPORT_JUNIT);
+            }
+            case "wlistbox-editor" -> {
+                imports.add(IMPORT_MINIGRID);
             }
         }
 

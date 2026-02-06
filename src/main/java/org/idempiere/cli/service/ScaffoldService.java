@@ -346,13 +346,13 @@ public class ScaffoldService {
         if (descriptor.hasFeature("zk-form-zul")) {
             String baseName = toPascalCase(descriptor.getPluginName());
             data.put("pluginName", descriptor.getPluginName());
-            // Form class
-            data.put("className", baseName + "Form");
-            templateRenderer.render("zk-form-zul/Form.java", data, srcDir.resolve(baseName + "Form.java"));
+            // Form class - use "ZulForm" suffix to avoid conflict with programmatic form
+            data.put("className", baseName + "ZulForm");
+            templateRenderer.render("zk-form-zul/Form.java", data, srcDir.resolve(baseName + "ZulForm.java"));
             // Controller class references the Form
-            data.put("className", baseName + "FormController");
-            data.put("formClassName", baseName + "Form");
-            templateRenderer.render("zk-form-zul/FormController.java", data, srcDir.resolve(baseName + "FormController.java"));
+            data.put("className", baseName + "ZulFormController");
+            data.put("formClassName", baseName + "ZulForm");
+            templateRenderer.render("zk-form-zul/FormController.java", data, srcDir.resolve(baseName + "ZulFormController.java"));
             // Create web folder and ZUL file (copy without Qute processing due to ${} syntax conflict)
             Path webDir = baseDir.resolve("src/web");
             Files.createDirectories(webDir);

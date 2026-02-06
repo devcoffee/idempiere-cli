@@ -1,13 +1,17 @@
 package org.idempiere.cli.commands;
 
 import jakarta.inject.Inject;
+import org.idempiere.cli.model.CliConfig;
 import org.idempiere.cli.model.PlatformVersion;
 import org.idempiere.cli.model.PluginDescriptor;
+import org.idempiere.cli.service.CliConfigService;
 import org.idempiere.cli.service.InteractivePromptService;
 import org.idempiere.cli.service.ScaffoldService;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
+
+import java.nio.file.Path;
 
 /**
  * Scaffolds a new iDempiere plugin project with selected components.
@@ -99,14 +103,22 @@ public class InitCommand implements Runnable {
     @Option(names = "--interactive", negatable = true, description = "Enable interactive mode (default: auto-detect)")
     Boolean interactive;
 
+    @Option(names = "--config", description = "Path to config file (overrides IDEMPIERE_CLI_CONFIG and hierarchy search)")
+    Path configPath;
+
     @Inject
     ScaffoldService scaffoldService;
 
     @Inject
     InteractivePromptService promptService;
 
+    @Inject
+    CliConfigService configService;
+
     @Override
     public void run() {
+        // Load config file defaults
+        applyConfigDefaults();
         boolean hasExplicitFlags = withCallout || withEventHandler || withProcess || withZkForm
                 || withReport || withWindowValidator || withRestExtension || withFactsValidator
                 || withProcessMapped || withTest || withZkFormZul || withListboxGroup
@@ -165,6 +177,27 @@ public class InitCommand implements Runnable {
 
         System.out.println();
         runWithFlags();
+    }
+
+    /**
+     * Applies defaults from .idempiere-cli.yaml configuration file.
+     * Only applies values that weren't explicitly set via command-line.
+     */
+    private void applyConfigDefaults() {
+        CliConfig config = configService.loadConfig(configPath);
+        CliConfig.Defaults defaults = config.getDefaults();
+
+        // Apply vendor from config if not set via command-line
+        if (vendor.isEmpty() && defaults.hasVendor()) {
+            vendor = defaults.getVendor();
+        }
+
+        // Apply idempiereVersion from config if still at default value (12)
+        // Note: We can't distinguish between explicit --idempiere-version=12 and default
+        // This is a limitation of picocli's defaultValue approach
+        if (idempiereVersion == 12 && defaults.hasIdempiereVersion()) {
+            idempiereVersion = defaults.getIdempiereVersion();
+        }
     }
 
     private void runWithFlags() {

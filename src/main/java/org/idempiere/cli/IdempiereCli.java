@@ -17,6 +17,7 @@ import org.idempiere.cli.commands.InitCommand;
 import org.idempiere.cli.commands.MigrateCommand;
 import org.idempiere.cli.commands.PackageCommand;
 import org.idempiere.cli.commands.SetupDevEnvCommand;
+import org.idempiere.cli.commands.ValidateCommand;
 import picocli.CommandLine.Command;
 
 @TopCommand
@@ -31,6 +32,7 @@ import picocli.CommandLine.Command;
                 InitCommand.class,
                 AddCommand.class,
                 InfoCommand.class,
+                ValidateCommand.class,
                 BuildCommand.class,
                 DeployCommand.class,
                 MigrateCommand.class,

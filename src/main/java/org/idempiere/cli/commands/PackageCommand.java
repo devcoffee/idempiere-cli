@@ -10,6 +10,35 @@ import picocli.CommandLine.Option;
 import java.nio.file.Path;
 import java.util.Optional;
 
+/**
+ * Packages a built plugin for distribution.
+ *
+ * <p>Creates distributable artifacts from the built plugin JAR.
+ * Supports multiple output formats:
+ * <ul>
+ *   <li><b>zip</b> (default): Simple ZIP archive with JAR and metadata</li>
+ *   <li><b>p2</b>: Eclipse p2 update site for Install New Software</li>
+ * </ul>
+ *
+ * <h2>p2 Update Site</h2>
+ * <p>The p2 format creates a complete update site that can be hosted
+ * on a web server or used locally via {@code file://} URL in Eclipse.
+ *
+ * <h2>Example Usage</h2>
+ * <pre>
+ * # Create ZIP package
+ * idempiere-cli package
+ *
+ * # Create p2 update site
+ * idempiere-cli package --format=p2
+ *
+ * # Custom output directory
+ * idempiere-cli package --output=release
+ * </pre>
+ *
+ * @see PackageService#packageZip(Path, String, String, Path, Path)
+ * @see PackageService#packageP2(Path, Path, Path)
+ */
 @Command(
         name = "package",
         description = "Package plugin for distribution",

@@ -2,40 +2,82 @@ package {pluginId};
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.sql.Timestamp;
+import org.compiere.model.MBPartner;
+import org.compiere.model.MOrder;
+import org.compiere.model.MProduct;
+import org.compiere.model.Query;
+import org.compiere.util.Env;
+import org.compiere.util.TimeUtil;
 import org.idempiere.test.AbstractTestCase;
 import org.junit.jupiter.api.Test;
 
 /**
  * Base test class for {pluginName} plugin.
  *
- * Extends AbstractTestCase which provides:
- * - Database connection setup
- * - Transaction management (automatic rollback after each test)
- * - Context initialization (AD_Client_ID, AD_Org_ID, AD_User_ID)
- * - Helper methods: getAD_Client_ID(), getAD_Org_ID(), getTrxName()
+ * <p>Extends AbstractTestCase which provides:
+ * <ul>
+ *   <li>Database connection setup</li>
+ *   <li>Transaction management (automatic rollback after each test)</li>
+ *   <li>Context initialization (AD_Client_ID, AD_Org_ID, AD_User_ID)</li>
+ *   <li>Helper methods: getAD_Client_ID(), getAD_Org_ID(), getTrxName()</li>
+ * </ul>
  *
- * To run tests:
- * 1. In Eclipse: Right-click > Run As > JUnit Test
- * 2. Via Maven: mvn test (requires iDempiere test infrastructure)
+ * <h2>Running Tests</h2>
+ * <ul>
+ *   <li>Eclipse: Right-click &gt; Run As &gt; JUnit Test</li>
+ *   <li>Maven: mvn test (requires iDempiere test infrastructure)</li>
+ * </ul>
  *
  * @see org.idempiere.test.AbstractTestCase
  */
 public class {className} extends AbstractTestCase {
 
     @Test
-    public void testClientId() {
-        assertEquals(11, getAD_Client_ID(), "Should be running with GardenWorld client");
-    }
-
-    @Test
-    public void testOrgId() {
+    void testEnvironmentSetup() {
+        // Verify test environment is properly configured
+        assertEquals(11, getAD_Client_ID(), "Should be GardenWorld client");
         assertTrue(getAD_Org_ID() > 0, "Organization should be set");
+        assertNotNull(getTrxName(), "Transaction should be available");
     }
 
     @Test
-    public void testTransactionAvailable() {
-        assertNotNull(getTrxName(), "Transaction name should be available");
+    void testQueryBusinessPartner() {
+        // Example: Query existing business partner
+        MBPartner bp = new Query(Env.getCtx(), MBPartner.Table_Name, "IsActive='Y'", getTrxName())
+                .setClient_ID()
+                .setOrderBy("C_BPartner_ID")
+                .first();
+
+        assertNotNull(bp, "Should find at least one business partner");
+        assertTrue(bp.getC_BPartner_ID() > 0, "Business partner ID should be valid");
     }
 
-    // TODO: Add your plugin-specific tests below
+    @Test
+    void testCreateAndRollback() {
+        // Example: Create a record (will be rolled back automatically)
+        MBPartner bp = new MBPartner(Env.getCtx(), 0, getTrxName());
+        bp.setValue("TEST_" + System.currentTimeMillis());
+        bp.setName("Test Partner");
+        bp.setIsCustomer(true);
+        bp.saveEx();
+
+        // Verify it was saved
+        assertTrue(bp.getC_BPartner_ID() > 0, "Should have generated ID");
+
+        // After test completes, transaction rolls back - record won't persist
+    }
+
+    @Test
+    void testDateHandling() {
+        // Example: Date operations common in iDempiere
+        Timestamp today = TimeUtil.getDay(System.currentTimeMillis());
+        Timestamp tomorrow = TimeUtil.addDays(today, 1);
+        Timestamp lastMonth = TimeUtil.addMonths(today, -1);
+
+        assertTrue(tomorrow.after(today), "Tomorrow should be after today");
+        assertTrue(lastMonth.before(today), "Last month should be before today");
+    }
+
+    // Add your plugin-specific tests below
 }

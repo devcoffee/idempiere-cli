@@ -8,6 +8,31 @@ import picocli.CommandLine.Option;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+/**
+ * Builds an iDempiere plugin using Maven and Tycho.
+ *
+ * <p>Executes the Maven build process with Tycho configuration for OSGi bundle
+ * creation. The built JAR is placed in {@code target/} directory.
+ *
+ * <h2>Dependency Resolution</h2>
+ * <p>If {@code --idempiere-home} or {@code IDEMPIERE_HOME} environment variable
+ * is set, uses the local p2 repository for dependency resolution. Otherwise,
+ * falls back to remote repositories (slower, requires network).
+ *
+ * <h2>Example Usage</h2>
+ * <pre>
+ * # Basic build
+ * idempiere-cli build
+ *
+ * # Clean build with tests skipped
+ * idempiere-cli build --clean --skip-tests
+ *
+ * # Build with local iDempiere installation
+ * idempiere-cli build --idempiere-home=/opt/idempiere
+ * </pre>
+ *
+ * @see BuildService#build(Path, Path, boolean, boolean, boolean, boolean, String)
+ */
 @Command(
         name = "build",
         description = "Build an iDempiere plugin using Maven/Tycho",

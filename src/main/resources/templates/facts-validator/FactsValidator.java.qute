@@ -1,12 +1,30 @@
 package {pluginId};
 
+import java.math.BigDecimal;
+import java.util.List;
 import org.adempiere.base.annotation.EventTopicDelegate;
 import org.adempiere.base.annotation.ModelEventTopic;
 import org.adempiere.base.event.FactsEventData;
 import org.adempiere.base.event.annotations.doc.FactsValidateDelegate;
+import org.compiere.acct.Fact;
+import org.compiere.acct.FactLine;
 import org.compiere.model.MInvoice;
 import org.osgi.service.event.Event;
 
+/**
+ * Validates accounting facts for invoices before posting.
+ *
+ * <p>Use this to enforce accounting rules such as:
+ * <ul>
+ *   <li>Debit/credit balance validation</li>
+ *   <li>Account restrictions</li>
+ *   <li>Amount limits per account</li>
+ *   <li>Custom posting rules</li>
+ * </ul>
+ *
+ * <p>To apply to other document types, change MInvoice.class to:
+ * MOrder.class, MPayment.class, MJournal.class, etc.
+ */
 @EventTopicDelegate
 @ModelEventTopic(modelClass = MInvoice.class)
 public class {className} extends FactsValidateDelegate<MInvoice> {
@@ -17,8 +35,31 @@ public class {className} extends FactsValidateDelegate<MInvoice> {
 
     @Override
     protected void onFactsValidate(FactsEventData data) {
-        // TODO: implement accounting facts validation
-        // Access facts via: data.getFacts()
-        // Access accounting schema via: data.getAcctSchema()
+        List<Fact> facts = data.getFacts();
+
+        for (Fact fact : facts) {
+            for (FactLine line : fact.getLines()) {
+                // Example: Block posting to specific account
+                // int accountId = line.getAccount_ID();
+                // if (accountId == BLOCKED_ACCOUNT_ID) {
+                //     throw new AdempiereException("Posting to this account is not allowed");
+                // }
+
+                // Example: Validate debit/credit amounts
+                BigDecimal debit = line.getAmtSourceDr();
+                BigDecimal credit = line.getAmtSourceCr();
+
+                // Both debit and credit on same line is unusual
+                if (debit.signum() > 0 && credit.signum() > 0) {
+                    log.warning("Line has both debit and credit: " + line);
+                }
+            }
+
+            // Example: Validate total balance
+            BigDecimal balance = fact.getSourceBalance();
+            if (balance.signum() != 0) {
+                throw new RuntimeException("Accounting not balanced: " + balance);
+            }
+        }
     }
 }

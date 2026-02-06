@@ -1,18 +1,185 @@
 package {pluginId};
 
+import java.util.HashMap;
+import java.util.Map;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.compiere.util.Env;
 
+/**
+ * REST API resource for {resourcePath}.
+ *
+ * <p>Endpoints:
+ * <ul>
+ *   <li>GET /api/v1/{resourcePath} - List all items</li>
+ *   <li>GET /api/v1/{resourcePath}/&#123;id&#125; - Get single item</li>
+ *   <li>POST /api/v1/{resourcePath} - Create new item</li>
+ *   <li>PUT /api/v1/{resourcePath}/&#123;id&#125; - Update item</li>
+ *   <li>DELETE /api/v1/{resourcePath}/&#123;id&#125; - Delete item</li>
+ * </ul>
+ *
+ * <p>Authentication is handled by iDempiere REST framework.
+ * Use Bearer token in Authorization header.
+ */
 @Path("v1/{resourcePath}")
 public class {className}Resource {
 
+    /**
+     * List all items with optional pagination.
+     *
+     * @param pageNo Page number (1-based)
+     * @param pageSize Items per page
+     * @return JSON array of items
+     */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    public Response get() {
-        // TODO: implement REST endpoint
-        return Response.ok().build();
+    public Response list(
+            @QueryParam("pageNo") int pageNo,
+            @QueryParam("pageSize") int pageSize) {
+
+        // Get current context
+        // Properties ctx = Env.getCtx();
+        // int clientId = Env.getAD_Client_ID(ctx);
+
+        // Example: Return sample data
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("message", "List endpoint");
+        result.put("pageNo", pageNo > 0 ? pageNo : 1);
+        result.put("pageSize", pageSize > 0 ? pageSize : 100);
+
+        return Response.ok(result).build();
+    }
+
+    /**
+     * Get a single item by ID.
+     *
+     * @param id Record ID
+     * @return JSON object with item details
+     */
+    @GET
+    @Path("{id}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response get(@PathParam("id") int id) {
+        if (id <= 0) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", "Invalid ID"))
+                    .build();
+        }
+
+        // Example: Query database
+        // MTable table = MTable.get(Env.getCtx(), "YourTable");
+        // PO record = table.getPO(id, null);
+        // if (record == null) {
+        //     return Response.status(Response.Status.NOT_FOUND).build();
+        // }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("id", id);
+        result.put("success", true);
+
+        return Response.ok(result).build();
+    }
+
+    /**
+     * Create a new item.
+     *
+     * @param body JSON request body
+     * @return Created item with ID
+     */
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response create(Map<String, Object> body) {
+        if (body == null || body.isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", "Request body required"))
+                    .build();
+        }
+
+        // Example: Create record
+        // MTable table = MTable.get(Env.getCtx(), "YourTable");
+        // PO record = table.getPO(0, null);
+        // record.set_ValueOfColumn("Name", body.get("name"));
+        // record.saveEx();
+        // int newId = record.get_ID();
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("id", 1); // Replace with actual ID
+        result.put("message", "Created successfully");
+
+        return Response.status(Response.Status.CREATED).entity(result).build();
+    }
+
+    /**
+     * Update an existing item.
+     *
+     * @param id Record ID
+     * @param body JSON request body with fields to update
+     * @return Updated item
+     */
+    @PUT
+    @Path("{id}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response update(@PathParam("id") int id, Map<String, Object> body) {
+        if (id <= 0) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", "Invalid ID"))
+                    .build();
+        }
+
+        // Example: Update record
+        // MTable table = MTable.get(Env.getCtx(), "YourTable");
+        // PO record = table.getPO(id, null);
+        // if (record == null) {
+        //     return Response.status(Response.Status.NOT_FOUND).build();
+        // }
+        // record.set_ValueOfColumn("Name", body.get("name"));
+        // record.saveEx();
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("id", id);
+        result.put("message", "Updated successfully");
+
+        return Response.ok(result).build();
+    }
+
+    /**
+     * Delete an item.
+     *
+     * @param id Record ID
+     * @return Success message
+     */
+    @DELETE
+    @Path("{id}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response delete(@PathParam("id") int id) {
+        if (id <= 0) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(Map.of("error", "Invalid ID"))
+                    .build();
+        }
+
+        // Example: Delete record
+        // MTable table = MTable.get(Env.getCtx(), "YourTable");
+        // PO record = table.getPO(id, null);
+        // if (record == null) {
+        //     return Response.status(Response.Status.NOT_FOUND).build();
+        // }
+        // record.deleteEx(true);
+
+        return Response.ok(Map.of("success", true, "message", "Deleted")).build();
     }
 }

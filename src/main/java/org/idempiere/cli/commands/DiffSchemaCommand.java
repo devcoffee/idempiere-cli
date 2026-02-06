@@ -11,6 +11,35 @@ import picocli.CommandLine.Option;
 import java.nio.file.Path;
 import java.util.Optional;
 
+/**
+ * Compares model classes against database schema to detect drift.
+ *
+ * <p>Connects to the database and compares AD_Column definitions with
+ * existing I_/X_/M_ model classes. Reports:
+ * <ul>
+ *   <li>Missing columns in model (new columns added to database)</li>
+ *   <li>Extra columns in model (columns removed from database)</li>
+ *   <li>Type mismatches (column type changed)</li>
+ * </ul>
+ *
+ * <h2>Database Configuration</h2>
+ * <p>Can read connection settings from:
+ * <ul>
+ *   <li>Command-line options (--db-host, --db-port, etc.)</li>
+ *   <li>idempiereEnv.properties file (--config)</li>
+ * </ul>
+ *
+ * <h2>Example Usage</h2>
+ * <pre>
+ * # Compare C_Order model
+ * idempiere-cli diff-schema --table=C_Order
+ *
+ * # Use custom database
+ * idempiere-cli diff-schema --table=C_Order --db-host=db.example.com
+ * </pre>
+ *
+ * @see DiffSchemaService#diff(String, Path, String, DbConfig)
+ */
 @Command(
         name = "diff-schema",
         description = "Compare model classes against database schema",

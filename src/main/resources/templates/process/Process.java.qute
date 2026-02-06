@@ -1,23 +1,88 @@
 package {pluginId};
 
-import org.compiere.process.SvrProcess;
+import java.math.BigDecimal;
+import java.sql.Timestamp;
+import java.util.List;
 import org.adempiere.base.annotation.Parameter;
 import org.adempiere.base.annotation.Process;
+import org.compiere.model.MBPartner;
+import org.compiere.model.Query;
+import org.compiere.process.SvrProcess;
+import org.compiere.util.Env;
 
+/**
+ * Server process that can be executed from menu or button.
+ *
+ * <p>To configure in Application Dictionary:
+ * <ol>
+ *   <li>Create AD_Process with Classname = {pluginId}.{className}</li>
+ *   <li>Add AD_Process_Para for each @Parameter field</li>
+ *   <li>Optionally attach to menu, button, or workflow</li>
+ * </ol>
+ *
+ * <p>The @Process annotation registers this with AnnotationBasedProcessFactory.
+ * Parameters are automatically injected via @Parameter annotations.
+ */
 @Process
 public class {className} extends SvrProcess {
 
-    // @Parameter(name = "ParameterName")
-    // private int p_ParameterName;
+    /** Business Partner parameter (optional) */
+    @Parameter(name = "C_BPartner_ID")
+    private int p_C_BPartner_ID;
+
+    /** Date range start (optional) */
+    @Parameter(name = "DateFrom")
+    private Timestamp p_DateFrom;
+
+    /** Date range end (optional) */
+    @Parameter(name = "DateTo")
+    private Timestamp p_DateTo;
+
+    /** Minimum amount filter (optional) */
+    @Parameter(name = "Amount")
+    private BigDecimal p_Amount;
 
     @Override
     protected void prepare() {
         // Parameters are automatically injected via @Parameter annotations
+        // Use prepare() for additional initialization if needed
+        log.info("Parameters: BPartner=" + p_C_BPartner_ID
+                + ", DateFrom=" + p_DateFrom
+                + ", DateTo=" + p_DateTo);
     }
 
     @Override
     protected String doIt() throws Exception {
-        // TODO: implement process logic
-        return "Process completed successfully.";
+        int processed = 0;
+
+        // Build dynamic query based on parameters
+        StringBuilder where = new StringBuilder("IsActive='Y'");
+
+        if (p_C_BPartner_ID > 0) {
+            where.append(" AND C_BPartner_ID=").append(p_C_BPartner_ID);
+        }
+
+        // Example: Query and process records
+        List<MBPartner> partners = new Query(Env.getCtx(), MBPartner.Table_Name, where.toString(), get_TrxName())
+                .setClient_ID()
+                .list();
+
+        for (MBPartner bp : partners) {
+            // Process each record
+            // bp.setDescription("Updated by process");
+            // bp.saveEx();
+            processed++;
+
+            // Report progress for long-running processes
+            if (processed % 100 == 0) {
+                statusUpdate("Processed " + processed + " records...");
+            }
+        }
+
+        // Add to process log (visible in Process Audit)
+        addLog("Total records processed: " + processed);
+
+        // Return message shown to user
+        return "@Updated@ " + processed;
     }
 }

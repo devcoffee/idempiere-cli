@@ -1,24 +1,87 @@
 package {pluginId};
 
-import java.util.logging.Level;
+import java.math.BigDecimal;
+import java.sql.Timestamp;
 import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
 
+/**
+ * Report process that can be configured in Application Dictionary.
+ *
+ * <p>To configure:
+ * <ol>
+ *   <li>Create AD_Process record with Classname = {pluginId}.{className}</li>
+ *   <li>Add AD_Process_Para for each parameter</li>
+ *   <li>For Jasper: Set JasperReport field to reports/YourReport.jasper</li>
+ * </ol>
+ *
+ * <p>Parameters are accessed via {@code getParameter()} in prepare().
+ */
 public class {className} extends SvrProcess {
+
+    // Report parameters - declare as fields
+    private int p_C_BPartner_ID = 0;
+    private Timestamp p_DateFrom = null;
+    private Timestamp p_DateTo = null;
+    private BigDecimal p_AmountMin = null;
+    private boolean p_IsActive = true;
 
     @Override
     protected void prepare() {
-        ProcessInfoParameter[] params = getParameter();
-        for (ProcessInfoParameter param : params) {
-            String parameterName = param.getParameterName();
-            // TODO: process report parameters
+        // Parse parameters from AD_Process_Para
+        for (ProcessInfoParameter param : getParameter()) {
+            String name = param.getParameterName();
+
+            if ("C_BPartner_ID".equals(name)) {
+                p_C_BPartner_ID = param.getParameterAsInt();
+            } else if ("DateFrom".equals(name)) {
+                p_DateFrom = param.getParameterAsTimestamp();
+            } else if ("DateTo".equals(name)) {
+                p_DateTo = param.getParameterAsTimestamp();
+            } else if ("AmountMin".equals(name)) {
+                p_AmountMin = param.getParameterAsBigDecimal();
+            } else if ("IsActive".equals(name)) {
+                p_IsActive = param.getParameterAsBoolean();
+            } else {
+                log.warning("Unknown parameter: " + name);
+            }
         }
+
+        // Log parameter values for debugging
+        log.info("Parameters: C_BPartner_ID=" + p_C_BPartner_ID
+                + ", DateFrom=" + p_DateFrom
+                + ", DateTo=" + p_DateTo);
     }
 
     @Override
     protected String doIt() throws Exception {
-        // TODO: implement report logic
-        // For Jasper reports, configure the .jasper file in the AD Process definition
-        return "Report generated successfully.";
+        // Validate required parameters
+        if (p_DateFrom == null || p_DateTo == null) {
+            throw new IllegalArgumentException("DateFrom and DateTo are required");
+        }
+
+        if (p_DateFrom.after(p_DateTo)) {
+            throw new IllegalArgumentException("DateFrom must be before DateTo");
+        }
+
+        // Build query or report logic
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT * FROM C_Invoice WHERE DateInvoiced BETWEEN ? AND ?");
+
+        if (p_C_BPartner_ID > 0) {
+            sql.append(" AND C_BPartner_ID = ").append(p_C_BPartner_ID);
+        }
+
+        if (p_AmountMin != null && p_AmountMin.signum() > 0) {
+            sql.append(" AND GrandTotal >= ").append(p_AmountMin);
+        }
+
+        if (p_IsActive) {
+            sql.append(" AND IsActive = 'Y'");
+        }
+
+        // For Jasper reports, parameters are automatically passed to the report
+        // Return message shown to user
+        return "@Success@";
     }
 }

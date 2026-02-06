@@ -9,6 +9,33 @@ import picocli.CommandLine.Option;
 
 import java.nio.file.Path;
 
+/**
+ * Migrates a plugin between iDempiere versions.
+ *
+ * <p>Updates plugin configuration files to match target version requirements:
+ * <ul>
+ *   <li>pom.xml: Java release, Tycho version</li>
+ *   <li>MANIFEST.MF: JavaSE version, bundle-version dependencies</li>
+ *   <li>build.properties: javac target settings</li>
+ * </ul>
+ *
+ * <h2>Supported Versions</h2>
+ * <ul>
+ *   <li><b>v12</b>: Java 17, Tycho 4.0.4, Eclipse 2023-09</li>
+ *   <li><b>v13</b>: Java 21, Tycho 4.0.8, Eclipse 2024-09</li>
+ * </ul>
+ *
+ * <h2>Example Usage</h2>
+ * <pre>
+ * # Upgrade from v12 to v13
+ * idempiere-cli migrate --from=12 --to=13
+ *
+ * # Downgrade from v13 to v12
+ * idempiere-cli migrate --from=13 --to=12
+ * </pre>
+ *
+ * @see MigrateService#migrate(Path, PlatformVersion, PlatformVersion)
+ */
 @Command(
         name = "migrate",
         description = "Migrate a plugin from one iDempiere version to another",

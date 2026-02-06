@@ -7,6 +7,30 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import java.nio.file.Path;
 
+/**
+ * Displays plugin metadata and detected components.
+ *
+ * <p>Extracts and displays information from plugin files:
+ * <ul>
+ *   <li>Plugin ID (Bundle-SymbolicName)</li>
+ *   <li>Version (Bundle-Version)</li>
+ *   <li>Vendor (Bundle-Vendor)</li>
+ *   <li>Required bundles (Require-Bundle)</li>
+ *   <li>Detected components (callouts, processes, forms, etc.)</li>
+ * </ul>
+ *
+ * <h2>Component Detection</h2>
+ * <p>Scans source files and OSGI-INF to detect registered components
+ * based on annotations and service declarations.
+ *
+ * <h2>Example Usage</h2>
+ * <pre>
+ * idempiere-cli info
+ * idempiere-cli info --dir=/path/to/plugin
+ * </pre>
+ *
+ * @see PluginInfoService#printInfo(Path)
+ */
 @Command(
         name = "info",
         description = "Show plugin metadata and components",

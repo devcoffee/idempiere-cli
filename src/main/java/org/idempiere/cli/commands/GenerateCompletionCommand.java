@@ -6,6 +6,29 @@ import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Spec;
 
+/**
+ * Generates shell completion scripts for bash and zsh.
+ *
+ * <p>Uses Picocli's AutoComplete to generate a completion script that
+ * enables tab-completion for all commands, subcommands, and options.
+ *
+ * <h2>Installation - Bash</h2>
+ * <pre>
+ * idempiere-cli generate-completion &gt; ~/.idempiere-cli-completion.bash
+ * echo 'source ~/.idempiere-cli-completion.bash' &gt;&gt; ~/.bashrc
+ * </pre>
+ *
+ * <h2>Installation - Zsh</h2>
+ * <pre>
+ * idempiere-cli generate-completion &gt; ~/.idempiere-cli-completion.bash
+ * # Add to ~/.zshrc:
+ * autoload -U +X compinit &amp;&amp; compinit
+ * autoload -U +X bashcompinit &amp;&amp; bashcompinit
+ * source ~/.idempiere-cli-completion.bash
+ * </pre>
+ *
+ * @see picocli.AutoComplete#bash(String, picocli.CommandLine)
+ */
 @Command(
         name = "generate-completion",
         description = "Generate shell completion script for bash or zsh"

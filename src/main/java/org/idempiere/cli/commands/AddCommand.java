@@ -18,6 +18,41 @@ import org.idempiere.cli.commands.add.AddZkFormCommand;
 import org.idempiere.cli.commands.add.AddZkFormZulCommand;
 import picocli.CommandLine.Command;
 
+/**
+ * Adds new components to an existing iDempiere plugin.
+ *
+ * <p>Parent command for 16 component types:
+ * <ul>
+ *   <li><b>callout</b> - Column-level business logic with @Callout annotation</li>
+ *   <li><b>process</b> - Server-side batch process with own factory</li>
+ *   <li><b>process-mapped</b> - Process using global MappedProcessFactory (2Pack compatible)</li>
+ *   <li><b>event-handler</b> - Model lifecycle hooks (BeforeNew, AfterChange, etc.)</li>
+ *   <li><b>zk-form</b> - Programmatic ZK form extending ADForm</li>
+ *   <li><b>zk-form-zul</b> - Declarative ZUL-based form with controller</li>
+ *   <li><b>listbox-group</b> - Form with grouped/collapsible Listbox</li>
+ *   <li><b>wlistbox-editor</b> - Form with custom WListbox column editors</li>
+ *   <li><b>report</b> - Basic report process</li>
+ *   <li><b>jasper-report</b> - Jasper report with Activator and .jrxml</li>
+ *   <li><b>window-validator</b> - Window-level event validation</li>
+ *   <li><b>rest-extension</b> - REST API endpoint extension</li>
+ *   <li><b>facts-validator</b> - Accounting facts validation</li>
+ *   <li><b>model</b> - Generate I_/X_/M_ model classes from database</li>
+ *   <li><b>test</b> - JUnit 5 test for specific component</li>
+ *   <li><b>base-test</b> - Base test class using AbstractTestCase</li>
+ * </ul>
+ *
+ * <h2>Shared Components</h2>
+ * <p>Some component types share infrastructure (CalloutFactory, Activator).
+ * The CLI detects existing shared components and reuses them.
+ *
+ * <h2>Example Usage</h2>
+ * <pre>
+ * idempiere-cli add callout MyCallout --to=/path/to/plugin
+ * idempiere-cli add process MyProcess
+ * </pre>
+ *
+ * @see org.idempiere.cli.service.ScaffoldService#addComponent(String, String, Path, String)
+ */
 @Command(
         name = "add",
         description = "Add a new component to an existing plugin",

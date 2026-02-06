@@ -8,6 +8,32 @@ import picocli.CommandLine.Option;
 import java.nio.file.Path;
 import java.util.Optional;
 
+/**
+ * Deploys a built plugin to an iDempiere instance.
+ *
+ * <p>Supports two deployment modes:
+ * <ul>
+ *   <li><b>Copy deploy</b> (default): Copies JAR to plugins/ directory, requires restart</li>
+ *   <li><b>Hot deploy</b> ({@code --hot}): Installs via OSGi console, no restart needed</li>
+ * </ul>
+ *
+ * <h2>Hot Deploy</h2>
+ * <p>Hot deploy connects to the OSGi console (default: localhost:12612) and
+ * installs/updates the bundle without restarting iDempiere. Requires the
+ * OSGi console to be enabled in iDempiere configuration.
+ *
+ * <h2>Example Usage</h2>
+ * <pre>
+ * # Copy to plugins directory
+ * idempiere-cli deploy --target=/opt/idempiere
+ *
+ * # Hot deploy to running instance
+ * idempiere-cli deploy --target=/opt/idempiere --hot
+ * </pre>
+ *
+ * @see DeployService#copyDeploy(Path, Path)
+ * @see DeployService#hotDeploy(Path, String, int)
+ */
 @Command(
         name = "deploy",
         description = "Deploy a built plugin to an iDempiere instance",

@@ -1,19 +1,58 @@
 package {pluginId};
 
+import java.math.BigDecimal;
 import java.util.Properties;
 import org.adempiere.base.annotation.Callout;
 import org.adempiere.base.IColumnCallout;
 import org.compiere.model.GridField;
 import org.compiere.model.GridTab;
+import org.compiere.util.Env;
 
-@Callout(tableName = "TODO_TableName", columnName = "TODO_ColumnName")
+/**
+ * Column callout triggered when a field value changes.
+ *
+ * <p>Configure the @Callout annotation:
+ * <ul>
+ *   <li>tableName: Database table (e.g., "C_Order", "C_Invoice")</li>
+ *   <li>columnName: Column that triggers the callout</li>
+ * </ul>
+ *
+ * <p>Multiple @Callout annotations can be added for different columns.
+ */
+@Callout(tableName = "C_OrderLine", columnName = "QtyOrdered")
 public class {className} implements IColumnCallout {
 
     @Override
     public String start(Properties ctx, int WindowNo,
                         GridTab mTab, GridField mField,
                         Object value, Object oldValue) {
-        // TODO: implement callout logic
+
+        // Skip if value didn't change or is null
+        if (value == null || value.equals(oldValue)) {
+            return null;
+        }
+
+        // Example: Calculate line amount when quantity changes
+        BigDecimal qty = (BigDecimal) value;
+        BigDecimal price = (BigDecimal) mTab.getValue("PriceEntered");
+
+        if (price != null) {
+            BigDecimal lineAmt = qty.multiply(price);
+            mTab.setValue("LineNetAmt", lineAmt);
+        }
+
+        // Example: Access parent tab values (header)
+        // GridTab parentTab = mTab.getParentTab();
+        // if (parentTab != null) {
+        //     int bpartnerId = (Integer) parentTab.getValue("C_BPartner_ID");
+        // }
+
+        // Example: Show warning message
+        // if (qty.compareTo(new BigDecimal("100")) > 0) {
+        //     return "Warning: Large quantity ordered";
+        // }
+
+        // Return null for success, or error message to display
         return null;
     }
 }

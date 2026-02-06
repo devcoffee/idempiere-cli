@@ -8,6 +8,33 @@ import picocli.CommandLine.Option;
 
 import java.nio.file.Path;
 
+/**
+ * Analyzes plugin dependencies by scanning Java imports.
+ *
+ * <p>Scans source files for import statements and maps them to iDempiere bundles.
+ * Reports:
+ * <ul>
+ *   <li>Required bundles based on imports</li>
+ *   <li>Missing bundles not declared in MANIFEST.MF</li>
+ *   <li>Unused bundles declared but not imported</li>
+ * </ul>
+ *
+ * <h2>Bundle Mapping</h2>
+ * <p>Common package-to-bundle mappings:
+ * <ul>
+ *   <li>{@code org.compiere.*} → org.adempiere.base</li>
+ *   <li>{@code org.adempiere.webui.*} → org.adempiere.ui.zk</li>
+ *   <li>{@code org.idempiere.rest.*} → org.idempiere.rest.api</li>
+ * </ul>
+ *
+ * <h2>Example Usage</h2>
+ * <pre>
+ * idempiere-cli deps
+ * idempiere-cli deps --dir=/path/to/plugin
+ * </pre>
+ *
+ * @see DepsService#analyze(Path)
+ */
 @Command(
         name = "deps",
         description = "Analyze plugin dependencies",

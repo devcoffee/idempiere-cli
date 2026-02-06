@@ -39,7 +39,12 @@ public class ScaffoldService {
     ManifestService manifestService;
 
     public void createPlugin(PluginDescriptor descriptor) {
-        Path baseDir = Path.of(descriptor.getPluginId());
+        Path baseDir;
+        if (descriptor.getOutputDir() != null) {
+            baseDir = descriptor.getOutputDir().resolve(descriptor.getPluginId());
+        } else {
+            baseDir = Path.of(descriptor.getPluginId());
+        }
 
         if (Files.exists(baseDir)) {
             System.err.println("Error: Directory '" + baseDir + "' already exists.");

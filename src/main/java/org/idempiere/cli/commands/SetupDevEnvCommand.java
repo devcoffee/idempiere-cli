@@ -8,6 +8,43 @@ import picocli.CommandLine.Option;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
 
+/**
+ * Bootstraps a complete iDempiere development environment.
+ *
+ * <p>Automates the entire setup process:
+ * <ol>
+ *   <li>Clone iDempiere source code from GitHub</li>
+ *   <li>Create and configure PostgreSQL/Oracle database</li>
+ *   <li>Import seed data and apply migrations</li>
+ *   <li>Download and configure Eclipse IDE</li>
+ *   <li>Import projects into Eclipse workspace</li>
+ *   <li>Configure target platform and preferences</li>
+ * </ol>
+ *
+ * <h2>Database Options</h2>
+ * <ul>
+ *   <li><b>Native</b>: Uses existing PostgreSQL/Oracle installation</li>
+ *   <li><b>Docker</b> ({@code --with-docker}): Creates containerized database</li>
+ * </ul>
+ *
+ * <h2>Example Usage</h2>
+ * <pre>
+ * # Full setup with Docker database
+ * idempiere-cli setup-dev-env --with-docker
+ *
+ * # Use existing database
+ * idempiere-cli setup-dev-env --db-host=localhost --db-name=idempiere
+ *
+ * # Skip database setup (database already configured)
+ * idempiere-cli setup-dev-env --skip-db
+ * </pre>
+ *
+ * <h2>Requirements</h2>
+ * <p>Requires a graphical environment (display) for Eclipse workspace setup.
+ * Use {@code --skip-workspace} on headless servers.
+ *
+ * @see SetupDevEnvService#setup(SetupConfig)
+ */
 @Command(
         name = "setup-dev-env",
         description = "Bootstrap a complete local iDempiere development environment",

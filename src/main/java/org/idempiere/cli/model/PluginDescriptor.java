@@ -1,5 +1,6 @@
 package org.idempiere.cli.model;
 
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -15,6 +16,7 @@ public class PluginDescriptor {
     private String vendor;
     private Set<String> features;
     private PlatformVersion platformVersion;
+    private Path outputDir;
 
     public PluginDescriptor() {
         this.version = "1.0.0.qualifier";
@@ -87,5 +89,13 @@ public class PluginDescriptor {
 
     public String getPackagePath() {
         return pluginId.replace('.', '/');
+    }
+
+    public Path getOutputDir() {
+        return outputDir;
+    }
+
+    public void setOutputDir(Path outputDir) {
+        this.outputDir = outputDir;
     }
 }

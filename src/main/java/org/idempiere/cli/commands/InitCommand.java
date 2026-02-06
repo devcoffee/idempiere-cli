@@ -9,6 +9,32 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
+/**
+ * Scaffolds a new iDempiere plugin project with selected components.
+ *
+ * <p>Creates a complete OSGi bundle structure including:
+ * <ul>
+ *   <li>pom.xml with Tycho/Maven configuration</li>
+ *   <li>META-INF/MANIFEST.MF with OSGi metadata and dependencies</li>
+ *   <li>OSGI-INF/ for declarative services</li>
+ *   <li>Selected component templates (callout, process, form, etc.)</li>
+ * </ul>
+ *
+ * <h2>Interactive Mode</h2>
+ * <p>When run in a terminal without explicit flags, prompts for component selection.
+ * Use {@code --no-interactive} to disable prompts in scripts.
+ *
+ * <h2>Example Usage</h2>
+ * <pre>
+ * # Interactive mode
+ * idempiere-cli init org.mycompany.myplugin
+ *
+ * # Non-interactive with specific components
+ * idempiere-cli init org.mycompany.myplugin --with-callout --with-process
+ * </pre>
+ *
+ * @see ScaffoldService#createPlugin(PluginDescriptor)
+ */
 @Command(
         name = "init",
         description = "Scaffold a new iDempiere plugin with selected features",

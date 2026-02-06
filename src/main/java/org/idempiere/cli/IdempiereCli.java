@@ -17,6 +17,7 @@ import org.idempiere.cli.commands.InitCommand;
 import org.idempiere.cli.commands.MigrateCommand;
 import org.idempiere.cli.commands.PackageCommand;
 import org.idempiere.cli.commands.SetupDevEnvCommand;
+import org.idempiere.cli.commands.UpgradeCommand;
 import org.idempiere.cli.commands.ValidateCommand;
 import picocli.CommandLine.Command;
 
@@ -39,7 +40,8 @@ import picocli.CommandLine.Command;
                 DepsCommand.class,
                 PackageCommand.class,
                 DiffSchemaCommand.class,
-                GenerateCompletionCommand.class
+                GenerateCompletionCommand.class,
+                UpgradeCommand.class
         }
 )
 public class IdempiereCli {

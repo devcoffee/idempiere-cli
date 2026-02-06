@@ -1,0 +1,299 @@
+package org.idempiere.cli.commands;
+
+import jakarta.inject.Inject;
+import org.idempiere.cli.service.ProcessRunner;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFilePermission;
+import java.time.Duration;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * Self-upgrade command to update the CLI to the latest version.
+ *
+ * <p>Downloads the latest release from GitHub and replaces the current binary.
+ * Supports Linux, macOS, and Windows platforms.
+ *
+ * <h2>Example Usage</h2>
+ * <pre>
+ * # Check for updates
+ * idempiere-cli upgrade --check
+ *
+ * # Upgrade to latest version
+ * idempiere-cli upgrade
+ *
+ * # Upgrade to specific version
+ * idempiere-cli upgrade --version=1.2.0
+ * </pre>
+ *
+ * @see <a href="https://github.com/devcoffee/idempiere-cli/releases">GitHub Releases</a>
+ */
+@Command(
+        name = "upgrade",
+        description = "Upgrade idempiere-cli to the latest version",
+        mixinStandardHelpOptions = true
+)
+public class UpgradeCommand implements Runnable {
+
+    private static final String GITHUB_API = "https://api.github.com/repos/devcoffee/idempiere-cli/releases/latest";
+    private static final String GITHUB_RELEASES = "https://github.com/devcoffee/idempiere-cli/releases/download";
+    private static final String CURRENT_VERSION = "1.0.0-SNAPSHOT";
+
+    @Option(names = {"--check"}, description = "Only check for updates, don't install")
+    boolean checkOnly;
+
+    @Option(names = {"--version", "-v"}, description = "Upgrade to specific version (e.g., 1.2.0)")
+    String targetVersion;
+
+    @Option(names = {"--force", "-f"}, description = "Force upgrade even if already on latest version")
+    boolean force;
+
+    @Inject
+    ProcessRunner processRunner;
+
+    @Override
+    public void run() {
+        System.out.println();
+        System.out.println("iDempiere CLI Upgrade");
+        System.out.println("=====================");
+        System.out.println();
+        System.out.println("  Current version: " + CURRENT_VERSION);
+
+        try {
+            String latestVersion = targetVersion != null ? targetVersion : fetchLatestVersion();
+            if (latestVersion == null) {
+                System.err.println("  Could not determine latest version.");
+                return;
+            }
+
+            System.out.println("  Latest version:  " + latestVersion);
+            System.out.println();
+
+            if (!force && isUpToDate(CURRENT_VERSION, latestVersion)) {
+                System.out.println("  Already up to date!");
+                return;
+            }
+
+            if (checkOnly) {
+                System.out.println("  Update available: " + CURRENT_VERSION + " -> " + latestVersion);
+                System.out.println("  Run 'idempiere-cli upgrade' to install.");
+                return;
+            }
+
+            // Detect platform and architecture
+            String binaryName = detectBinaryName();
+            if (binaryName == null) {
+                System.err.println("  Unsupported platform.");
+                return;
+            }
+
+            System.out.println("  Downloading " + binaryName + "...");
+
+            String downloadUrl = GITHUB_RELEASES + "/v" + latestVersion + "/" + binaryName;
+            Path tempFile = downloadBinary(downloadUrl);
+            if (tempFile == null) {
+                System.err.println("  Download failed.");
+                return;
+            }
+
+            // Find current binary location
+            Path currentBinary = findCurrentBinary();
+            if (currentBinary == null) {
+                System.err.println("  Could not determine current binary location.");
+                System.err.println("  Downloaded file is at: " + tempFile);
+                return;
+            }
+
+            // Backup and replace
+            Path backupPath = currentBinary.resolveSibling(currentBinary.getFileName() + ".bak");
+            System.out.println("  Backing up current binary to " + backupPath.getFileName() + "...");
+
+            try {
+                Files.copy(currentBinary, backupPath, StandardCopyOption.REPLACE_EXISTING);
+                Files.copy(tempFile, currentBinary, StandardCopyOption.REPLACE_EXISTING);
+
+                // Make executable on Unix systems
+                if (!isWindows()) {
+                    Files.setPosixFilePermissions(currentBinary, Set.of(
+                            PosixFilePermission.OWNER_READ,
+                            PosixFilePermission.OWNER_WRITE,
+                            PosixFilePermission.OWNER_EXECUTE,
+                            PosixFilePermission.GROUP_READ,
+                            PosixFilePermission.GROUP_EXECUTE,
+                            PosixFilePermission.OTHERS_READ,
+                            PosixFilePermission.OTHERS_EXECUTE
+                    ));
+                }
+
+                Files.deleteIfExists(tempFile);
+
+                System.out.println();
+                System.out.println("  Upgrade successful!");
+                System.out.println("  Run 'idempiere-cli --version' to verify.");
+
+            } catch (IOException e) {
+                System.err.println("  Failed to replace binary: " + e.getMessage());
+                System.err.println("  You may need to run with sudo/administrator privileges.");
+                System.err.println("  Or manually copy from: " + tempFile);
+            }
+
+        } catch (Exception e) {
+            System.err.println("  Error during upgrade: " + e.getMessage());
+        }
+    }
+
+    private String fetchLatestVersion() {
+        try {
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(10))
+                    .build();
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(GITHUB_API))
+                    .header("Accept", "application/vnd.github.v3+json")
+                    .header("User-Agent", "idempiere-cli")
+                    .timeout(Duration.ofSeconds(30))
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200) {
+                System.err.println("  GitHub API returned status " + response.statusCode());
+                return null;
+            }
+
+            // Simple JSON parsing for "tag_name": "v1.2.3"
+            Pattern pattern = Pattern.compile("\"tag_name\"\\s*:\\s*\"v?([^\"]+)\"");
+            Matcher matcher = pattern.matcher(response.body());
+            if (matcher.find()) {
+                return matcher.group(1);
+            }
+
+        } catch (Exception e) {
+            System.err.println("  Failed to fetch latest version: " + e.getMessage());
+        }
+        return null;
+    }
+
+    private Path downloadBinary(String url) {
+        try {
+            HttpClient client = HttpClient.newBuilder()
+                    .followRedirects(HttpClient.Redirect.ALWAYS)
+                    .connectTimeout(Duration.ofSeconds(10))
+                    .build();
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .header("User-Agent", "idempiere-cli")
+                    .timeout(Duration.ofMinutes(5))
+                    .GET()
+                    .build();
+
+            HttpResponse<InputStream> response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
+
+            if (response.statusCode() != 200) {
+                System.err.println("  Download failed with status " + response.statusCode());
+                return null;
+            }
+
+            Path tempFile = Files.createTempFile("idempiere-cli-", isWindows() ? ".exe" : "");
+            try (InputStream in = response.body()) {
+                Files.copy(in, tempFile, StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            return tempFile;
+
+        } catch (Exception e) {
+            System.err.println("  Download error: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private Path findCurrentBinary() {
+        // Try to find the current binary location
+        // 1. Check if running from a known location
+        String binaryPath = System.getProperty("org.graalvm.nativeimage.imagelocation");
+        if (binaryPath != null) {
+            return Path.of(binaryPath);
+        }
+
+        // 2. Try common installation paths
+        String[] commonPaths = {
+                "/usr/local/bin/idempiere-cli",
+                System.getProperty("user.home") + "/.local/bin/idempiere-cli",
+                System.getProperty("user.home") + "/bin/idempiere-cli",
+                "C:\\Program Files\\idempiere-cli\\idempiere-cli.exe",
+                System.getProperty("user.home") + "\\AppData\\Local\\idempiere-cli\\idempiere-cli.exe"
+        };
+
+        for (String path : commonPaths) {
+            Path p = Path.of(path);
+            if (Files.exists(p)) {
+                return p;
+            }
+        }
+
+        // 3. Try 'which' command on Unix
+        if (!isWindows()) {
+            ProcessRunner.RunResult result = processRunner.run("which", "idempiere-cli");
+            if (result.isSuccess() && !result.output().isBlank()) {
+                return Path.of(result.output().trim());
+            }
+        }
+
+        return null;
+    }
+
+    private String detectBinaryName() {
+        String os = System.getProperty("os.name", "").toLowerCase();
+        String arch = System.getProperty("os.arch", "").toLowerCase();
+
+        String osName;
+        if (os.contains("linux")) {
+            osName = "linux";
+        } else if (os.contains("mac") || os.contains("darwin")) {
+            osName = "darwin";
+        } else if (os.contains("win")) {
+            osName = "windows";
+        } else {
+            return null;
+        }
+
+        String archName;
+        if (arch.contains("amd64") || arch.contains("x86_64")) {
+            archName = "amd64";
+        } else if (arch.contains("aarch64") || arch.contains("arm64")) {
+            archName = "arm64";
+        } else {
+            return null;
+        }
+
+        String extension = osName.equals("windows") ? ".exe" : "";
+        return "idempiere-cli-" + osName + "-" + archName + extension;
+    }
+
+    private boolean isUpToDate(String current, String latest) {
+        // Simple version comparison - assumes semver format
+        if (current.contains("SNAPSHOT")) {
+            return false; // SNAPSHOT is never up-to-date
+        }
+        return current.equals(latest);
+    }
+
+    private boolean isWindows() {
+        return System.getProperty("os.name", "").toLowerCase().contains("win");
+    }
+}

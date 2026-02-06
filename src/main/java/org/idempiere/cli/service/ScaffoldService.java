@@ -1,14 +1,19 @@
 package org.idempiere.cli.service;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import org.idempiere.cli.model.PlatformVersion;
 import org.idempiere.cli.model.PluginDescriptor;
+import org.idempiere.cli.service.generator.ComponentGenerator;
+import org.idempiere.cli.service.generator.GeneratorUtils;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
@@ -38,6 +43,9 @@ public class ScaffoldService {
 
     @Inject
     ManifestService manifestService;
+
+    @Inject
+    Instance<ComponentGenerator> generators;
 
     public void createPlugin(PluginDescriptor descriptor) {
         if (descriptor.isMultiModule()) {
@@ -250,7 +258,7 @@ public class ScaffoldService {
 
         // Create a sample test class
         Path srcDir = testDir.resolve("src").resolve(descriptor.getBasePackagePath());
-        String baseName = toPascalCase(descriptor.getPluginName());
+        String baseName = GeneratorUtils.toPascalCase(descriptor.getPluginName());
         Map<String, Object> testData = new HashMap<>(data);
         testData.put("className", baseName + "Test");
         testData.put("pluginName", descriptor.getPluginName());
@@ -321,7 +329,7 @@ public class ScaffoldService {
     }
 
     /**
-     * Generate component files (callout, process, etc.) - renamed from generateFeatureFiles.
+     * Generate component files using registered ComponentGenerators.
      */
     private void generateComponentFiles(Path baseDir, PluginDescriptor descriptor) throws IOException {
         Path srcDir;
@@ -337,127 +345,39 @@ public class ScaffoldService {
         Map<String, Object> data = new HashMap<>();
         data.put("pluginId", pluginIdForPackage);
 
-        if (descriptor.hasFeature("callout")) {
-            String className = toPascalCase(descriptor.getPluginName()) + "Callout";
-            data.put("className", className);
-            templateRenderer.render("callout/Callout.java", data, srcDir.resolve(className + ".java"));
-            templateRenderer.render("callout/CalloutFactory.java", data, srcDir.resolve(className + "Factory.java"));
-        }
+        // Track features for cross-generator dependencies
+        data.put("hasEventHandler", descriptor.hasFeature("event-handler"));
+        data.put("hasProcessMapped", descriptor.hasFeature("process-mapped"));
 
-        if (descriptor.hasFeature("event-handler")) {
-            String className = toPascalCase(descriptor.getPluginName()) + "EventDelegate";
-            data.put("className", className);
-            templateRenderer.render("event-handler/EventHandler.java", data, srcDir.resolve(className + ".java"));
-            String managerName = toPascalCase(descriptor.getPluginName()) + "Event";
-            data.put("className", managerName);
-            templateRenderer.render("event-handler/EventManager.java", data, srcDir.resolve(managerName + "Manager.java"));
-        }
+        // Component types to generate
+        String[] componentTypes = {
+            "callout", "event-handler", "process", "zk-form", "report",
+            "window-validator", "rest-extension", "facts-validator",
+            "process-mapped", "zk-form-zul", "listbox-group", "wlistbox-editor",
+            "jasper-report"
+        };
 
-        if (descriptor.hasFeature("process")) {
-            String className = toPascalCase(descriptor.getPluginName()) + "Process";
-            data.put("className", className);
-            templateRenderer.render("process/Process.java", data, srcDir.resolve(className + ".java"));
-            templateRenderer.render("process/ProcessFactory.java", data, srcDir.resolve(className + "Factory.java"));
-        }
-
-        if (descriptor.hasFeature("zk-form")) {
-            String className = toPascalCase(descriptor.getPluginName()) + "Form";
-            data.put("className", className);
-            templateRenderer.render("zk-form/ZkForm.java", data, srcDir.resolve(className + ".java"));
-            templateRenderer.render("zk-form/FormFactory.java", data, srcDir.resolve(className + "Factory.java"));
-        }
-
-        if (descriptor.hasFeature("report")) {
-            String className = toPascalCase(descriptor.getPluginName()) + "Report";
-            data.put("className", className);
-            templateRenderer.render("report/Report.java", data, srcDir.resolve(className + ".java"));
-        }
-
-        if (descriptor.hasFeature("window-validator")) {
-            String className = toPascalCase(descriptor.getPluginName()) + "WindowValidator";
-            data.put("className", className);
-            templateRenderer.render("window-validator/WindowValidator.java", data, srcDir.resolve(className + ".java"));
-        }
-
-        if (descriptor.hasFeature("rest-extension")) {
-            String className = toPascalCase(descriptor.getPluginName());
-            data.put("className", className);
-            data.put("resourcePath", descriptor.getPluginName().toLowerCase());
-            templateRenderer.render("rest-extension/ResourceExtension.java", data,
-                    srcDir.resolve(className + "ResourceExtension.java"));
-            templateRenderer.render("rest-extension/Resource.java", data,
-                    srcDir.resolve(className + "Resource.java"));
-        }
-
-        if (descriptor.hasFeature("facts-validator")) {
-            String className = toPascalCase(descriptor.getPluginName()) + "FactsValidator";
-            data.put("className", className);
-            templateRenderer.render("facts-validator/FactsValidator.java", data, srcDir.resolve(className + ".java"));
-            if (!descriptor.hasFeature("event-handler")) {
-                String managerName = toPascalCase(descriptor.getPluginName()) + "Event";
-                data.put("className", managerName);
-                templateRenderer.render("event-handler/EventManager.java", data, srcDir.resolve(managerName + "Manager.java"));
+        for (String type : componentTypes) {
+            if (descriptor.hasFeature(type)) {
+                findGenerator(type).ifPresent(generator -> {
+                    try {
+                        generator.generate(srcDir, baseDir, data);
+                    } catch (IOException e) {
+                        System.err.println("Error generating " + type + ": " + e.getMessage());
+                    }
+                });
             }
         }
 
-        if (descriptor.hasFeature("process-mapped")) {
-            String baseName = toPascalCase(descriptor.getPluginName());
-            data.put("className", baseName + "Process");
-            templateRenderer.render("process/Process.java", data, srcDir.resolve(baseName + "Process.java"));
-            data.put("className", baseName + "Activator");
-            templateRenderer.render("process-mapped/Activator.java", data, srcDir.resolve(baseName + "Activator.java"));
-        }
-
-        if (descriptor.hasFeature("zk-form-zul")) {
-            String baseName = toPascalCase(descriptor.getPluginName());
-            data.put("pluginName", descriptor.getPluginName());
-            data.put("className", baseName + "ZulForm");
-            templateRenderer.render("zk-form-zul/Form.java", data, srcDir.resolve(baseName + "ZulForm.java"));
-            data.put("className", baseName + "ZulFormController");
-            data.put("formClassName", baseName + "ZulForm");
-            templateRenderer.render("zk-form-zul/FormController.java", data, srcDir.resolve(baseName + "ZulFormController.java"));
-            Path webDir = baseDir.resolve("src/web");
-            Files.createDirectories(webDir);
-            templateRenderer.copyResource("zk-form-zul/form.zul", webDir.resolve("form.zul"));
-        }
-
-        if (descriptor.hasFeature("listbox-group")) {
-            String baseName = toPascalCase(descriptor.getPluginName());
-            data.put("className", baseName + "ListboxGroupForm");
-            data.put("modelClassName", baseName + "GroupModel");
-            data.put("rendererClassName", baseName + "GroupRenderer");
-            templateRenderer.render("listbox-group/ListboxGroupForm.java", data, srcDir.resolve(baseName + "ListboxGroupForm.java"));
-            data.put("className", baseName + "GroupModel");
-            templateRenderer.render("listbox-group/GroupModel.java", data, srcDir.resolve(baseName + "GroupModel.java"));
-            data.put("className", baseName + "GroupRenderer");
-            templateRenderer.render("listbox-group/GroupRenderer.java", data, srcDir.resolve(baseName + "GroupRenderer.java"));
-        }
-
-        if (descriptor.hasFeature("wlistbox-editor")) {
-            String baseName = toPascalCase(descriptor.getPluginName());
-            data.put("className", baseName + "WListboxEditorForm");
-            templateRenderer.render("wlistbox-editor/WListboxEditorForm.java", data, srcDir.resolve(baseName + "WListboxEditorForm.java"));
-        }
-
-        if (descriptor.hasFeature("jasper-report")) {
-            String baseName = toPascalCase(descriptor.getPluginName());
-            data.put("pluginName", descriptor.getPluginName());
-            if (!descriptor.hasFeature("process-mapped")) {
-                data.put("className", baseName + "Activator");
-                templateRenderer.render("jasper-report/Activator.java", data, srcDir.resolve(baseName + "Activator.java"));
-            }
-            Path reportsDir = baseDir.resolve("reports");
-            Files.createDirectories(reportsDir);
-            data.put("className", baseName + "Report");
-            templateRenderer.render("jasper-report/SampleReport.jrxml", data, reportsDir.resolve(baseName + "Report.jrxml"));
-        }
-
-        // For standalone plugins with test feature
+        // For standalone plugins with test feature (special case - uses base-test generator)
         if (!descriptor.isMultiModule() && descriptor.hasFeature("test")) {
-            String baseName = toPascalCase(descriptor.getPluginName());
-            data.put("className", baseName + "Test");
-            data.put("pluginName", descriptor.getPluginName());
-            templateRenderer.render("test/PluginTest.java", data, srcDir.resolve(baseName + "Test.java"));
+            findGenerator("base-test").ifPresent(generator -> {
+                try {
+                    generator.generate(srcDir, baseDir, data);
+                } catch (IOException e) {
+                    System.err.println("Error generating test: " + e.getMessage());
+                }
+            });
         }
     }
 
@@ -466,6 +386,12 @@ public class ScaffoldService {
         System.out.println("Adding " + type + ": " + name);
         System.out.println();
 
+        Optional<ComponentGenerator> generator = findGenerator(type);
+        if (generator.isEmpty()) {
+            System.err.println("Unknown component type: " + type);
+            return;
+        }
+
         try {
             Map<String, Object> data = new HashMap<>();
             data.put("pluginId", pluginId);
@@ -473,102 +399,7 @@ public class ScaffoldService {
 
             Path srcDir = pluginDir.resolve("src").resolve(pluginId.replace('.', '/'));
 
-            switch (type) {
-                case "callout" -> {
-                    templateRenderer.render("callout/Callout.java", data,
-                            srcDir.resolve(name + ".java"));
-                    // Only create factory if none exists (one factory handles all callouts in package)
-                    if (!hasCalloutFactory(srcDir)) {
-                        String pluginBaseName = toPascalCase(extractPluginName(pluginId));
-                        data.put("className", pluginBaseName + "Callout");
-                        templateRenderer.render("callout/CalloutFactory.java", data,
-                                srcDir.resolve(pluginBaseName + "CalloutFactory.java"));
-                        data.put("className", name); // restore
-                    } else {
-                        System.out.println("  Using existing CalloutFactory (scans package for all @Callout classes)");
-                    }
-                }
-                case "event-handler" -> {
-                    templateRenderer.render("event-handler/EventHandler.java", data,
-                            srcDir.resolve(name + ".java"));
-                    templateRenderer.render("event-handler/EventManager.java", data,
-                            srcDir.resolve(name + "Manager.java"));
-                }
-                case "process" -> {
-                    templateRenderer.render("process/Process.java", data,
-                            srcDir.resolve(name + ".java"));
-                    templateRenderer.render("process/ProcessFactory.java", data,
-                            srcDir.resolve(name + "Factory.java"));
-                }
-                case "zk-form" -> {
-                    templateRenderer.render("zk-form/ZkForm.java", data,
-                            srcDir.resolve(name + ".java"));
-                    templateRenderer.render("zk-form/FormFactory.java", data,
-                            srcDir.resolve(name + "Factory.java"));
-                }
-                case "report" -> {
-                    templateRenderer.render("report/Report.java", data,
-                            srcDir.resolve(name + ".java"));
-                }
-                case "window-validator" -> {
-                    templateRenderer.render("window-validator/WindowValidator.java", data,
-                            srcDir.resolve(name + ".java"));
-                }
-                case "facts-validator" -> {
-                    templateRenderer.render("facts-validator/FactsValidator.java", data,
-                            srcDir.resolve(name + ".java"));
-                    ensureEventManager(srcDir, pluginId, name);
-                }
-                case "process-mapped" -> {
-                    // Process template expects className to be the full class name
-                    data.put("className", name + "Process");
-                    templateRenderer.render("process/Process.java", data,
-                            srcDir.resolve(name + "Process.java"));
-                    // Only create Activator if none exists (shared by process-mapped and jasper-report)
-                    if (!hasPluginActivator(srcDir)) {
-                        String pluginBaseName = toPascalCase(extractPluginName(pluginId));
-                        data.put("className", pluginBaseName + "Activator");
-                        templateRenderer.render("process-mapped/Activator.java", data,
-                                srcDir.resolve(pluginBaseName + "Activator.java"));
-                    } else {
-                        System.out.println("  Using existing Activator (shared by process-mapped and jasper-report)");
-                    }
-                    data.put("className", name); // restore
-                }
-                case "listbox-group" -> {
-                    // Form references Model and Renderer
-                    data.put("className", name + "Form");
-                    data.put("modelClassName", name + "GroupModel");
-                    data.put("rendererClassName", name + "GroupRenderer");
-                    templateRenderer.render("listbox-group/ListboxGroupForm.java", data,
-                            srcDir.resolve(name + "Form.java"));
-                    // Model class
-                    data.put("className", name + "GroupModel");
-                    templateRenderer.render("listbox-group/GroupModel.java", data,
-                            srcDir.resolve(name + "GroupModel.java"));
-                    // Renderer class
-                    data.put("className", name + "GroupRenderer");
-                    templateRenderer.render("listbox-group/GroupRenderer.java", data,
-                            srcDir.resolve(name + "GroupRenderer.java"));
-                }
-                case "wlistbox-editor" -> {
-                    data.put("className", name + "Form");
-                    templateRenderer.render("wlistbox-editor/WListboxEditorForm.java", data,
-                            srcDir.resolve(name + "Form.java"));
-                }
-                case "base-test" -> {
-                    data.put("pluginName", extractPluginName(pluginId));
-                    templateRenderer.render("test/PluginTest.java", data,
-                            srcDir.resolve(name + ".java"));
-                }
-                default -> {
-                    System.err.println("Unknown component type: " + type);
-                    return;
-                }
-            }
-
-            // Update MANIFEST.MF with required bundles
-            manifestService.addRequiredBundles(pluginDir, type);
+            generator.get().addToExisting(srcDir, pluginDir, data);
 
             System.out.println();
             System.out.println("Component added successfully!");
@@ -578,10 +409,25 @@ public class ScaffoldService {
         }
     }
 
+    /**
+     * Finds a ComponentGenerator by type.
+     */
+    private Optional<ComponentGenerator> findGenerator(String type) {
+        return generators.stream()
+                .filter(g -> g.type().equals(type))
+                .findFirst();
+    }
+
     public void addRestExtension(String name, String resourcePath, Path pluginDir, String pluginId) {
         System.out.println();
         System.out.println("Adding rest-extension: " + name);
         System.out.println();
+
+        Optional<ComponentGenerator> generator = findGenerator("rest-extension");
+        if (generator.isEmpty()) {
+            System.err.println("Generator not found for rest-extension");
+            return;
+        }
 
         try {
             Map<String, Object> data = new HashMap<>();
@@ -591,32 +437,13 @@ public class ScaffoldService {
 
             Path srcDir = pluginDir.resolve("src").resolve(pluginId.replace('.', '/'));
 
-            templateRenderer.render("rest-extension/ResourceExtension.java", data,
-                    srcDir.resolve(name + "ResourceExtension.java"));
-            templateRenderer.render("rest-extension/Resource.java", data,
-                    srcDir.resolve(name + "Resource.java"));
+            generator.get().addToExisting(srcDir, pluginDir, data);
 
             System.out.println();
             System.out.println("Component added successfully!");
             System.out.println();
         } catch (IOException e) {
             System.err.println("Error adding component: " + e.getMessage());
-        }
-    }
-
-    private void ensureEventManager(Path srcDir, String pluginId, String name) throws IOException {
-        boolean hasManager = false;
-        if (Files.exists(srcDir)) {
-            try (var stream = Files.list(srcDir)) {
-                hasManager = stream.anyMatch(p -> p.getFileName().toString().endsWith("Manager.java"));
-            }
-        }
-        if (!hasManager) {
-            Map<String, Object> data = new HashMap<>();
-            data.put("pluginId", pluginId);
-            data.put("className", name);
-            templateRenderer.render("event-handler/EventManager.java", data,
-                    srcDir.resolve(name + "Manager.java"));
         }
     }
 
@@ -702,73 +529,6 @@ public class ScaffoldService {
             return osgiVersion.replace(".qualifier", "-SNAPSHOT");
         }
         return osgiVersion;
-    }
-
-    private String toPascalCase(String input) {
-        if (input == null || input.isEmpty()) return input;
-        StringBuilder result = new StringBuilder();
-        boolean capitalizeNext = true;
-        for (char c : input.toCharArray()) {
-            if (c == '-' || c == '_' || c == '.') {
-                capitalizeNext = true;
-            } else if (capitalizeNext) {
-                result.append(Character.toUpperCase(c));
-                capitalizeNext = false;
-            } else {
-                result.append(c);
-            }
-        }
-        return result.toString();
-    }
-
-    /**
-     * Check if a shared component already exists in the source directory.
-     * Searches by content patterns to detect the type regardless of file name.
-     */
-    private boolean hasSharedComponent(Path srcDir, String... contentPatterns) {
-        if (!Files.exists(srcDir)) {
-            return false;
-        }
-        try (var files = Files.list(srcDir)) {
-            return files
-                    .filter(f -> f.getFileName().toString().endsWith(".java"))
-                    .anyMatch(f -> containsAnyPattern(f, contentPatterns));
-        } catch (IOException e) {
-            return false;
-        }
-    }
-
-    private boolean containsAnyPattern(Path file, String... patterns) {
-        try {
-            String content = Files.readString(file);
-            for (String pattern : patterns) {
-                if (content.contains(pattern)) {
-                    return true;
-                }
-            }
-            return false;
-        } catch (IOException e) {
-            return false;
-        }
-    }
-
-    // Convenience methods for specific shared components
-    private boolean hasCalloutFactory(Path srcDir) {
-        return hasSharedComponent(srcDir, "AnnotationBasedColumnCalloutFactory", "IColumnCalloutFactory");
-    }
-
-    private boolean hasPluginActivator(Path srcDir) {
-        return hasSharedComponent(srcDir, "Incremental2PackActivator");
-    }
-
-    /**
-     * Extract the simple plugin name from a full plugin ID.
-     * e.g., "org.example.myplugin" -> "myplugin"
-     */
-    private String extractPluginName(String pluginId) {
-        if (pluginId == null || pluginId.isEmpty()) return pluginId;
-        int lastDot = pluginId.lastIndexOf('.');
-        return lastDot >= 0 ? pluginId.substring(lastDot + 1) : pluginId;
     }
 
     // ========================================================================
@@ -1159,31 +919,20 @@ public class ScaffoldService {
         System.out.println("Adding zk-form-zul: " + name);
         System.out.println();
 
+        Optional<ComponentGenerator> generator = findGenerator("zk-form-zul");
+        if (generator.isEmpty()) {
+            System.err.println("Generator not found for zk-form-zul");
+            return;
+        }
+
         try {
             Map<String, Object> data = new HashMap<>();
             data.put("pluginId", pluginId);
-            data.put("pluginName", extractPluginName(pluginId));
+            data.put("className", name);
 
             Path srcDir = pluginDir.resolve("src").resolve(pluginId.replace('.', '/'));
 
-            // Form class - use name as-is (user should include "Form" suffix if desired)
-            data.put("className", name);
-            templateRenderer.render("zk-form-zul/Form.java", data,
-                    srcDir.resolve(name + ".java"));
-            // Controller class references the Form
-            data.put("className", name + "Controller");
-            data.put("formClassName", name);
-            templateRenderer.render("zk-form-zul/FormController.java", data,
-                    srcDir.resolve(name + "Controller.java"));
-
-            // Create web folder and ZUL file (copy without Qute processing due to ${} syntax conflict)
-            Path webDir = pluginDir.resolve("src/web");
-            Files.createDirectories(webDir);
-            String zulFileName = name.toLowerCase() + ".zul";
-            templateRenderer.copyResource("zk-form-zul/form.zul", webDir.resolve(zulFileName));
-
-            // Update MANIFEST.MF with required bundles
-            manifestService.addRequiredBundles(pluginDir, "zk-form-zul");
+            generator.get().addToExisting(srcDir, pluginDir, data);
 
             System.out.println();
             System.out.println("Component added successfully!");
@@ -1201,32 +950,20 @@ public class ScaffoldService {
         System.out.println("Adding jasper-report: " + name);
         System.out.println();
 
+        Optional<ComponentGenerator> generator = findGenerator("jasper-report");
+        if (generator.isEmpty()) {
+            System.err.println("Generator not found for jasper-report");
+            return;
+        }
+
         try {
             Map<String, Object> data = new HashMap<>();
             data.put("pluginId", pluginId);
-            data.put("pluginName", extractPluginName(pluginId));
+            data.put("className", name);
 
             Path srcDir = pluginDir.resolve("src").resolve(pluginId.replace('.', '/'));
 
-            // Only create Activator if none exists (shared by process-mapped and jasper-report)
-            if (!hasPluginActivator(srcDir)) {
-                String pluginBaseName = toPascalCase(extractPluginName(pluginId));
-                data.put("className", pluginBaseName + "Activator");
-                templateRenderer.render("jasper-report/Activator.java", data,
-                        srcDir.resolve(pluginBaseName + "Activator.java"));
-            } else {
-                System.out.println("  Using existing Activator (shared by process-mapped and jasper-report)");
-            }
-
-            // Create reports folder and sample .jrxml - use name directly
-            Path reportsDir = pluginDir.resolve("reports");
-            Files.createDirectories(reportsDir);
-            data.put("className", name);
-            templateRenderer.render("jasper-report/SampleReport.jrxml", data,
-                    reportsDir.resolve(name + ".jrxml"));
-
-            // Update MANIFEST.MF with required bundles
-            manifestService.addRequiredBundles(pluginDir, "jasper-report");
+            generator.get().addToExisting(srcDir, pluginDir, data);
 
             System.out.println();
             System.out.println("Component added successfully!");
@@ -1244,19 +981,20 @@ public class ScaffoldService {
         System.out.println("Adding base-test: " + name);
         System.out.println();
 
+        Optional<ComponentGenerator> generator = findGenerator("base-test");
+        if (generator.isEmpty()) {
+            System.err.println("Generator not found for base-test");
+            return;
+        }
+
         try {
             Map<String, Object> data = new HashMap<>();
             data.put("pluginId", pluginId);
             data.put("className", name);
-            data.put("pluginName", extractPluginName(pluginId));
 
             Path srcDir = pluginDir.resolve("src").resolve(pluginId.replace('.', '/'));
 
-            templateRenderer.render("test/PluginTest.java", data,
-                    srcDir.resolve(name + ".java"));
-
-            // Update MANIFEST.MF with required bundles
-            manifestService.addRequiredBundles(pluginDir, "base-test");
+            generator.get().addToExisting(srcDir, pluginDir, data);
 
             System.out.println();
             System.out.println("Test class added successfully!");

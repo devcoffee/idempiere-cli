@@ -430,7 +430,12 @@ public class DatabaseManager {
         //         KEY_STORE_O, KEY_STORE_L, KEY_STORE_S, KEY_STORE_C, IDEMPIERE_HOST, IDEMPIERE_PORT,
         //         IDEMPIERE_SSL_PORT, SSL (N), DB_TYPE (2=postgres), DB_HOST, DB_PORT, DB_NAME,
         //         DB_USER, DB_PASS, DB_SYSTEM, MAIL_HOST, MAIL_USER, MAIL_PASS, MAIL_ADMIN, SAVE (Y)
-        String javaHome = toBashPath(System.getProperty("java.home"));
+        String javaHome = detectJavaHome();
+        if (javaHome == null) {
+            System.err.println("  JAVA_HOME not found. Please set JAVA_HOME environment variable.");
+            return false;
+        }
+        javaHome = toBashPath(javaHome);
         String productDirPath = toBashPath(productDir.toAbsolutePath().toString());
         String dbTypeNum = "postgresql".equals(config.getDbType()) ? "2" : "1";
 
@@ -484,6 +489,20 @@ public class DatabaseManager {
             // Show last 20 lines
             String[] lines = result.output().split("\n");
             int start = Math.max(0, lines.length - 20);
+            for (int i = start; i < lines.length; i++) {
+                System.err.println("    " + lines[i]);
+            }
+            return false;
+        }
+
+        // Verify that myEnvironment.sh was actually created
+        Path myEnvScript = productDir.resolve("utils/myEnvironment.sh");
+        if (!Files.exists(myEnvScript)) {
+            System.err.println("  Console setup completed but myEnvironment.sh was not created.");
+            System.err.println("  This usually indicates a database connection validation failure.");
+            System.err.println("  Console setup output (last 30 lines):");
+            String[] lines = result.output().split("\n");
+            int start = Math.max(0, lines.length - 30);
             for (int i = start; i < lines.length; i++) {
                 System.err.println("    " + lines[i]);
             }
@@ -741,6 +760,56 @@ public class DatabaseManager {
         }
 
         return true;
+    }
+
+    /**
+     * Detect JAVA_HOME from various sources.
+     * Works in both JVM mode and native image mode.
+     */
+    private String detectJavaHome() {
+        // 1. Try JVM property (works when running as JAR)
+        String javaHome = System.getProperty("java.home");
+        if (javaHome != null && !javaHome.isEmpty() && Files.isDirectory(Path.of(javaHome))) {
+            return javaHome;
+        }
+
+        // 2. Try environment variable
+        javaHome = System.getenv("JAVA_HOME");
+        if (javaHome != null && !javaHome.isEmpty() && Files.isDirectory(Path.of(javaHome))) {
+            return javaHome;
+        }
+
+        // 3. On macOS, use /usr/libexec/java_home
+        String os = System.getProperty("os.name", "").toLowerCase();
+        if (os.contains("mac")) {
+            ProcessRunner.RunResult result = processRunner.run("/usr/libexec/java_home");
+            if (result.isSuccess()) {
+                String detected = result.output().trim();
+                if (!detected.isEmpty() && Files.isDirectory(Path.of(detected))) {
+                    return detected;
+                }
+            }
+        }
+
+        // 4. Try to find java in PATH and derive JAVA_HOME
+        ProcessRunner.RunResult whichResult = processRunner.run("which", "java");
+        if (whichResult.isSuccess()) {
+            try {
+                Path javaPath = Path.of(whichResult.output().trim()).toRealPath();
+                // java is typically at $JAVA_HOME/bin/java
+                Path binDir = javaPath.getParent();
+                if (binDir != null && "bin".equals(binDir.getFileName().toString())) {
+                    Path home = binDir.getParent();
+                    if (home != null && Files.isDirectory(home)) {
+                        return home.toString();
+                    }
+                }
+            } catch (IOException e) {
+                // Ignore
+            }
+        }
+
+        return null;
     }
 
     /**

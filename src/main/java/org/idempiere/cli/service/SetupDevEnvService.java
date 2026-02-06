@@ -288,7 +288,7 @@ public class SetupDevEnvService {
                 System.err.println("    Check Services (services.msc) for 'postgresql' service.");
                 System.err.println("    Or install: winget install --id PostgreSQL.PostgreSQL --source winget");
             } else if (os.contains("mac")) {
-                System.err.println("    brew services start postgresql");
+                System.err.println("    brew services start postgresql@16");
             } else {
                 System.err.println("    sudo systemctl start postgresql");
             }

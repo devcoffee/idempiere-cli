@@ -80,8 +80,8 @@ public class SetupDevEnvCommand implements Callable<Integer> {
             defaultValue = "idempiere-postgres")
     String dockerContainerName;
 
-    @Option(names = "--docker-postgres-version", description = "Docker PostgreSQL version (default: 15.3)",
-            defaultValue = "15.3")
+    @Option(names = "--docker-postgres-version", description = "Docker PostgreSQL version (default: 16)",
+            defaultValue = "16")
     String dockerPostgresVersion;
 
     @Option(names = "--oracle-docker-container", description = "Oracle Docker container name (default: idempiere-oracle)",
@@ -199,7 +199,7 @@ public class SetupDevEnvCommand implements Callable<Integer> {
             if (!"idempiere-postgres".equals(dockerContainerName)) {
                 System.err.println("Warning: --docker-postgres-name is ignored when --skip-db is set.");
             }
-            if (!"15.3".equals(dockerPostgresVersion)) {
+            if (!"16".equals(dockerPostgresVersion)) {
                 System.err.println("Warning: --docker-postgres-version is ignored when --skip-db is set.");
             }
         }
@@ -219,7 +219,7 @@ public class SetupDevEnvCommand implements Callable<Integer> {
             if (!"idempiere-postgres".equals(dockerContainerName)) {
                 System.err.println("Warning: --docker-postgres-name is ignored without --with-docker.");
             }
-            if (!"15.3".equals(dockerPostgresVersion)) {
+            if (!"16".equals(dockerPostgresVersion)) {
                 System.err.println("Warning: --docker-postgres-version is ignored without --with-docker.");
             }
             if (!"idempiere-oracle".equals(oracleDockerContainer)) {
@@ -243,7 +243,7 @@ public class SetupDevEnvCommand implements Callable<Integer> {
             if (!"idempiere-postgres".equals(dockerContainerName)) {
                 System.err.println("Warning: --docker-postgres-name is ignored with --db=oracle.");
             }
-            if (!"15.3".equals(dockerPostgresVersion)) {
+            if (!"16".equals(dockerPostgresVersion)) {
                 System.err.println("Warning: --docker-postgres-version is ignored with --db=oracle.");
             }
         }

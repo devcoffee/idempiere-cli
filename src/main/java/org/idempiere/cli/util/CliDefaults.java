@@ -26,7 +26,7 @@ public final class CliDefaults {
 
     // ========== Docker Configuration ==========
     public static final String DOCKER_CONTAINER_NAME = "idempiere-postgres";
-    public static final String DOCKER_POSTGRES_VERSION = "15.3";
+    public static final String DOCKER_POSTGRES_VERSION = "16";
 
     // ========== Oracle Docker Configuration ==========
     public static final String DOCKER_ORACLE_CONTAINER = "idempiere-oracle";

@@ -71,15 +71,22 @@ public class DoctorService {
         System.out.printf("Results: %d passed, %d warnings, %d failed%n", passed, warnings, failed);
 
         boolean dockerNotOk = results.stream().anyMatch(r -> r.tool().equals("Docker") && r.status() != Status.OK);
+        boolean postgresOutdated = results.stream().anyMatch(r -> r.tool().equals("PostgreSQL") && r.status() == Status.WARN);
         boolean hasFixableIssues = failed > 0 || (fixOptional && dockerNotOk);
 
         if (fix && hasFixableIssues) {
             runAutoFix(results, fixOptional);
-        } else if (failed > 0 || dockerNotOk) {
+        } else if (failed > 0 || dockerNotOk || postgresOutdated) {
             printFixSuggestions(results);
-        } else if (passed == results.size()) {
+        }
+
+        if (failed == 0) {
             System.out.println();
-            System.out.println("All checks passed! Your environment is ready.");
+            if (warnings > 0) {
+                System.out.println("Environment is functional but has warnings. Consider addressing them.");
+            } else {
+                System.out.println("All checks passed! Your environment is ready.");
+            }
             System.out.println("Run 'idempiere-cli setup-dev-env' to bootstrap your development environment.");
         }
 
@@ -432,7 +439,25 @@ public class DoctorService {
 
         Matcher matcher = PSQL_VERSION_PATTERN.matcher(result.output());
         if (matcher.find()) {
-            String msg = "psql version " + matcher.group(1) + " detected";
+            String versionStr = matcher.group(1);
+            // Extract major version (e.g., "14" from "14.20")
+            int majorVersion = 0;
+            try {
+                String majorStr = versionStr.split("\\.")[0];
+                majorVersion = Integer.parseInt(majorStr);
+            } catch (NumberFormatException e) {
+                // Ignore, will treat as unknown version
+            }
+
+            // Recommended version is 16 (matches Docker container)
+            int recommendedVersion = 16;
+            if (majorVersion > 0 && majorVersion < recommendedVersion) {
+                String msg = "psql version " + versionStr + " (outdated, recommend " + recommendedVersion + ")";
+                printResult(Status.WARN, "PostgreSQL", msg);
+                return new CheckResult("PostgreSQL", Status.WARN, msg);
+            }
+
+            String msg = "psql version " + versionStr + " detected";
             printResult(Status.OK, "PostgreSQL", msg);
             return new CheckResult("PostgreSQL", Status.OK, msg);
         }
@@ -490,6 +515,7 @@ public class DoctorService {
         CheckResult mavenResult = results.stream().filter(r -> r.tool().equals("Maven") && r.status() == Status.FAIL).findFirst().orElse(null);
         CheckResult gitResult = results.stream().filter(r -> r.tool().equals("Git") && r.status() == Status.FAIL).findFirst().orElse(null);
         CheckResult postgresResult = results.stream().filter(r -> r.tool().equals("PostgreSQL") && r.status() == Status.FAIL).findFirst().orElse(null);
+        CheckResult postgresWarnResult = results.stream().filter(r -> r.tool().equals("PostgreSQL") && r.status() == Status.WARN).findFirst().orElse(null);
         CheckResult greadlinkResult = results.stream().filter(r -> r.tool().equals("greadlink") && r.status() == Status.FAIL).findFirst().orElse(null);
         boolean dockerMissing = results.stream().anyMatch(r -> r.tool().equals("Docker") && r.status() != Status.OK);
 
@@ -498,14 +524,12 @@ public class DoctorService {
         boolean mavenFailed = mavenResult != null;
         boolean gitFailed = gitResult != null;
         boolean postgresFailed = postgresResult != null;
+        boolean postgresOutdated = postgresWarnResult != null;
         boolean greadlinkFailed = greadlinkResult != null;
 
         boolean hasCriticalFailures = javaFailed || jarFailed || mavenFailed || gitFailed || postgresFailed || greadlinkFailed;
 
-        if (!hasCriticalFailures && !dockerMissing) {
-            System.out.println();
-            System.out.println("All checks passed! Your environment is ready.");
-            System.out.println("Run 'idempiere-cli setup-dev-env' to bootstrap your development environment.");
+        if (!hasCriticalFailures && !dockerMissing && !postgresOutdated) {
             return;
         }
 
@@ -524,7 +548,7 @@ public class DoctorService {
                 if (javaFailed || jarFailed) brewPackages.add("openjdk@21");
                 if (mavenFailed) brewPackages.add("maven");
                 if (gitFailed) brewPackages.add("git");
-                if (postgresFailed) brewPackages.add("postgresql");
+                if (postgresFailed) brewPackages.add("postgresql@16");
                 if (greadlinkFailed) brewPackages.add("coreutils");
 
                 if (!brewPackages.isEmpty()) {
@@ -540,7 +564,7 @@ public class DoctorService {
                 if (javaFailed || jarFailed) aptPackages.add("openjdk-21-jdk");
                 if (mavenFailed) aptPackages.add("maven");
                 if (gitFailed) aptPackages.add("git");
-                if (postgresFailed) aptPackages.add("postgresql-client");
+                if (postgresFailed) aptPackages.add("postgresql-client-16");
 
                 if (!aptPackages.isEmpty()) {
                     System.out.println("  Install with apt (Debian/Ubuntu):");
@@ -664,6 +688,27 @@ public class DoctorService {
             }
 
             System.out.println("After fixing, run 'idempiere-cli doctor' again.");
+        }
+
+        // PostgreSQL upgrade suggestion (when outdated but functional)
+        if (postgresOutdated) {
+            System.out.println();
+            System.out.println("Recommendation: Upgrade PostgreSQL client to version 16");
+            System.out.println();
+            if (os.contains("mac")) {
+                System.out.println("  brew install postgresql@16");
+                System.out.println("  brew link postgresql@16 --force");
+            } else if (os.contains("linux")) {
+                System.out.println("  # Debian/Ubuntu:");
+                System.out.println("  sudo apt install postgresql-client-16");
+                System.out.println();
+                System.out.println("  # Fedora/RHEL:");
+                System.out.println("  sudo dnf install postgresql16");
+            } else if (os.contains("win")) {
+                System.out.println("  winget install --id PostgreSQL.PostgreSQL.16 --source winget");
+            }
+            System.out.println();
+            System.out.println("  This ensures client/server version compatibility.");
         }
 
         if (dockerMissing) {
@@ -1067,14 +1112,14 @@ public class DoctorService {
                 if (javaFailed || jarFailed) packagesToInstall.add("openjdk-21-jdk");
                 if (mavenFailed) packagesToInstall.add("maven");
                 if (gitFailed) packagesToInstall.add("git");
-                if (postgresFailed) packagesToInstall.add("postgresql-client");
+                if (postgresFailed) packagesToInstall.add("postgresql-client-16");
                 if (dockerNotInstalled) packagesToInstall.add("docker.io");
             }
             case "dnf", "yum" -> {
                 if (javaFailed || jarFailed) packagesToInstall.add("java-21-openjdk-devel");
                 if (mavenFailed) packagesToInstall.add("maven");
                 if (gitFailed) packagesToInstall.add("git");
-                if (postgresFailed) packagesToInstall.add("postgresql");
+                if (postgresFailed) packagesToInstall.add("postgresql16");
                 if (dockerNotInstalled) packagesToInstall.add("docker");
             }
             case "pacman" -> {
@@ -1088,7 +1133,7 @@ public class DoctorService {
                 if (javaFailed || jarFailed) packagesToInstall.add("java-21-openjdk-devel");
                 if (mavenFailed) packagesToInstall.add("maven");
                 if (gitFailed) packagesToInstall.add("git");
-                if (postgresFailed) packagesToInstall.add("postgresql");
+                if (postgresFailed) packagesToInstall.add("postgresql16");
                 if (dockerNotInstalled) packagesToInstall.add("docker");
             }
         }
@@ -1186,7 +1231,7 @@ public class DoctorService {
         if (javaFailed || jarFailed) packagesToInstall.add("openjdk@21");
         if (mavenFailed) packagesToInstall.add("maven");
         if (gitFailed) packagesToInstall.add("git");
-        if (postgresFailed) packagesToInstall.add("postgresql");
+        if (postgresFailed) packagesToInstall.add("postgresql@16");
         if (greadlinkFailed) packagesToInstall.add("coreutils");
 
         // Docker Desktop is installed as a cask (separate from regular packages)

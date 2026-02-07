@@ -30,6 +30,7 @@ class SetupDevEnvCommandTest {
         assertTrue(output.contains("--oracle-docker-container"));
         assertTrue(output.contains("--oracle-docker-image"));
         assertTrue(output.contains("--oracle-docker-home"));
+        assertTrue(output.contains("--dry-run"));
     }
 
     @Test
@@ -44,7 +45,7 @@ class SetupDevEnvCommandTest {
     }
 
     @Test
-    @Launch({"setup-dev-env", "--db=oracle", "--with-docker", "--docker-postgres-name=custom-pg", "--skip-db", "--skip-workspace", "--non-interactive"})
+    @Launch({"setup-dev-env", "--db=oracle", "--with-docker", "--docker-postgres-name=custom-pg", "--dry-run"})
     void testOracleWithDockerWarnsAboutPostgresOptions(LaunchResult result) {
         // Oracle + Docker is now supported, but PostgreSQL options should be warned
         String output = result.getErrorOutput();
@@ -52,7 +53,7 @@ class SetupDevEnvCommandTest {
     }
 
     @Test
-    @Launch({"setup-dev-env", "--db=postgresql", "--with-docker", "--oracle-docker-container=custom-oracle", "--skip-db", "--skip-workspace", "--non-interactive"})
+    @Launch({"setup-dev-env", "--db=postgresql", "--with-docker", "--oracle-docker-container=custom-oracle", "--dry-run"})
     void testPostgresWithDockerWarnsAboutOracleOptions(LaunchResult result) {
         // PostgreSQL + Docker should warn about Oracle options
         String output = result.getErrorOutput();
@@ -60,15 +61,15 @@ class SetupDevEnvCommandTest {
     }
 
     @Test
-    @Launch({"setup-dev-env", "--skip-db", "--with-docker", "--skip-workspace", "--non-interactive"})
+    @Launch({"setup-dev-env", "--skip-db", "--with-docker", "--dry-run"})
     void testSkipDbWarnsAboutDockerOption(LaunchResult result) {
-        // Should warn but not fail validation (will fail later due to headless/missing source)
+        // Should warn but not fail validation
         String output = result.getErrorOutput();
         assertTrue(output.contains("--with-docker is ignored when --skip-db is set"));
     }
 
     @Test
-    @Launch({"setup-dev-env", "--skip-workspace", "--install-copilot", "--skip-db", "--non-interactive"})
+    @Launch({"setup-dev-env", "--skip-workspace", "--install-copilot", "--skip-db", "--dry-run"})
     void testSkipWorkspaceWarnsAboutCopilot(LaunchResult result) {
         String output = result.getErrorOutput();
         assertTrue(output.contains("--install-copilot is ignored when --skip-workspace is set"));

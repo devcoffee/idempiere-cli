@@ -6,6 +6,7 @@ import org.idempiere.cli.model.PlatformVersion;
 import org.idempiere.cli.model.PluginDescriptor;
 import org.idempiere.cli.service.ProcessRunner;
 import org.idempiere.cli.service.ScaffoldService;
+import org.idempiere.cli.util.CliDefaults;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,19 +18,43 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 
+import org.junit.jupiter.api.Tag;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * End-to-end test for plugin lifecycle: init → build → verify compilation.
  *
- * <p>This test creates real plugins and builds them using Maven with a local
- * iDempiere p2 repository. Requires a pre-built iDempiere installation.
+ * <p>Requires a pre-built iDempiere p2 repository. Configure via:
+ * <ul>
+ *   <li>Environment variable: {@code IDEMPIERE_P2_REPOSITORY=/path/to/repository}</li>
+ *   <li>System property: {@code -Didempiere.p2.repository=/path/to/repository}</li>
+ *   <li>Default: {@code ~/workspace/idempiere/org.idempiere.p2/target/repository}</li>
+ * </ul>
+ *
+ * <p>Tests are skipped if the p2 repository is not found.
  */
 @QuarkusTest
+@Tag("integration")
 class PluginBuildE2ETest {
 
-    private static final Path P2_REPOSITORY = Path.of("/Users/muriloht/workspace/idempiere/idempiere/org.idempiere.p2/target/repository");
+    private static final Path P2_REPOSITORY = resolveP2Repository();
+
+    private static Path resolveP2Repository() {
+        // 1. Environment variable (CI/CD and other devs)
+        String envPath = System.getenv("IDEMPIERE_P2_REPOSITORY");
+        if (envPath != null && !envPath.isBlank()) {
+            return Path.of(envPath);
+        }
+        // 2. System property (mvn test -Didempiere.p2.repository=/path)
+        String propPath = System.getProperty("idempiere.p2.repository");
+        if (propPath != null && !propPath.isBlank()) {
+            return Path.of(propPath);
+        }
+        // 3. Convention-based default
+        return Path.of(System.getProperty("user.home"), "workspace/idempiere/org.idempiere.p2/target/repository");
+    }
 
     @Inject
     ScaffoldService scaffoldService;
@@ -92,8 +117,8 @@ class PluginBuildE2ETest {
 
     private ProcessRunner.RunResult runMavenCompile(Path pluginDir) {
         String repoUrl = getP2RepositoryUrl();
-        return processRunner.runInDir(
-                pluginDir,
+        return processRunner.runInDirWithTimeout(
+                pluginDir, CliDefaults.TIMEOUT_LONG,
                 "mvn", "compile", "-B", "-q",
                 "-Didempiere.core.repository.url=" + repoUrl
         );

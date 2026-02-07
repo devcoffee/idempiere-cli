@@ -7,6 +7,7 @@ import org.idempiere.cli.model.PluginDescriptor;
 import org.idempiere.cli.service.ScaffoldService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -25,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * is complete and valid for an iDempiere development workflow.
  */
 @QuarkusTest
+@Tag("integration")
 class PluginLifecycleE2ETest {
 
     @Inject

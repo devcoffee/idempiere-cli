@@ -67,6 +67,16 @@ public final class CliDefaults {
     public static final int SESSION_LOGS_KEEP_COUNT = 20;
     public static final String SESSION_LOGS_DIR = ".idempiere-cli/logs";
 
+    // ========== Process Timeout Tiers (seconds) ==========
+    /** Short timeout for quick checks: version checks, which, git status */
+    public static final int TIMEOUT_SHORT = 30;
+    /** Medium timeout for network operations: git clone, docker pull (default) */
+    public static final int TIMEOUT_MEDIUM = 300;
+    /** Long timeout for builds: mvn clean install, Tycho builds */
+    public static final int TIMEOUT_LONG = 1800;
+    /** Very long timeout for full setup: setup-dev-env (clone + build iDempiere) */
+    public static final int TIMEOUT_VERY_LONG = 7200;
+
     // ========== Jython Configuration ==========
     public static final String JYTHON_VERSION = "2.7.4";
     public static final String JYTHON_MAVEN_BASE_URL = "https://repo1.maven.org/maven2/org/python/jython-standalone/";

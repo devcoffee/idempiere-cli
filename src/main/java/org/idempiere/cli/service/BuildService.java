@@ -2,6 +2,7 @@ package org.idempiere.cli.service;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.idempiere.cli.util.CliDefaults;
 import org.idempiere.cli.util.PluginUtils;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -71,7 +72,9 @@ public class BuildService {
         }
 
         System.out.println("  Building plugin...");
-        int exitCode = processRunner.runLiveInDir(pluginDir, args.toArray(new String[0]));
+        int exitCode = processRunner.runLiveInDirWithTimeout(
+                pluginDir, null, CliDefaults.TIMEOUT_LONG,
+                args.toArray(new String[0]));
 
         if (exitCode != 0) {
             System.err.println("  Build failed with exit code " + exitCode);

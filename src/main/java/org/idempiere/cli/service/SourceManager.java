@@ -62,7 +62,8 @@ public class SourceManager {
     private boolean cloneSource(SetupConfig config) {
         System.out.println("  Cloning " + config.getRepositoryUrl() + " (branch: " + config.getBranch() + ")...");
 
-        int exitCode = processRunner.runLive(
+        int exitCode = processRunner.runLiveInDirWithTimeout(
+                null, null, CliDefaults.TIMEOUT_LONG,
                 "git", "clone", "--branch", config.getBranch(),
                 "--depth", "1",
                 config.getRepositoryUrl(),

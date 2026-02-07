@@ -139,6 +139,9 @@ public class SetupDevEnvCommand implements Callable<Integer> {
     @Option(names = "--continue-on-error", description = "Continue setup even if a step fails")
     boolean continueOnError;
 
+    @Option(names = "--dry-run", description = "Validate parameters and print configuration without executing")
+    boolean dryRun;
+
     @Inject
     SetupDevEnvService setupDevEnvService;
 
@@ -147,6 +150,12 @@ public class SetupDevEnvCommand implements Callable<Integer> {
         // Validate parameter combinations
         if (!validateParameters()) {
             return 1;
+        }
+
+        // Dry run: validate only, don't execute
+        if (dryRun) {
+            System.out.println("Dry run: parameter validation complete.");
+            return 0;
         }
 
         // Check for headless environment BEFORE doing any work

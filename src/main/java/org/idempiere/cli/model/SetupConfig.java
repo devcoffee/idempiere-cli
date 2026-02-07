@@ -32,6 +32,7 @@ public class SetupConfig {
     private boolean installCopilot;
     private boolean nonInteractive;
     private boolean continueOnError;
+    private boolean dryRun;
 
     public Path getSourceDir() {
         return sourceDir;
@@ -247,6 +248,14 @@ public class SetupConfig {
 
     public void setContinueOnError(boolean continueOnError) {
         this.continueOnError = continueOnError;
+    }
+
+    public boolean isDryRun() {
+        return dryRun;
+    }
+
+    public void setDryRun(boolean dryRun) {
+        this.dryRun = dryRun;
     }
 
     public String getDbConnectionString() {

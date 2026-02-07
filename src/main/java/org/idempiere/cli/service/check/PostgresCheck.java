@@ -62,9 +62,9 @@ public class PostgresCheck implements EnvironmentCheck {
                 .brew("postgresql@16")
                 .apt("postgresql-client-16")
                 .dnf("postgresql16")
-                .pacman("postgresql-libs")
+                .pacman("postgresql-libs-16")
                 .zypper("postgresql16")
-                .winget("PostgreSQL.PostgreSQL.17")
+                .winget("PostgreSQL.PostgreSQL.16")
                 .url("https://www.postgresql.org/download/")
                 .build();
     }

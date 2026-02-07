@@ -57,6 +57,7 @@ public interface EnvironmentCheck {
             String pacmanPackage,    // Arch pacman package
             String zypperPackage,    // openSUSE zypper package
             String wingetPackage,    // Windows winget package ID
+            String sdkmanPackage,    // SDKMAN! package (cross-platform, recommended for Java/Maven)
             String manualUrl         // Manual download URL
     ) {
         public static Builder builder() {
@@ -71,6 +72,7 @@ public interface EnvironmentCheck {
             private String pacmanPackage;
             private String zypperPackage;
             private String wingetPackage;
+            private String sdkmanPackage;
             private String manualUrl;
 
             public Builder brew(String pkg) { this.brewPackage = pkg; return this; }
@@ -80,11 +82,12 @@ public interface EnvironmentCheck {
             public Builder pacman(String pkg) { this.pacmanPackage = pkg; return this; }
             public Builder zypper(String pkg) { this.zypperPackage = pkg; return this; }
             public Builder winget(String pkg) { this.wingetPackage = pkg; return this; }
+            public Builder sdkman(String pkg) { this.sdkmanPackage = pkg; return this; }
             public Builder url(String url) { this.manualUrl = url; return this; }
 
             public FixSuggestion build() {
                 return new FixSuggestion(brewPackage, brewCask, aptPackage, dnfPackage,
-                        pacmanPackage, zypperPackage, wingetPackage, manualUrl);
+                        pacmanPackage, zypperPackage, wingetPackage, sdkmanPackage, manualUrl);
             }
         }
     }

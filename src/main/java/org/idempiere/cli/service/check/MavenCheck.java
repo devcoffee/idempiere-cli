@@ -9,6 +9,9 @@ import java.util.regex.Pattern;
 
 /**
  * Checks for Apache Maven installation.
+ *
+ * <p>Maven is optional because projects can use Maven Wrapper (mvnw) instead.
+ * The wrapper is the recommended approach for consistent builds.
  */
 @ApplicationScoped
 public class MavenCheck implements EnvironmentCheck {
@@ -25,13 +28,18 @@ public class MavenCheck implements EnvironmentCheck {
     }
 
     @Override
+    public boolean isRequired() {
+        return false; // Optional: projects can use Maven Wrapper (mvnw) instead
+    }
+
+    @Override
     public CheckResult check() {
         // On Windows, use mvn.cmd explicitly to avoid issues with mvn.exe launcher
         String mvnCmd = IS_WINDOWS ? "mvn.cmd" : "mvn";
         ProcessRunner.RunResult result = processRunner.run(mvnCmd, "-version");
         if (result.exitCode() < 0 || result.output() == null) {
-            String msg = "Not found";
-            return new CheckResult(toolName(), CheckResult.Status.FAIL, msg);
+            String msg = "Not found (optional: projects use mvnw wrapper)";
+            return new CheckResult(toolName(), CheckResult.Status.WARN, msg);
         }
 
         Matcher matcher = VERSION_PATTERN.matcher(result.output());
@@ -47,12 +55,13 @@ public class MavenCheck implements EnvironmentCheck {
     @Override
     public FixSuggestion getFixSuggestion(String os) {
         return FixSuggestion.builder()
+                .sdkman("maven")  // Recommended: version manager
                 .brew("maven")
                 .apt("maven")
                 .dnf("maven")
                 .pacman("maven")
                 .zypper("maven")
-                .url("https://maven.apache.org/download.cgi")
+                .url("https://sdkman.io/")
                 .build();
     }
 }

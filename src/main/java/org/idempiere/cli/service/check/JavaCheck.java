@@ -51,13 +51,14 @@ public class JavaCheck implements EnvironmentCheck {
     @Override
     public FixSuggestion getFixSuggestion(String os) {
         return FixSuggestion.builder()
+                .sdkman("java 21-tem")  // Recommended: version manager for Java
                 .brew("openjdk@21")
                 .apt("openjdk-21-jdk")
                 .dnf("java-21-openjdk-devel")
-                .pacman("jdk-openjdk")
+                .pacman("jdk21-openjdk")
                 .zypper("java-21-openjdk-devel")
                 .winget("EclipseAdoptium.Temurin.21.JDK")
-                .url("https://adoptium.net/")
+                .url("https://sdkman.io/")
                 .build();
     }
 }

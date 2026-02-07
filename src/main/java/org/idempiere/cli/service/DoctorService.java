@@ -164,6 +164,7 @@ public class DoctorService {
         System.out.println("---------------");
 
         // Collect packages by package manager from FixSuggestion
+        List<String> sdkmanPackages = new ArrayList<>();
         List<String> brewPackages = new ArrayList<>();
         List<String> brewCasks = new ArrayList<>();
         List<String> aptPackages = new ArrayList<>();
@@ -176,6 +177,7 @@ public class DoctorService {
             EnvironmentCheck.FixSuggestion fix = entry.check().getFixSuggestion(os);
             if (fix == null) continue;
 
+            if (fix.sdkmanPackage() != null) sdkmanPackages.add(fix.sdkmanPackage());
             if (fix.brewPackage() != null) brewPackages.add(fix.brewPackage());
             if (fix.brewCask() != null) brewCasks.add(fix.brewCask());
             if (fix.aptPackage() != null) aptPackages.add(fix.aptPackage());
@@ -183,6 +185,31 @@ public class DoctorService {
             if (fix.pacmanPackage() != null) pacmanPackages.add(fix.pacmanPackage());
             if (fix.wingetPackage() != null) wingetPackages.add(fix.wingetPackage());
             if (fix.manualUrl() != null) manualUrls.add(entry.check().toolName() + ": " + fix.manualUrl());
+        }
+
+        // SDKMAN! educational message for Java/Maven (non-Windows only)
+        if (!sdkmanPackages.isEmpty() && !os.contains("win")) {
+            System.out.println();
+            String lightbulb = IS_WINDOWS ? "[TIP]" : "\uD83D\uDCA1";
+            System.out.println("  " + lightbulb + " Recommended: SDKMAN!");
+            System.out.println("     SDKMAN manages Java/Maven versions and can auto-switch per project.");
+            System.out.println();
+            System.out.println("     Install SDKMAN:");
+            System.out.println("       curl -s \"https://get.sdkman.io\" | bash");
+            System.out.println("       source ~/.sdkman/bin/sdkman-init.sh");
+            System.out.println();
+            System.out.println("     Then install tools:");
+            for (String pkg : sdkmanPackages) {
+                System.out.println("       sdk install " + pkg);
+            }
+            System.out.println();
+            System.out.println("     Enable auto-switching (recommended):");
+            System.out.println("       echo \"sdkman_auto_env=true\" >> ~/.sdkman/etc/config");
+            System.out.println();
+            System.out.println("     With auto-switching, SDKMAN reads .sdkmanrc files in projects");
+            System.out.println("     and automatically uses the correct Java/Maven version.");
+            System.out.println();
+            System.out.println("     Learn more: https://sdkman.io/usage");
         }
 
         if (os.contains("mac") && (!brewPackages.isEmpty() || !brewCasks.isEmpty())) {

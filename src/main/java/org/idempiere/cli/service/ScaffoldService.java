@@ -49,6 +49,9 @@ public class ScaffoldService {
     @Inject
     Instance<ComponentGenerator> generators;
 
+    @Inject
+    MavenWrapperService mavenWrapperService;
+
     public void createPlugin(PluginDescriptor descriptor) {
         if (descriptor.isMultiModule()) {
             createMultiModulePlugin(descriptor);
@@ -134,6 +137,10 @@ public class ScaffoldService {
                     "-Djdk.xml.totalEntitySizeLimit=0\n");
             System.out.println("  Created: " + mvnDir.resolve("jvm.config"));
 
+            // Add Maven Wrapper
+            mavenWrapperService.addWrapper(rootDir);
+            System.out.println("  Created: mvnw, mvnw.cmd (Maven Wrapper)");
+
             System.out.println();
             System.out.println("Multi-module project created successfully!");
             System.out.println();
@@ -158,10 +165,10 @@ public class ScaffoldService {
             System.out.println("  3. Select this directory as root and click Finish");
             System.out.println();
             System.out.println("To build:");
-            System.out.println("  idempiere-cli build");
+            System.out.println("  ./mvnw verify    (or mvnw.cmd on Windows)");
             System.out.println();
             System.out.println("To package for distribution:");
-            System.out.println("  idempiere-cli package --format=p2");
+            System.out.println("  ./mvnw verify    (JAR will be in p2/target/repository/)");
             System.out.println();
         } catch (IOException e) {
             System.err.println("Error creating project: " + e.getMessage());
@@ -195,6 +202,10 @@ public class ScaffoldService {
             generatePluginFiles(baseDir, descriptor);
             generateComponentFiles(baseDir, descriptor);
 
+            // Add Maven Wrapper
+            mavenWrapperService.addWrapper(baseDir);
+            System.out.println("  Created: mvnw, mvnw.cmd (Maven Wrapper)");
+
             System.out.println();
             System.out.println("Plugin created successfully!");
             System.out.println();
@@ -204,10 +215,7 @@ public class ScaffoldService {
             System.out.println("  3. Select this directory as root and click Finish");
             System.out.println();
             System.out.println("To build:");
-            System.out.println("  idempiere-cli build");
-            System.out.println();
-            System.out.println("To package for distribution:");
-            System.out.println("  idempiere-cli package");
+            System.out.println("  ./mvnw verify    (or mvnw.cmd on Windows)");
             System.out.println();
         } catch (IOException e) {
             System.err.println("Error creating plugin: " + e.getMessage());

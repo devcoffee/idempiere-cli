@@ -8,6 +8,7 @@ import org.idempiere.cli.commands.add.AddFeatureModuleCommand;
 import org.idempiere.cli.commands.add.AddFragmentModuleCommand;
 import org.idempiere.cli.commands.add.AddJasperReportCommand;
 import org.idempiere.cli.commands.add.AddListboxGroupCommand;
+import org.idempiere.cli.commands.add.AddMavenWrapperCommand;
 import org.idempiere.cli.commands.add.AddModelCommand;
 import org.idempiere.cli.commands.add.AddPluginModuleCommand;
 import org.idempiere.cli.commands.add.AddProcessCommand;
@@ -99,7 +100,9 @@ import picocli.CommandLine.Command;
                 AddFactsValidatorCommand.class,
                 AddModelCommand.class,
                 AddTestCommand.class,
-                AddBaseTestCommand.class
+                AddBaseTestCommand.class,
+                // Tooling commands
+                AddMavenWrapperCommand.class
         }
 )
 public class AddCommand {

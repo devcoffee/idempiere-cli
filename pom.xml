@@ -133,6 +133,8 @@
             <properties>
                 <quarkus.native.enabled>true</quarkus.native.enabled>
                 <quarkus.package.jar.enabled>false</quarkus.package.jar.enabled>
+                <!-- Use compatibility mode for maximum CPU compatibility (works on older VPS/cloud servers) -->
+                <quarkus.native.additional-build-args>-march=compatibility</quarkus.native.additional-build-args>
             </properties>
         </profile>
         <profile>

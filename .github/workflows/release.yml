@@ -28,8 +28,17 @@ jobs:
           distribution: 'graalvm'
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Verify GraalVM version
+        run: |
+          echo "=== Java version ==="
+          java -version
+          echo "=== Native-image version ==="
+          native-image --version
+          echo "=== Native-image -march options ==="
+          native-image -march=list || true
+
       - name: Build native image
-        run: mvn -B package -Pnative -DskipTests
+        run: mvn -B package -Pnative -DskipTests -Dquarkus.native.additional-build-args=-march=compatibility
 
       - name: Rename binary
         run: mv target/*-runner target/idempiere-cli-linux-amd64
@@ -54,7 +63,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build native image
-        run: mvn -B package -Pnative -DskipTests
+        run: mvn -B package -Pnative -DskipTests -Dquarkus.native.additional-build-args=-march=compatibility
 
       - name: Rename binary
         run: mv target/*-runner target/idempiere-cli-linux-arm64
@@ -79,7 +88,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build native image
-        run: mvn -B package -Pnative -DskipTests
+        run: mvn -B package -Pnative -DskipTests -Dquarkus.native.additional-build-args=-march=compatibility
 
       - name: Rename binary
         run: mv target/*-runner target/idempiere-cli-darwin-arm64
@@ -104,7 +113,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build native image
-        run: mvn -B package -Pnative -DskipTests
+        run: mvn -B package -Pnative -DskipTests -Dquarkus.native.additional-build-args=-march=compatibility
 
       - name: Rename binary
         run: mv target/*-runner target/idempiere-cli-darwin-amd64
@@ -134,7 +143,7 @@ jobs:
           arch: x64
 
       - name: Build native image
-        run: mvn -B package -Pnative -DskipTests
+        run: mvn -B package -Pnative -DskipTests -Dquarkus.native.additional-build-args=-march=compatibility
 
       - name: Rename binary
         run: move target\*-runner.exe target\idempiere-cli-windows-amd64.exe

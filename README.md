@@ -2,10 +2,9 @@
 
 A command-line tool for iDempiere plugin development, built with [Quarkus](https://quarkus.io/) and [Picocli](https://picocli.info/).
 
-> **This is a Proof of Concept** based on the [idempiere](https://github.com/idempiere/idempiere) and
+> **Early Release** - built on the [idempiere](https://github.com/idempiere/idempiere) and
 > [idempiere-dev-setup](https://github.com/hengsin/idempiere-dev-setup) repositories.
-> It is **not production-ready** and needs community contributions to be completed.
-> Feedback, ideas, and pull requests are welcome!
+> Functional and tested. Feedback, ideas, and pull requests are welcome!
 
 ---
 

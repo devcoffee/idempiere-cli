@@ -2,15 +2,21 @@ package org.idempiere.cli.service;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Executes external processes with various output modes (live, quiet, captured).
+ *
+ * <p>Supports configurable timeout via {@code idempiere.process.timeout} property (in seconds).
+ * Default timeout is 300 seconds (5 minutes). Use 0 for no timeout.
  */
 @ApplicationScoped
 public class ProcessRunner {
@@ -20,9 +26,16 @@ public class ProcessRunner {
     @Inject
     SessionLogger sessionLogger;
 
+    @ConfigProperty(name = "idempiere.process.timeout", defaultValue = "300")
+    int defaultTimeoutSeconds;
+
     public record RunResult(int exitCode, String output) {
         public boolean isSuccess() {
             return exitCode == 0;
+        }
+
+        public boolean isTimeout() {
+            return exitCode == -2;
         }
     }
 
@@ -47,6 +60,10 @@ public class ProcessRunner {
     }
 
     public RunResult runInDir(Path workDir, String... command) {
+        return runInDirWithTimeout(workDir, defaultTimeoutSeconds, command);
+    }
+
+    public RunResult runInDirWithTimeout(Path workDir, int timeoutSeconds, String... command) {
         long startTime = System.currentTimeMillis();
         sessionLogger.logCommand(workDir, command);
 
@@ -59,13 +76,37 @@ public class ProcessRunner {
             }
             Process process = pb.start();
             StringBuilder output = new StringBuilder();
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    output.append(line).append("\n");
+
+            // Read output in a separate thread to avoid blocking
+            Thread reader = new Thread(() -> {
+                try (BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        output.append(line).append("\n");
+                    }
+                } catch (IOException e) {
+                    // ignore
                 }
+            });
+            reader.start();
+
+            boolean completed;
+            if (timeoutSeconds > 0) {
+                completed = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
+            } else {
+                process.waitFor();
+                completed = true;
             }
-            int exitCode = process.waitFor();
+
+            if (!completed) {
+                process.destroyForcibly();
+                reader.join(1000);
+                sessionLogger.logCommandResult(-2, System.currentTimeMillis() - startTime);
+                return new RunResult(-2, output + "\n[TIMEOUT after " + timeoutSeconds + "s]");
+            }
+
+            reader.join();
+            int exitCode = process.exitValue();
             sessionLogger.logCommandResult(exitCode, System.currentTimeMillis() - startTime);
             return new RunResult(exitCode, output.toString());
         } catch (Exception e) {
@@ -83,6 +124,10 @@ public class ProcessRunner {
     }
 
     public int runLiveInDir(Path workDir, Map<String, String> env, String... command) {
+        return runLiveInDirWithTimeout(workDir, env, defaultTimeoutSeconds, command);
+    }
+
+    public int runLiveInDirWithTimeout(Path workDir, Map<String, String> env, int timeoutSeconds, String... command) {
         long startTime = System.currentTimeMillis();
         sessionLogger.logCommand(workDir, command);
 
@@ -97,7 +142,23 @@ public class ProcessRunner {
                 pb.environment().putAll(env);
             }
             Process process = pb.start();
-            int exitCode = process.waitFor();
+
+            boolean completed;
+            if (timeoutSeconds > 0) {
+                completed = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
+            } else {
+                process.waitFor();
+                completed = true;
+            }
+
+            if (!completed) {
+                process.destroyForcibly();
+                System.err.println("\n[TIMEOUT after " + timeoutSeconds + "s]");
+                sessionLogger.logCommandResult(-2, System.currentTimeMillis() - startTime);
+                return -2;
+            }
+
+            int exitCode = process.exitValue();
             sessionLogger.logCommandResult(exitCode, System.currentTimeMillis() - startTime);
             return exitCode;
         } catch (Exception e) {
@@ -237,6 +298,13 @@ public class ProcessRunner {
             sessionLogger.logCommandResult(-1, System.currentTimeMillis() - startTime);
             return new RunResult(-1, e.getMessage());
         }
+    }
+
+    /**
+     * Returns the default timeout in seconds configured via {@code idempiere.process.timeout}.
+     */
+    public int getDefaultTimeoutSeconds() {
+        return defaultTimeoutSeconds;
     }
 
     public boolean isAvailable(String command) {

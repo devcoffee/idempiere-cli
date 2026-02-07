@@ -12,10 +12,7 @@ on:
 
 env:
   JAVA_VERSION: '21'
-  # Mandrel for Linux (better -march=compatibility support)
   MANDREL_VERSION: '23.1.6.0-Final'
-  # GraalVM for macOS/Windows (Mandrel doesn't have builds for these)
-  GRAALVM_VERSION: '21'
 
 jobs:
   build-linux-amd64:
@@ -30,15 +27,6 @@ jobs:
           version: ${{ env.MANDREL_VERSION }}
           distribution: 'mandrel'
           github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Verify Mandrel version
-        run: |
-          echo "=== Java version ==="
-          java -version
-          echo "=== Native-image version ==="
-          native-image --version
-          echo "=== Native-image -march options ==="
-          native-image -march=list || true
 
       - name: Build native image
         run: mvn -B package -Pnative -DskipTests -Dquarkus.native.additional-build-args=-march=compatibility
@@ -85,7 +73,7 @@ jobs:
       - name: Set up GraalVM
         uses: graalvm/setup-graalvm@v1
         with:
-          java-version: ${{ env.GRAALVM_VERSION }}
+          java-version: ${{ env.JAVA_VERSION }}
           distribution: 'graalvm'
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -102,14 +90,14 @@ jobs:
           path: target/idempiere-cli-darwin-arm64
 
   build-macos-amd64:
-    runs-on: macos-13
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up GraalVM
         uses: graalvm/setup-graalvm@v1
         with:
-          java-version: ${{ env.GRAALVM_VERSION }}
+          java-version: ${{ env.JAVA_VERSION }}
           distribution: 'graalvm'
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -133,7 +121,7 @@ jobs:
       - name: Set up GraalVM
         uses: graalvm/setup-graalvm@v1
         with:
-          java-version: ${{ env.GRAALVM_VERSION }}
+          java-version: ${{ env.JAVA_VERSION }}
           distribution: 'graalvm'
           github-token: ${{ secrets.GITHUB_TOKEN }}
 

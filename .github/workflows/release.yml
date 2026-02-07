@@ -12,7 +12,8 @@ on:
 
 env:
   JAVA_VERSION: '21'
-  GRAALVM_VERSION: '24.1.1'  # GraalVM 25 has a bug with -march=compatibility
+  # Use Mandrel (Quarkus-optimized GraalVM) for better compatibility
+  MANDREL_VERSION: '24.1.1.0-Final'
 
 jobs:
   build-linux-amd64:
@@ -20,15 +21,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up GraalVM
+      - name: Set up Mandrel
         uses: graalvm/setup-graalvm@v1
         with:
           java-version: ${{ env.JAVA_VERSION }}
-          version: ${{ env.GRAALVM_VERSION }}
-          distribution: 'graalvm'
+          version: ${{ env.MANDREL_VERSION }}
+          distribution: 'mandrel'
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify GraalVM version
+      - name: Verify Mandrel version
         run: |
           echo "=== Java version ==="
           java -version
@@ -54,12 +55,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up GraalVM
+      - name: Set up Mandrel
         uses: graalvm/setup-graalvm@v1
         with:
           java-version: ${{ env.JAVA_VERSION }}
-          version: ${{ env.GRAALVM_VERSION }}
-          distribution: 'graalvm'
+          version: ${{ env.MANDREL_VERSION }}
+          distribution: 'mandrel'
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build native image
@@ -79,12 +80,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up GraalVM
+      - name: Set up Mandrel
         uses: graalvm/setup-graalvm@v1
         with:
           java-version: ${{ env.JAVA_VERSION }}
-          version: ${{ env.GRAALVM_VERSION }}
-          distribution: 'graalvm'
+          version: ${{ env.MANDREL_VERSION }}
+          distribution: 'mandrel'
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build native image
@@ -104,12 +105,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up GraalVM
+      - name: Set up Mandrel
         uses: graalvm/setup-graalvm@v1
         with:
           java-version: ${{ env.JAVA_VERSION }}
-          version: ${{ env.GRAALVM_VERSION }}
-          distribution: 'graalvm'
+          version: ${{ env.MANDREL_VERSION }}
+          distribution: 'mandrel'
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build native image
@@ -129,12 +130,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up GraalVM
+      - name: Set up Mandrel
         uses: graalvm/setup-graalvm@v1
         with:
           java-version: ${{ env.JAVA_VERSION }}
-          version: ${{ env.GRAALVM_VERSION }}
-          distribution: 'graalvm'
+          version: ${{ env.MANDREL_VERSION }}
+          distribution: 'mandrel'
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Visual Studio shell

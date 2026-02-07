@@ -35,6 +35,6 @@ public class AddBaseTestCommand implements Runnable {
             System.err.println("Make sure you are inside a plugin directory or use --to to specify one.");
             return;
         }
-        scaffoldService.addBaseTest(name, dir, pluginId);
+        scaffoldService.addComponent("base-test", name, dir, pluginId);
     }
 }

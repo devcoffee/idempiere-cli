@@ -35,6 +35,6 @@ public class AddZkFormZulCommand implements Runnable {
             System.err.println("Make sure you are inside a plugin directory or use --to to specify one.");
             return;
         }
-        scaffoldService.addZkFormZul(name, dir, pluginId);
+        scaffoldService.addComponent("zk-form-zul", name, dir, pluginId);
     }
 }

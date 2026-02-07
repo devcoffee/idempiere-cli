@@ -22,6 +22,14 @@ public interface EnvironmentCheck {
     }
 
     /**
+     * Whether this check is applicable to the current platform.
+     * Checks that return false are silently skipped.
+     */
+    default boolean isApplicable() {
+        return true;
+    }
+
+    /**
      * Performs the environment check.
      *
      * @return the check result with status and message

@@ -35,6 +35,6 @@ public class AddJasperReportCommand implements Runnable {
             System.err.println("Make sure you are inside a plugin directory or use --to to specify one.");
             return;
         }
-        scaffoldService.addJasperReport(name, dir, pluginId);
+        scaffoldService.addComponent("jasper-report", name, dir, pluginId);
     }
 }

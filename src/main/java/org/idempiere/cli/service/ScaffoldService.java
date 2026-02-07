@@ -351,24 +351,15 @@ public class ScaffoldService {
         data.put("hasEventHandler", descriptor.hasFeature("event-handler"));
         data.put("hasProcessMapped", descriptor.hasFeature("process-mapped"));
 
-        // Component types to generate
-        String[] componentTypes = {
-            "callout", "event-handler", "process", "zk-form", "report",
-            "window-validator", "rest-extension", "facts-validator",
-            "process-mapped", "zk-form-zul", "listbox-group", "wlistbox-editor",
-            "jasper-report"
-        };
-
-        for (String type : componentTypes) {
-            if (descriptor.hasFeature(type)) {
-                findGenerator(type).ifPresent(generator -> {
-                    try {
-                        generator.generate(srcDir, baseDir, data);
-                    } catch (IOException e) {
-                        System.err.println("Error generating " + type + ": " + e.getMessage());
-                    }
-                });
-            }
+        // Generate components for each feature in the descriptor
+        for (String feature : descriptor.getFeatures()) {
+            findGenerator(feature).ifPresent(generator -> {
+                try {
+                    generator.generate(srcDir, baseDir, data);
+                } catch (IOException e) {
+                    System.err.println("Error generating " + feature + ": " + e.getMessage());
+                }
+            });
         }
 
         // For standalone plugins with test feature (special case - uses base-test generator)
@@ -383,7 +374,32 @@ public class ScaffoldService {
         }
     }
 
+    /**
+     * Finds a ComponentGenerator by type.
+     */
+    private Optional<ComponentGenerator> findGenerator(String type) {
+        return generators.stream()
+                .filter(g -> g.type().equals(type))
+                .findFirst();
+    }
+
+    /**
+     * Add a component to an existing plugin using the registered generator.
+     */
     public void addComponent(String type, String name, Path pluginDir, String pluginId) {
+        addComponent(type, name, pluginDir, pluginId, null);
+    }
+
+    /**
+     * Add a component to an existing plugin with additional data.
+     *
+     * @param type      the component type (e.g., "zk-form-zul", "jasper-report")
+     * @param name      the component class name
+     * @param pluginDir the plugin directory
+     * @param pluginId  the plugin bundle ID
+     * @param extraData additional data for the generator (e.g., resourcePath for REST)
+     */
+    public void addComponent(String type, String name, Path pluginDir, String pluginId, Map<String, Object> extraData) {
         System.out.println();
         System.out.println("Adding " + type + ": " + name);
         System.out.println();
@@ -398,44 +414,9 @@ public class ScaffoldService {
             Map<String, Object> data = new HashMap<>();
             data.put("pluginId", pluginId);
             data.put("className", name);
-
-            Path srcDir = pluginDir.resolve("src").resolve(pluginId.replace('.', '/'));
-
-            generator.get().addToExisting(srcDir, pluginDir, data);
-
-            System.out.println();
-            System.out.println("Component added successfully!");
-            System.out.println();
-        } catch (IOException e) {
-            System.err.println("Error adding component: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Finds a ComponentGenerator by type.
-     */
-    private Optional<ComponentGenerator> findGenerator(String type) {
-        return generators.stream()
-                .filter(g -> g.type().equals(type))
-                .findFirst();
-    }
-
-    public void addRestExtension(String name, String resourcePath, Path pluginDir, String pluginId) {
-        System.out.println();
-        System.out.println("Adding rest-extension: " + name);
-        System.out.println();
-
-        Optional<ComponentGenerator> generator = findGenerator("rest-extension");
-        if (generator.isEmpty()) {
-            System.err.println("Generator not found for rest-extension");
-            return;
-        }
-
-        try {
-            Map<String, Object> data = new HashMap<>();
-            data.put("pluginId", pluginId);
-            data.put("className", name);
-            data.put("resourcePath", resourcePath);
+            if (extraData != null) {
+                data.putAll(extraData);
+            }
 
             Path srcDir = pluginDir.resolve("src").resolve(pluginId.replace('.', '/'));
 
@@ -715,7 +696,7 @@ public class ScaffoldService {
 
         // Add the new module
         XmlUtils.addModule(doc, moduleName);
-        XmlUtils.save(doc, pomFile);
+        XmlUtils.savePreservingFormat(doc, pomFile);
         System.out.println("  Updated: " + pomFile);
     }
 
@@ -748,7 +729,7 @@ public class ScaffoldService {
         Element bundleElement = XmlUtils.createBundleElement(doc, bundleId, categoryName);
         XmlUtils.findElement(doc, "site").ifPresent(site -> site.appendChild(bundleElement));
 
-        XmlUtils.save(doc, categoryFile);
+        XmlUtils.savePreservingFormat(doc, categoryFile);
         System.out.println("  Updated: " + categoryFile);
     }
 
@@ -781,7 +762,7 @@ public class ScaffoldService {
         Element iuElement = XmlUtils.createIuElement(doc, baseFeatureId, categoryName);
         XmlUtils.insertBefore(doc, iuElement, "category-def");
 
-        XmlUtils.save(doc, categoryFile);
+        XmlUtils.savePreservingFormat(doc, categoryFile);
         System.out.println("  Updated: " + categoryFile);
     }
 
@@ -812,7 +793,7 @@ public class ScaffoldService {
         Element pluginElement = XmlUtils.createPluginElement(doc, bundleId, isFragment);
         XmlUtils.findElement(doc, "feature").ifPresent(feature -> feature.appendChild(pluginElement));
 
-        XmlUtils.save(doc, featureFile);
+        XmlUtils.savePreservingFormat(doc, featureFile);
         System.out.println("  Updated: " + featureFile);
     }
 
@@ -836,98 +817,5 @@ public class ScaffoldService {
      */
     private String extractBaseProjectId(Path rootDir) {
         return rootDir.getFileName().toString();
-    }
-
-    /**
-     * Add a ZUL-based form with separate .zul file and Controller.
-     */
-    public void addZkFormZul(String name, Path pluginDir, String pluginId) {
-        System.out.println();
-        System.out.println("Adding zk-form-zul: " + name);
-        System.out.println();
-
-        Optional<ComponentGenerator> generator = findGenerator("zk-form-zul");
-        if (generator.isEmpty()) {
-            System.err.println("Generator not found for zk-form-zul");
-            return;
-        }
-
-        try {
-            Map<String, Object> data = new HashMap<>();
-            data.put("pluginId", pluginId);
-            data.put("className", name);
-
-            Path srcDir = pluginDir.resolve("src").resolve(pluginId.replace('.', '/'));
-
-            generator.get().addToExisting(srcDir, pluginDir, data);
-
-            System.out.println();
-            System.out.println("Component added successfully!");
-            System.out.println();
-        } catch (IOException e) {
-            System.err.println("Error adding component: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Add a Jasper report with Activator and sample .jrxml file.
-     */
-    public void addJasperReport(String name, Path pluginDir, String pluginId) {
-        System.out.println();
-        System.out.println("Adding jasper-report: " + name);
-        System.out.println();
-
-        Optional<ComponentGenerator> generator = findGenerator("jasper-report");
-        if (generator.isEmpty()) {
-            System.err.println("Generator not found for jasper-report");
-            return;
-        }
-
-        try {
-            Map<String, Object> data = new HashMap<>();
-            data.put("pluginId", pluginId);
-            data.put("className", name);
-
-            Path srcDir = pluginDir.resolve("src").resolve(pluginId.replace('.', '/'));
-
-            generator.get().addToExisting(srcDir, pluginDir, data);
-
-            System.out.println();
-            System.out.println("Component added successfully!");
-            System.out.println();
-        } catch (IOException e) {
-            System.err.println("Error adding component: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Add a base test class using AbstractTestCase.
-     */
-    public void addBaseTest(String name, Path pluginDir, String pluginId) {
-        System.out.println();
-        System.out.println("Adding base-test: " + name);
-        System.out.println();
-
-        Optional<ComponentGenerator> generator = findGenerator("base-test");
-        if (generator.isEmpty()) {
-            System.err.println("Generator not found for base-test");
-            return;
-        }
-
-        try {
-            Map<String, Object> data = new HashMap<>();
-            data.put("pluginId", pluginId);
-            data.put("className", name);
-
-            Path srcDir = pluginDir.resolve("src").resolve(pluginId.replace('.', '/'));
-
-            generator.get().addToExisting(srcDir, pluginDir, data);
-
-            System.out.println();
-            System.out.println("Test class added successfully!");
-            System.out.println();
-        } catch (IOException e) {
-            System.err.println("Error adding component: " + e.getMessage());
-        }
     }
 }

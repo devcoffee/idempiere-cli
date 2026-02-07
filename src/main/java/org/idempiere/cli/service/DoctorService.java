@@ -57,11 +57,11 @@ public class DoctorService {
 
         // Run all registered environment checks
         for (EnvironmentCheck check : environmentChecks) {
-            CheckResult result = check.check();
-            // Skip N/A results (e.g., greadlink on non-macOS)
-            if (!"N/A".equals(result.message())) {
-                printResult(result);
+            if (!check.isApplicable()) {
+                continue;  // Silently skip non-applicable checks
             }
+            CheckResult result = check.check();
+            printResult(result);
             results.add(result);
         }
 

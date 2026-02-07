@@ -10,6 +10,26 @@ import java.util.Map;
  * <p>Implementations handle specific component types (callout, process, event-handler, etc.)
  * and are discovered via CDI injection using {@code Instance<ComponentGenerator>}.
  *
+ * <h2>Data Map Contract</h2>
+ * <p>The {@code data} parameter passed to {@link #generate} and {@link #addToExisting} contains:
+ *
+ * <h3>Standard keys (always present):</h3>
+ * <ul>
+ *   <li>{@code pluginId} (String) - the plugin bundle symbolic name (e.g., "com.example.myplugin")</li>
+ *   <li>{@code className} (String) - the component class name (e.g., "MyCallout")</li>
+ * </ul>
+ *
+ * <h3>Scaffolding-only keys (present during plugin creation):</h3>
+ * <ul>
+ *   <li>{@code hasEventHandler} (Boolean) - whether event-handler feature is enabled</li>
+ *   <li>{@code hasProcessMapped} (Boolean) - whether process-mapped feature is enabled</li>
+ * </ul>
+ *
+ * <h3>Generator-specific keys (via addComponent extraData):</h3>
+ * <ul>
+ *   <li>{@code resourcePath} (String) - REST resource path, used by RestExtensionGenerator</li>
+ * </ul>
+ *
  * <h2>Usage</h2>
  * <pre>
  * &#64;Inject
@@ -41,7 +61,7 @@ public interface ComponentGenerator {
      *
      * @param srcDir  the source directory where Java files should be created
      * @param baseDir the plugin root directory (for non-Java files like .zul, .jrxml)
-     * @param data    template data including pluginId, className, etc.
+     * @param data    template data map (see class-level documentation for keys)
      * @throws IOException if file generation fails
      */
     void generate(Path srcDir, Path baseDir, Map<String, Object> data) throws IOException;
@@ -54,7 +74,7 @@ public interface ComponentGenerator {
      *
      * @param srcDir    the source directory where Java files should be created
      * @param pluginDir the plugin root directory
-     * @param data      template data including pluginId, className, etc.
+     * @param data      template data map (see class-level documentation for keys)
      * @throws IOException if file generation fails
      */
     void addToExisting(Path srcDir, Path pluginDir, Map<String, Object> data) throws IOException;

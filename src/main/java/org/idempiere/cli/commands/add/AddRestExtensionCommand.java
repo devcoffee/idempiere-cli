@@ -5,7 +5,9 @@ import org.idempiere.cli.service.ProjectDetector;
 import org.idempiere.cli.service.ScaffoldService;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
+
 import java.nio.file.Path;
+import java.util.Map;
 
 @Command(
         name = "rest-extension",
@@ -38,6 +40,7 @@ public class AddRestExtensionCommand implements Runnable {
             System.err.println("Make sure you are inside a plugin directory or use --to to specify one.");
             return;
         }
-        scaffoldService.addRestExtension(name, resourcePath, dir, pluginId);
+        scaffoldService.addComponent("rest-extension", name, dir, pluginId,
+                Map.of("resourcePath", resourcePath));
     }
 }

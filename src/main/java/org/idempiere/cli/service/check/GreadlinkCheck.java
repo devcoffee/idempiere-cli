@@ -20,21 +20,18 @@ public class GreadlinkCheck implements EnvironmentCheck {
     }
 
     @Override
-    public CheckResult check() {
-        String os = System.getProperty("os.name", "").toLowerCase();
-        if (!os.contains("mac")) {
-            // greadlink is only needed on macOS
-            return new CheckResult(toolName(), CheckResult.Status.OK, "N/A");
-        }
+    public boolean isApplicable() {
+        return System.getProperty("os.name", "").toLowerCase().contains("mac");
+    }
 
+    @Override
+    public CheckResult check() {
         ProcessRunner.RunResult result = processRunner.run("greadlink", "--version");
         if (result.exitCode() < 0 || result.output() == null) {
-            String msg = "Not found (required on macOS for database import)";
-            return new CheckResult(toolName(), CheckResult.Status.FAIL, msg);
+            return new CheckResult(toolName(), CheckResult.Status.FAIL,
+                    "Not found (required on macOS for database import)");
         }
-
-        String msg = "Found (coreutils)";
-        return new CheckResult(toolName(), CheckResult.Status.OK, msg);
+        return new CheckResult(toolName(), CheckResult.Status.OK, "Found (coreutils)");
     }
 
     @Override

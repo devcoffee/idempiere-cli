@@ -28,11 +28,18 @@ public final class XmlUtils {
     }
 
     /**
-     * Loads an XML document from a file.
+     * Loads an XML document from a file with XXE protection.
      */
     public static Document load(Path file) throws IOException {
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            // Protection against XXE (XML External Entity) attacks
+            factory.setFeature(javax.xml.XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+            factory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_DTD, "");
+            factory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
             DocumentBuilder builder = factory.newDocumentBuilder();
             return builder.parse(file.toFile());
         } catch (ParserConfigurationException | SAXException e) {
@@ -41,14 +48,15 @@ public final class XmlUtils {
     }
 
     /**
-     * Saves an XML document to a file, preserving formatting.
+     * Saves XML with clean formatting.
+     * Use for CREATING new files (templates, new modules).
      */
     public static void save(Document doc, Path file) throws IOException {
         try {
             TransformerFactory transformerFactory = TransformerFactory.newInstance();
             Transformer transformer = transformerFactory.newTransformer();
             transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-            transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "3");
+            transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
             transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no");
             transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
 
@@ -56,6 +64,25 @@ public final class XmlUtils {
             doc.normalize();
             removeEmptyTextNodes(doc.getDocumentElement());
 
+            DOMSource source = new DOMSource(doc);
+            StreamResult result = new StreamResult(file.toFile());
+            transformer.transform(source, result);
+        } catch (TransformerException e) {
+            throw new IOException("Failed to save XML: " + file, e);
+        }
+    }
+
+    /**
+     * Saves XML preserving original formatting as much as possible.
+     * Use for UPDATING existing files (pom.xml, category.xml, feature.xml).
+     */
+    public static void savePreservingFormat(Document doc, Path file) throws IOException {
+        try {
+            TransformerFactory transformerFactory = TransformerFactory.newInstance();
+            Transformer transformer = transformerFactory.newTransformer();
+            transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "no");
+            transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+            // Do NOT set INDENT - preserves original formatting
             DOMSource source = new DOMSource(doc);
             StreamResult result = new StreamResult(file.toFile());
             transformer.transform(source, result);

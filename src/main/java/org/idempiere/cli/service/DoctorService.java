@@ -202,76 +202,45 @@ public class DoctorService {
             if (fix.manualUrl() != null) manualUrls.add(entry.check().toolName() + ": " + fix.manualUrl());
         }
 
-        // SDKMAN! educational message for Java/Maven (non-Windows only)
-        if (!sdkmanPackages.isEmpty() && !os.contains("win")) {
+        // Show what --fix will do (SDKMAN for Java/Maven on non-Windows, system packages for the rest)
+        if (!os.contains("win") && !sdkmanPackages.isEmpty()) {
+            // Remove Java/Maven from system packages since SDKMAN handles them
+            removeJavaMavenPackages(brewPackages);
+            removeJavaMavenPackages(aptPackages);
+            removeJavaMavenPackages(dnfPackages);
+            removeJavaMavenPackages(pacmanPackages);
+
             System.out.println();
-            System.out.println("  " + LIGHTBULB + " Recommended: SDKMAN!");
-            System.out.println("     SDKMAN manages Java/Maven versions and can auto-switch per project.");
-            System.out.println();
-            System.out.println("     Install SDKMAN:");
-            System.out.println("       curl -s \"https://get.sdkman.io\" | bash");
-            System.out.println("       source ~/.sdkman/bin/sdkman-init.sh");
-            System.out.println();
-            System.out.println("     Then install tools:");
+            System.out.println("  " + LIGHTBULB + " --fix will install via SDKMAN (recommended for Java/Maven):");
             for (String pkg : sdkmanPackages) {
-                System.out.println("       sdk install " + pkg);
+                System.out.println("    sdk install " + pkg);
             }
-            System.out.println();
-            System.out.println("     Enable auto-switching (recommended):");
-            System.out.println("       echo \"sdkman_auto_env=true\" >> ~/.sdkman/etc/config");
-            System.out.println();
-            System.out.println("     With auto-switching, SDKMAN reads .sdkmanrc files in projects");
-            System.out.println("     and automatically uses the correct Java/Maven version.");
-            System.out.println();
-            System.out.println("     Learn more: https://sdkman.io/usage");
         }
 
+        // Show remaining system packages (excluding Java/Maven which SDKMAN handles)
         if (os.contains("mac") && (!brewPackages.isEmpty() || !brewCasks.isEmpty())) {
             System.out.println();
-            System.out.println("  Install with Homebrew:");
+            System.out.println("  --fix will install via Homebrew:");
             if (!brewPackages.isEmpty()) {
                 System.out.println("    brew install " + String.join(" ", brewPackages));
             }
             for (String cask : brewCasks) {
                 System.out.println("    brew install --cask " + cask);
             }
+        } else if (os.contains("linux") && !aptPackages.isEmpty()) {
             System.out.println();
-            System.out.println("  Or run: idempiere-cli doctor --fix");
-        } else if (os.contains("linux")) {
-            if (!aptPackages.isEmpty()) {
-                System.out.println();
-                System.out.println("  Debian/Ubuntu:");
-                System.out.println("    sudo apt install " + String.join(" ", aptPackages));
-            }
-            if (!dnfPackages.isEmpty()) {
-                System.out.println();
-                System.out.println("  Fedora/RHEL:");
-                System.out.println("    sudo dnf install " + String.join(" ", dnfPackages));
-            }
-            if (!pacmanPackages.isEmpty()) {
-                System.out.println();
-                System.out.println("  Arch:");
-                System.out.println("    sudo pacman -S " + String.join(" ", pacmanPackages));
-            }
-            System.out.println();
-            System.out.println("  Or run: idempiere-cli doctor --fix");
+            System.out.println("  --fix will install via apt:");
+            System.out.println("    sudo apt install " + String.join(" ", aptPackages));
         } else if (os.contains("win") && !wingetPackages.isEmpty()) {
             System.out.println();
-            System.out.println("  Install with winget:");
+            System.out.println("  --fix will install via winget:");
             for (String pkg : wingetPackages) {
                 System.out.println("    winget install " + pkg);
             }
-            System.out.println();
-            System.out.println("  Or run: idempiere-cli doctor --fix");
         }
 
-        if (!manualUrls.isEmpty()) {
-            System.out.println();
-            System.out.println("  Manual install:");
-            for (String url : manualUrls) {
-                System.out.println("    " + url);
-            }
-        }
+        System.out.println();
+        System.out.println("  Run: idempiere-cli doctor --fix");
 
         // Handle Docker specifically (optional tool with special messages)
         CheckEntry dockerEntry = entries.stream()
@@ -339,16 +308,21 @@ public class DoctorService {
             if (fix.wingetPackage() != null) wingetPackages.add(fix.wingetPackage());
         }
 
-        // Try SDKMAN first for Java/Maven on non-Windows systems
-        boolean sdkmanSuccess = false;
+        // Use SDKMAN for Java/Maven on non-Windows systems (no fallback to system packages)
         if (!os.contains("win") && !sdkmanPackages.isEmpty()) {
-            sdkmanSuccess = runAutoFixSdkman(sdkmanPackages);
-            if (sdkmanSuccess) {
-                // Remove Java/Maven related packages from system package managers
-                removeJavaMavenPackages(brewPackages);
-                removeJavaMavenPackages(aptPackages);
-                removeJavaMavenPackages(dnfPackages);
-                removeJavaMavenPackages(pacmanPackages);
+            // Always remove Java/Maven from system packages - SDKMAN is the only way
+            removeJavaMavenPackages(brewPackages);
+            removeJavaMavenPackages(aptPackages);
+            removeJavaMavenPackages(dnfPackages);
+            removeJavaMavenPackages(pacmanPackages);
+
+            if (!runAutoFixSdkman(sdkmanPackages)) {
+                System.out.println();
+                System.out.println("ERROR: Failed to install Java/Maven via SDKMAN.");
+                System.out.println("Please install SDKMAN manually:");
+                System.out.println("  curl -s \"https://get.sdkman.io\" | bash");
+                System.out.println("  source ~/.sdkman/bin/sdkman-init.sh");
+                System.out.println("  sdk install java 21-tem");
             }
         }
 
@@ -503,19 +477,24 @@ public class DoctorService {
             System.out.println("SDKMAN not found. Installing SDKMAN first...");
             System.out.println();
 
+            // Install prerequisites (zip/unzip) if missing
+            if (!installSdkmanPrerequisites()) {
+                System.out.println("Failed to install SDKMAN prerequisites (zip, unzip, curl).");
+                return false;
+            }
+
             // Install SDKMAN
             int exitCode = processRunner.runLive("bash", "-c",
                     "curl -s \"https://get.sdkman.io\" | bash");
 
             if (exitCode != 0) {
-                System.out.println("Failed to install SDKMAN. Falling back to system packages.");
+                System.out.println("Failed to install SDKMAN.");
                 return false;
             }
 
             // Verify installation
             if (!Files.exists(sdkmanInit)) {
                 System.out.println("SDKMAN installation completed but init script not found.");
-                System.out.println("Falling back to system packages.");
                 return false;
             }
 
@@ -549,6 +528,60 @@ public class DoctorService {
         }
 
         return allSuccess;
+    }
+
+    /**
+     * Install SDKMAN prerequisites (zip, unzip, curl).
+     * @return true if prerequisites are available or were installed successfully
+     */
+    private boolean installSdkmanPrerequisites() {
+        boolean hasZip = processRunner.isAvailable("zip");
+        boolean hasUnzip = processRunner.isAvailable("unzip");
+        boolean hasCurl = processRunner.isAvailable("curl");
+
+        if (hasZip && hasUnzip && hasCurl) {
+            return true;
+        }
+
+        List<String> missing = new ArrayList<>();
+        if (!hasZip) missing.add("zip");
+        if (!hasUnzip) missing.add("unzip");
+        if (!hasCurl) missing.add("curl");
+
+        System.out.println("Installing SDKMAN prerequisites: " + String.join(", ", missing));
+
+        boolean isRoot = isRunningAsRoot();
+        List<String> command = new ArrayList<>();
+
+        if (processRunner.isAvailable("apt")) {
+            if (!isRoot) command.add("sudo");
+            command.add("apt");
+            command.add("install");
+            command.add("-y");
+            command.addAll(missing);
+        } else if (processRunner.isAvailable("dnf")) {
+            if (!isRoot) command.add("sudo");
+            command.add("dnf");
+            command.add("install");
+            command.add("-y");
+            command.addAll(missing);
+        } else if (processRunner.isAvailable("pacman")) {
+            if (!isRoot) command.add("sudo");
+            command.add("pacman");
+            command.add("-S");
+            command.add("--noconfirm");
+            command.addAll(missing);
+        } else if (processRunner.isAvailable("brew")) {
+            command.add("brew");
+            command.add("install");
+            command.addAll(missing);
+        } else {
+            System.out.println("No package manager found to install prerequisites.");
+            return false;
+        }
+
+        int exitCode = processRunner.runLive(command.toArray(new String[0]));
+        return exitCode == 0;
     }
 
     /**

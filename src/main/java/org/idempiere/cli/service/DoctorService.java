@@ -18,7 +18,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -35,11 +37,24 @@ public class DoctorService {
     record CheckEntry(EnvironmentCheck check, CheckResult result) {}
 
     private static final boolean IS_WINDOWS = System.getProperty("os.name", "").toLowerCase().contains("win");
+    private static final boolean USE_ASCII = shouldUseAscii();
 
-    // Use ASCII on Windows to avoid encoding issues
-    private static final String CHECK_MARK = IS_WINDOWS ? "[OK]" : "\u2714";
-    private static final String CROSS = IS_WINDOWS ? "[FAIL]" : "\u2718";
-    private static final String WARN_MARK = IS_WINDOWS ? "[WARN]" : "\u26A0";
+    // Use ASCII when Unicode might not render properly
+    private static final String CHECK_MARK = USE_ASCII ? "[OK]" : "\u2714";
+    private static final String CROSS = USE_ASCII ? "[FAIL]" : "\u2718";
+    private static final String WARN_MARK = USE_ASCII ? "[WARN]" : "\u26A0";
+    private static final String LIGHTBULB = USE_ASCII ? "[TIP]" : "\uD83D\uDCA1";
+
+    private static boolean shouldUseAscii() {
+        if (IS_WINDOWS) return true;
+        // Check for dumb terminal or non-interactive session
+        String term = System.getenv("TERM");
+        if (term == null || "dumb".equals(term)) return true;
+        // SSH sessions without proper locale often can't render Unicode
+        String lang = System.getenv("LANG");
+        if (lang == null || (!lang.contains("UTF-8") && !lang.contains("utf8"))) return true;
+        return false;
+    }
 
     @Inject
     ProcessRunner processRunner;
@@ -163,15 +178,15 @@ public class DoctorService {
         System.out.println("Fix Suggestions");
         System.out.println("---------------");
 
-        // Collect packages by package manager from FixSuggestion
-        List<String> sdkmanPackages = new ArrayList<>();
-        List<String> brewPackages = new ArrayList<>();
-        List<String> brewCasks = new ArrayList<>();
-        List<String> aptPackages = new ArrayList<>();
-        List<String> dnfPackages = new ArrayList<>();
-        List<String> pacmanPackages = new ArrayList<>();
-        List<String> wingetPackages = new ArrayList<>();
-        List<String> manualUrls = new ArrayList<>();
+        // Collect packages by package manager from FixSuggestion (use Set to avoid duplicates)
+        Set<String> sdkmanPackages = new LinkedHashSet<>();
+        Set<String> brewPackages = new LinkedHashSet<>();
+        Set<String> brewCasks = new LinkedHashSet<>();
+        Set<String> aptPackages = new LinkedHashSet<>();
+        Set<String> dnfPackages = new LinkedHashSet<>();
+        Set<String> pacmanPackages = new LinkedHashSet<>();
+        Set<String> wingetPackages = new LinkedHashSet<>();
+        Set<String> manualUrls = new LinkedHashSet<>();
 
         for (CheckEntry entry : failed) {
             EnvironmentCheck.FixSuggestion fix = entry.check().getFixSuggestion(os);
@@ -190,8 +205,7 @@ public class DoctorService {
         // SDKMAN! educational message for Java/Maven (non-Windows only)
         if (!sdkmanPackages.isEmpty() && !os.contains("win")) {
             System.out.println();
-            String lightbulb = IS_WINDOWS ? "[TIP]" : "\uD83D\uDCA1";
-            System.out.println("  " + lightbulb + " Recommended: SDKMAN!");
+            System.out.println("  " + LIGHTBULB + " Recommended: SDKMAN!");
             System.out.println("     SDKMAN manages Java/Maven versions and can auto-switch per project.");
             System.out.println();
             System.out.println("     Install SDKMAN:");
@@ -299,13 +313,14 @@ public class DoctorService {
         System.out.println("Attempting automatic fix...");
         System.out.println();
 
-        // Collect packages to install from FixSuggestion
-        List<String> brewPackages = new ArrayList<>();
-        List<String> brewCasks = new ArrayList<>();
-        List<String> aptPackages = new ArrayList<>();
-        List<String> dnfPackages = new ArrayList<>();
-        List<String> pacmanPackages = new ArrayList<>();
-        List<String> wingetPackages = new ArrayList<>();
+        // Collect packages to install from FixSuggestion (use Set to avoid duplicates)
+        Set<String> sdkmanPackages = new LinkedHashSet<>();
+        Set<String> brewPackages = new LinkedHashSet<>();
+        Set<String> brewCasks = new LinkedHashSet<>();
+        Set<String> aptPackages = new LinkedHashSet<>();
+        Set<String> dnfPackages = new LinkedHashSet<>();
+        Set<String> pacmanPackages = new LinkedHashSet<>();
+        Set<String> wingetPackages = new LinkedHashSet<>();
 
         for (CheckEntry entry : entries) {
             CheckResult result = entry.result();
@@ -315,12 +330,26 @@ public class DoctorService {
             EnvironmentCheck.FixSuggestion fix = entry.check().getFixSuggestion(os);
             if (fix == null) continue;
 
+            if (fix.sdkmanPackage() != null) sdkmanPackages.add(fix.sdkmanPackage());
             if (fix.brewPackage() != null) brewPackages.add(fix.brewPackage());
             if (fix.brewCask() != null) brewCasks.add(fix.brewCask());
             if (fix.aptPackage() != null) aptPackages.add(fix.aptPackage());
             if (fix.dnfPackage() != null) dnfPackages.add(fix.dnfPackage());
             if (fix.pacmanPackage() != null) pacmanPackages.add(fix.pacmanPackage());
             if (fix.wingetPackage() != null) wingetPackages.add(fix.wingetPackage());
+        }
+
+        // Try SDKMAN first for Java/Maven on non-Windows systems
+        boolean sdkmanSuccess = false;
+        if (!os.contains("win") && !sdkmanPackages.isEmpty()) {
+            sdkmanSuccess = runAutoFixSdkman(sdkmanPackages);
+            if (sdkmanSuccess) {
+                // Remove Java/Maven related packages from system package managers
+                removeJavaMavenPackages(brewPackages);
+                removeJavaMavenPackages(aptPackages);
+                removeJavaMavenPackages(dnfPackages);
+                removeJavaMavenPackages(pacmanPackages);
+            }
         }
 
         if (os.contains("mac")) {
@@ -335,7 +364,7 @@ public class DoctorService {
         }
     }
 
-    private void runAutoFixMac(List<String> brewPackages, List<String> brewCasks,
+    private void runAutoFixMac(Set<String> brewPackages, Set<String> brewCasks,
                                List<CheckEntry> entries, boolean fixOptional) {
         if (!processRunner.isAvailable("brew")) {
             System.out.println("Homebrew not found. Install it first:");
@@ -378,10 +407,10 @@ public class DoctorService {
         }
     }
 
-    private void runAutoFixLinux(List<String> aptPackages, List<String> dnfPackages,
-                                 List<String> pacmanPackages, List<CheckEntry> entries, boolean fixOptional) {
+    private void runAutoFixLinux(Set<String> aptPackages, Set<String> dnfPackages,
+                                 Set<String> pacmanPackages, List<CheckEntry> entries, boolean fixOptional) {
         String pkgManager = null;
-        List<String> packages = null;
+        Set<String> packages = null;
 
         if (processRunner.isAvailable("apt") && !aptPackages.isEmpty()) {
             pkgManager = "apt";
@@ -437,7 +466,7 @@ public class DoctorService {
         }
     }
 
-    private void runAutoFixWindows(List<String> wingetPackages, List<CheckEntry> entries, boolean fixOptional) {
+    private void runAutoFixWindows(Set<String> wingetPackages, List<CheckEntry> entries, boolean fixOptional) {
         if (!processRunner.isAvailable("winget")) {
             System.out.println("winget not found. Install from: https://aka.ms/getwinget");
             return;
@@ -456,6 +485,94 @@ public class DoctorService {
 
         System.out.println();
         System.out.println("Installation complete. Restart your terminal and run 'idempiere-cli doctor' to verify.");
+    }
+
+    /**
+     * Install packages using SDKMAN.
+     * @return true if SDKMAN was used successfully, false if SDKMAN is not available
+     */
+    private boolean runAutoFixSdkman(Set<String> sdkmanPackages) {
+        if (sdkmanPackages.isEmpty()) {
+            return false;
+        }
+
+        Path sdkmanDir = getSdkmanDir();
+        Path sdkmanInit = sdkmanDir.resolve("bin/sdkman-init.sh");
+
+        if (!Files.exists(sdkmanInit)) {
+            System.out.println("SDKMAN not found. Installing SDKMAN first...");
+            System.out.println();
+
+            // Install SDKMAN
+            int exitCode = processRunner.runLive("bash", "-c",
+                    "curl -s \"https://get.sdkman.io\" | bash");
+
+            if (exitCode != 0) {
+                System.out.println("Failed to install SDKMAN. Falling back to system packages.");
+                return false;
+            }
+
+            // Verify installation
+            if (!Files.exists(sdkmanInit)) {
+                System.out.println("SDKMAN installation completed but init script not found.");
+                System.out.println("Falling back to system packages.");
+                return false;
+            }
+
+            System.out.println();
+            System.out.println("SDKMAN installed successfully!");
+            System.out.println();
+        }
+
+        System.out.println("Installing packages with SDKMAN...");
+
+        boolean allSuccess = true;
+        for (String pkg : sdkmanPackages) {
+            System.out.println("  Installing " + pkg + "...");
+
+            // Run sdk install within a bash shell that sources SDKMAN
+            String command = String.format(
+                    "source \"%s\" && sdk install %s <<< 'Y'",
+                    sdkmanInit, pkg);
+
+            int exitCode = processRunner.runLive("bash", "-c", command);
+            if (exitCode != 0) {
+                System.out.println("  Warning: Failed to install " + pkg);
+                allSuccess = false;
+            }
+        }
+
+        if (allSuccess) {
+            System.out.println();
+            System.out.println("SDKMAN packages installed successfully!");
+            System.out.println("Note: Run 'source ~/.sdkman/bin/sdkman-init.sh' or restart your terminal.");
+        }
+
+        return allSuccess;
+    }
+
+    /**
+     * Get the SDKMAN directory path.
+     */
+    private Path getSdkmanDir() {
+        String sdkmanDir = System.getenv("SDKMAN_DIR");
+        if (sdkmanDir != null && !sdkmanDir.isEmpty()) {
+            return Path.of(sdkmanDir);
+        }
+        return Path.of(System.getProperty("user.home"), ".sdkman");
+    }
+
+    /**
+     * Remove Java and Maven related packages from the set.
+     * These are handled by SDKMAN instead.
+     */
+    private void removeJavaMavenPackages(Set<String> packages) {
+        packages.removeIf(pkg ->
+                pkg.contains("java") ||
+                pkg.contains("jdk") ||
+                pkg.contains("openjdk") ||
+                pkg.contains("maven") ||
+                pkg.contains("temurin"));
     }
 
     /**

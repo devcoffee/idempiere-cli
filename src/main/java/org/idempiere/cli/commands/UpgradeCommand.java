@@ -224,13 +224,33 @@ public class UpgradeCommand implements Runnable {
 
     private Path findCurrentBinary() {
         // Try to find the current binary location
-        // 1. Check if running from a known location
+        // 1. Check if running from a known location (GraalVM native image)
         String binaryPath = System.getProperty("org.graalvm.nativeimage.imagelocation");
         if (binaryPath != null) {
             return Path.of(binaryPath);
         }
 
-        // 2. Try common installation paths
+        // 2. Try ProcessHandle to get current process command
+        try {
+            var command = ProcessHandle.current().info().command();
+            if (command.isPresent()) {
+                Path cmdPath = Path.of(command.get());
+                if (Files.exists(cmdPath) && cmdPath.getFileName().toString().contains("idempiere-cli")) {
+                    return cmdPath;
+                }
+            }
+        } catch (Exception ignored) {
+            // ProcessHandle may not work in all environments
+        }
+
+        // 3. Check current working directory
+        String binaryName = isWindows() ? "idempiere-cli.exe" : "idempiere-cli";
+        Path cwdBinary = Path.of(System.getProperty("user.dir"), binaryName);
+        if (Files.exists(cwdBinary)) {
+            return cwdBinary;
+        }
+
+        // 4. Try common installation paths
         String[] commonPaths = {
                 "/usr/local/bin/idempiere-cli",
                 System.getProperty("user.home") + "/.local/bin/idempiere-cli",
@@ -246,8 +266,21 @@ public class UpgradeCommand implements Runnable {
             }
         }
 
-        // 3. Try 'which' command on Unix
-        if (!isWindows()) {
+        // 5. Try 'which' command on Unix or 'where' on Windows
+        if (isWindows()) {
+            ProcessRunner.RunResult result = processRunner.run("where.exe", "idempiere-cli");
+            if (result.isSuccess() && !result.output().isBlank()) {
+                // 'where' may return multiple paths, take the first one
+                String firstPath = result.output().trim().split("\\r?\\n")[0];
+                return Path.of(firstPath);
+            }
+            // Also try with .exe extension
+            result = processRunner.run("where.exe", "idempiere-cli.exe");
+            if (result.isSuccess() && !result.output().isBlank()) {
+                String firstPath = result.output().trim().split("\\r?\\n")[0];
+                return Path.of(firstPath);
+            }
+        } else {
             ProcessRunner.RunResult result = processRunner.run("which", "idempiere-cli");
             if (result.isSuccess() && !result.output().isBlank()) {
                 return Path.of(result.output().trim());

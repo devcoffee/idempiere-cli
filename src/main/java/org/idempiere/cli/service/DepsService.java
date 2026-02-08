@@ -1,6 +1,7 @@
 package org.idempiere.cli.service;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import org.idempiere.cli.util.CliOutput;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -20,10 +21,6 @@ import java.util.stream.Stream;
  */
 @ApplicationScoped
 public class DepsService {
-
-    private static final boolean IS_WINDOWS = System.getProperty("os.name", "").toLowerCase().contains("win");
-    private static final String CHECK = IS_WINDOWS ? "[OK]" : "\u2714";
-    private static final String CROSS = IS_WINDOWS ? "[FAIL]" : "\u2718";
 
     private static final Map<String, List<String>> BUNDLE_PACKAGES = Map.of(
             "org.adempiere.base", List.of("org.compiere.", "org.adempiere.base.", "org.adempiere.model.", "org.idempiere."),
@@ -87,8 +84,12 @@ public class DepsService {
             System.out.println("  (none detected)");
         } else {
             for (var entry : usedBundles.entrySet()) {
-                String status = declaredBundles.contains(entry.getKey()) ? "  " + CHECK : "  " + CROSS;
-                System.out.println(status + "  " + entry.getKey() + " (" + entry.getValue().size() + " imports)");
+                String bundle = entry.getKey() + " (" + entry.getValue().size() + " imports)";
+                if (declaredBundles.contains(entry.getKey())) {
+                    System.out.println("  " + CliOutput.ok(bundle));
+                } else {
+                    System.out.println("  " + CliOutput.fail(bundle));
+                }
             }
         }
         System.out.println();

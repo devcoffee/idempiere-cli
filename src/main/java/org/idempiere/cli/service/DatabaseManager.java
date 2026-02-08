@@ -15,7 +15,19 @@ import java.util.Map;
 @ApplicationScoped
 public class DatabaseManager {
 
-    private static final boolean IS_WINDOWS = System.getProperty("os.name", "").toLowerCase().contains("win");
+    private static final String OS_NAME = System.getProperty("os.name", "").toLowerCase();
+    private static final boolean IS_WINDOWS = OS_NAME.contains("win");
+    private static final boolean IS_LINUX = OS_NAME.contains("linux") || OS_NAME.contains("nix");
+
+    /** Docker daemon status. */
+    public enum DockerStatus {
+        /** Docker is running and accessible. */
+        RUNNING,
+        /** Docker is installed but not running. */
+        NOT_RUNNING,
+        /** Docker is installed but user lacks permission (not in docker group). */
+        PERMISSION_DENIED
+    }
 
     @Inject
     ProcessRunner processRunner;
@@ -91,25 +103,9 @@ public class DatabaseManager {
 
     public boolean createDockerPostgres(SetupConfig config) {
         // First, check if Docker daemon is running
-        if (!isDockerRunning()) {
-            System.err.println("  Docker is not running.");
-            System.err.println();
-            System.err.println("  Troubleshooting:");
-            String os = System.getProperty("os.name", "").toLowerCase();
-            if (os.contains("mac")) {
-                System.err.println("    1. Start Docker Desktop: open -a Docker");
-                System.err.println("    2. Wait for Docker to finish starting (icon stops animating)");
-                System.err.println("    3. Run this command again");
-            } else if (os.contains("linux")) {
-                System.err.println("    1. Start Docker daemon: sudo systemctl start docker");
-                System.err.println("    2. Ensure your user is in the docker group: sudo usermod -aG docker $USER");
-                System.err.println("    3. Run this command again");
-            } else {
-                System.err.println("    1. Start Docker Desktop");
-                System.err.println("    2. Wait for Docker to finish starting");
-                System.err.println("    3. Run this command again");
-            }
-            System.err.println();
+        DockerStatus status = getDockerStatus();
+        if (status != DockerStatus.RUNNING) {
+            printDockerError(status);
             return false;
         }
 
@@ -162,25 +158,9 @@ public class DatabaseManager {
 
     public boolean createDockerOracle(SetupConfig config) {
         // First, check if Docker daemon is running
-        if (!isDockerRunning()) {
-            System.err.println("  Docker is not running.");
-            System.err.println();
-            System.err.println("  Troubleshooting:");
-            String os = System.getProperty("os.name", "").toLowerCase();
-            if (os.contains("mac")) {
-                System.err.println("    1. Start Docker Desktop: open -a Docker");
-                System.err.println("    2. Wait for Docker to finish starting (icon stops animating)");
-                System.err.println("    3. Run this command again");
-            } else if (os.contains("linux")) {
-                System.err.println("    1. Start Docker daemon: sudo systemctl start docker");
-                System.err.println("    2. Ensure your user is in the docker group: sudo usermod -aG docker $USER");
-                System.err.println("    3. Run this command again");
-            } else {
-                System.err.println("    1. Start Docker Desktop");
-                System.err.println("    2. Wait for Docker to finish starting");
-                System.err.println("    3. Run this command again");
-            }
-            System.err.println();
+        DockerStatus status = getDockerStatus();
+        if (status != DockerStatus.RUNNING) {
+            printDockerError(status);
             return false;
         }
 
@@ -706,8 +686,62 @@ public class DatabaseManager {
     }
 
     public boolean isDockerRunning() {
+        return getDockerStatus() == DockerStatus.RUNNING;
+    }
+
+    /**
+     * Check Docker daemon status with detailed information.
+     * @return the current Docker status
+     */
+    public DockerStatus getDockerStatus() {
         ProcessRunner.RunResult result = processRunner.run("docker", "info");
-        return result.isSuccess();
+        if (result.isSuccess()) {
+            return DockerStatus.RUNNING;
+        }
+
+        // On Linux, check if it's a permission issue (user not in docker group)
+        if (IS_LINUX) {
+            String output = result.output();
+            if (output != null && (
+                    output.contains("permission denied") ||
+                    output.contains("Permission denied") ||
+                    output.contains("Got permission denied") ||
+                    output.contains("connect: permission denied"))) {
+                return DockerStatus.PERMISSION_DENIED;
+            }
+        }
+
+        return DockerStatus.NOT_RUNNING;
+    }
+
+    /**
+     * Print appropriate error message based on Docker status.
+     */
+    public void printDockerError(DockerStatus status) {
+        if (status == DockerStatus.PERMISSION_DENIED) {
+            System.err.println("  Docker permission denied.");
+            System.err.println();
+            System.err.println("  Your user is not in the 'docker' group. To fix:");
+            System.err.println("    sudo usermod -aG docker $USER");
+            System.err.println("    newgrp docker");
+            System.err.println();
+            System.err.println("  Then run this command again.");
+        } else {
+            System.err.println("  Docker is not running.");
+            System.err.println();
+            if (OS_NAME.contains("mac")) {
+                System.err.println("  Start Docker Desktop:");
+                System.err.println("    open -a Docker");
+            } else if (IS_LINUX) {
+                System.err.println("  Start Docker daemon:");
+                System.err.println("    sudo systemctl start docker");
+            } else {
+                System.err.println("  Start Docker Desktop and wait for it to finish starting.");
+            }
+            System.err.println();
+            System.err.println("  Then run this command again.");
+        }
+        System.err.println();
     }
 
     private int findAvailablePort(int preferred, int fallback) {

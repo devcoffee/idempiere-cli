@@ -1,6 +1,7 @@
 package org.idempiere.cli.service;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import org.idempiere.cli.util.CliOutput;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -41,12 +42,12 @@ public class ValidateService {
     public record ValidationIssue(Severity severity, String file, String message) {
         @Override
         public String toString() {
-            String icon = switch (severity) {
-                case ERROR -> "✗";
-                case WARNING -> "⚠";
-                case INFO -> "ℹ";
+            String content = String.format("[%s] %s: %s", severity, file, message);
+            return "  " + switch (severity) {
+                case ERROR -> CliOutput.err(content);
+                case WARNING -> CliOutput.warn(content);
+                case INFO -> CliOutput.info(content);
             };
-            return String.format("  %s [%s] %s: %s", icon, severity, file, message);
         }
     }
 

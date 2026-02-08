@@ -16,7 +16,9 @@ import java.util.regex.Pattern;
 public class DockerCheck implements EnvironmentCheck {
 
     private static final Pattern VERSION_PATTERN = Pattern.compile("Docker version (\\S+)");
-    private static final boolean IS_WINDOWS = System.getProperty("os.name", "").toLowerCase().contains("win");
+    private static final String OS_NAME = System.getProperty("os.name", "").toLowerCase();
+    private static final boolean IS_WINDOWS = OS_NAME.contains("win");
+    private static final boolean IS_LINUX = OS_NAME.contains("linux") || OS_NAME.contains("nix");
 
     @Inject
     ProcessRunner processRunner;
@@ -45,19 +47,39 @@ public class DockerCheck implements EnvironmentCheck {
             version = "Version " + matcher.group(1);
         }
 
-        // Check if daemon is running
+        // Check if daemon is running/accessible
         ProcessRunner.RunResult infoResult = processRunner.run("docker", "info");
         if (!infoResult.isSuccess()) {
             if (IS_WINDOWS && !isDockerDesktopInstalled()) {
                 String msg = "CLI found (possibly from WSL) but Docker Desktop is not installed (optional)";
                 return new CheckResult(toolName(), CheckResult.Status.WARN, msg);
             }
+
+            // On Linux, check if user is in docker group (permission issue vs daemon not running)
+            if (IS_LINUX && isPermissionDenied(infoResult)) {
+                String msg = version + " installed, but user not in docker group (run: sudo usermod -aG docker $USER)";
+                return new CheckResult(toolName(), CheckResult.Status.WARN, msg);
+            }
+
             String msg = version + " installed, but daemon is not running";
             return new CheckResult(toolName(), CheckResult.Status.WARN, msg);
         }
 
         String msg = version + " detected, daemon running";
         return new CheckResult(toolName(), CheckResult.Status.OK, msg);
+    }
+
+    /**
+     * Check if the docker info failure is due to permission denied (socket access).
+     */
+    private boolean isPermissionDenied(ProcessRunner.RunResult result) {
+        String output = result.output();
+        if (output == null) return false;
+        // stderr is merged with stdout via redirectErrorStream(true)
+        return output.contains("permission denied") ||
+               output.contains("Permission denied") ||
+               output.contains("Got permission denied") ||
+               output.contains("connect: permission denied");
     }
 
     private boolean isDockerDesktopInstalled() {

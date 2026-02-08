@@ -7,6 +7,7 @@ import org.idempiere.cli.service.check.CheckResult;
 import org.idempiere.cli.service.check.CheckResult.Status;
 import org.idempiere.cli.service.check.EnvironmentCheck;
 import org.idempiere.cli.service.check.PluginCheck;
+import org.idempiere.cli.util.CliOutput;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,26 +36,6 @@ public class DoctorService {
 
     /** Links a check result with its originating check for fix suggestions. */
     record CheckEntry(EnvironmentCheck check, CheckResult result) {}
-
-    private static final boolean IS_WINDOWS = System.getProperty("os.name", "").toLowerCase().contains("win");
-    private static final boolean USE_ASCII = shouldUseAscii();
-
-    // Use ASCII when Unicode might not render properly
-    private static final String CHECK_MARK = USE_ASCII ? "[OK]" : "\u2714";
-    private static final String CROSS = USE_ASCII ? "[FAIL]" : "\u2718";
-    private static final String WARN_MARK = USE_ASCII ? "[WARN]" : "\u26A0";
-    private static final String LIGHTBULB = USE_ASCII ? "[TIP]" : "\uD83D\uDCA1";
-
-    private static boolean shouldUseAscii() {
-        if (IS_WINDOWS) return true;
-        // Check for dumb terminal or non-interactive session
-        String term = System.getenv("TERM");
-        if (term == null || "dumb".equals(term)) return true;
-        // SSH sessions without proper locale often can't render Unicode
-        String lang = System.getenv("LANG");
-        if (lang == null || (!lang.contains("UTF-8") && !lang.contains("utf8"))) return true;
-        return false;
-    }
 
     @Inject
     ProcessRunner processRunner;
@@ -153,12 +134,13 @@ public class DoctorService {
     }
 
     private void printResult(CheckResult result) {
-        String icon = switch (result.status()) {
-            case OK -> CHECK_MARK;
-            case WARN -> WARN_MARK;
-            case FAIL -> CROSS;
+        String line = String.format("%-15s %s", result.tool(), result.message());
+        String output = switch (result.status()) {
+            case OK -> CliOutput.ok(line);
+            case WARN -> CliOutput.warn(line);
+            case FAIL -> CliOutput.fail(line);
         };
-        System.out.printf("  %s  %-15s %s%n", icon, result.tool(), result.message());
+        System.out.println("  " + output);
     }
 
     private void printFixSuggestions(List<CheckEntry> entries) {
@@ -211,7 +193,7 @@ public class DoctorService {
             removeJavaMavenPackages(pacmanPackages);
 
             System.out.println();
-            System.out.println("  " + LIGHTBULB + " --fix will install via SDKMAN (recommended for Java/Maven):");
+            System.out.println("  " + CliOutput.tip("--fix will install via SDKMAN (recommended for Java/Maven):"));
             for (String pkg : sdkmanPackages) {
                 System.out.println("    sdk install " + pkg);
             }

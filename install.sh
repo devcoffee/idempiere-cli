@@ -118,6 +118,20 @@ install() {
         info "Installation successful!"
         echo ""
 
+        # On Windows, check if VC++ Runtime is available by trying to run the binary
+        if [ "$os" = "windows" ]; then
+            if ! "$target_file" --version &> /dev/null; then
+                warn "The binary requires Visual C++ Redistributable to run."
+                echo ""
+                echo "Install it with:"
+                echo ""
+                echo "  winget install Microsoft.VCRedist.2015+.x64"
+                echo ""
+                echo "Or download from: https://aka.ms/vs/17/release/vc_redist.x64.exe"
+                echo ""
+            fi
+        fi
+
         # Check if directory is in PATH
         if [[ ":$PATH:" != *":${target_dir}:"* ]]; then
             warn "${target_dir} is not in your PATH"

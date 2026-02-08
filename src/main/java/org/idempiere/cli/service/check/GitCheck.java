@@ -26,7 +26,7 @@ public class GitCheck implements EnvironmentCheck {
     @Override
     public CheckResult check() {
         ProcessRunner.RunResult result = processRunner.run("git", "--version");
-        if (result.exitCode() < 0 || result.output() == null) {
+        if (result.exitCode() != 0 || result.output() == null) {
             String msg = "Not found";
             return new CheckResult(toolName(), CheckResult.Status.FAIL, msg);
         }

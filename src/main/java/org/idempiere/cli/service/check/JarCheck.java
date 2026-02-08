@@ -21,7 +21,7 @@ public class JarCheck implements EnvironmentCheck {
     @Override
     public CheckResult check() {
         ProcessRunner.RunResult result = processRunner.run("jar", "--version");
-        if (result.exitCode() < 0 || result.output() == null) {
+        if (result.exitCode() != 0 || result.output() == null) {
             String msg = "Not found (required for database seed extraction)";
             return new CheckResult(toolName(), CheckResult.Status.FAIL, msg);
         }

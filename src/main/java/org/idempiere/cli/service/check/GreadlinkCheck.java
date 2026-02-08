@@ -27,7 +27,7 @@ public class GreadlinkCheck implements EnvironmentCheck {
     @Override
     public CheckResult check() {
         ProcessRunner.RunResult result = processRunner.run("greadlink", "--version");
-        if (result.exitCode() < 0 || result.output() == null) {
+        if (result.exitCode() != 0 || result.output() == null) {
             return new CheckResult(toolName(), CheckResult.Status.FAIL,
                     "Not found (required on macOS for database import)");
         }

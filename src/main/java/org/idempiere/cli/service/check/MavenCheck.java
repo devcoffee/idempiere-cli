@@ -37,7 +37,7 @@ public class MavenCheck implements EnvironmentCheck {
         // On Windows, use mvn.cmd explicitly to avoid issues with mvn.exe launcher
         String mvnCmd = IS_WINDOWS ? "mvn.cmd" : "mvn";
         ProcessRunner.RunResult result = processRunner.run(mvnCmd, "-version");
-        if (result.exitCode() < 0 || result.output() == null) {
+        if (result.exitCode() != 0 || result.output() == null) {
             String msg = "Not found (optional: projects use mvnw wrapper)";
             return new CheckResult(toolName(), CheckResult.Status.WARN, msg);
         }

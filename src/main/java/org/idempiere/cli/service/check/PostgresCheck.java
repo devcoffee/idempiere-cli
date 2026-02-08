@@ -27,7 +27,7 @@ public class PostgresCheck implements EnvironmentCheck {
     @Override
     public CheckResult check() {
         ProcessRunner.RunResult result = processRunner.run("psql", "--version");
-        if (result.exitCode() < 0 || result.output() == null) {
+        if (result.exitCode() != 0 || result.output() == null) {
             String msg = "psql client not found (required for database import)";
             return new CheckResult(toolName(), CheckResult.Status.FAIL, msg);
         }

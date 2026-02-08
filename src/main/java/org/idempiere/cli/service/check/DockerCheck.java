@@ -36,7 +36,7 @@ public class DockerCheck implements EnvironmentCheck {
     @Override
     public CheckResult check() {
         ProcessRunner.RunResult result = processRunner.run("docker", "--version");
-        if (result.exitCode() < 0 || result.output() == null) {
+        if (result.exitCode() != 0 || result.output() == null) {
             String msg = "Not found (optional)";
             return new CheckResult(toolName(), CheckResult.Status.WARN, msg);
         }

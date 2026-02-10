@@ -336,12 +336,14 @@ public class DoctorService {
             command.add("brew");
             command.add("install");
             command.addAll(brewPackages);
-            exitCode = processRunner.runLive(command.toArray(new String[0]));
+            // Use no timeout for package installations which can take a long time
+            exitCode = processRunner.runLiveNoTimeout(command.toArray(new String[0]));
         }
 
         for (String cask : brewCasks) {
             System.out.println("Installing " + cask + " with Homebrew Cask...");
-            int caskExit = processRunner.runLive("brew", "install", "--cask", cask);
+            // Use no timeout for package installations which can take a long time
+            int caskExit = processRunner.runLiveNoTimeout("brew", "install", "--cask", cask);
             if (caskExit != 0) exitCode = caskExit;
         }
 
@@ -398,7 +400,8 @@ public class DoctorService {
         command.addAll(packages);
 
         System.out.println("Installing packages with " + pkgManager + "...");
-        int exitCode = processRunner.runLive(command.toArray(new String[0]));
+        // Use no timeout for package installations which can take a long time
+        int exitCode = processRunner.runLiveNoTimeout(command.toArray(new String[0]));
 
         // Handle Docker daemon
         CheckEntry dockerEntry = entries.stream()
@@ -436,7 +439,8 @@ public class DoctorService {
         System.out.println("Installing packages with winget...");
         for (String pkg : wingetPackages) {
             System.out.println("  Installing " + pkg + "...");
-            processRunner.runLive("winget", "install", "--accept-package-agreements", pkg);
+            // Use no timeout for package installations which can take a long time
+            processRunner.runLiveNoTimeout("winget", "install", "--accept-package-agreements", pkg);
         }
 
         System.out.println();
@@ -465,8 +469,8 @@ public class DoctorService {
                 return false;
             }
 
-            // Install SDKMAN
-            int exitCode = processRunner.runLive("bash", "-c",
+            // Install SDKMAN (no timeout for network downloads)
+            int exitCode = processRunner.runLiveNoTimeout("bash", "-c",
                     "curl -s \"https://get.sdkman.io\" | bash");
 
             if (exitCode != 0) {
@@ -491,12 +495,12 @@ public class DoctorService {
         for (String pkg : sdkmanPackages) {
             System.out.println("  Installing " + pkg + "...");
 
-            // Run sdk install within a bash shell that sources SDKMAN
+            // Run sdk install within a bash shell that sources SDKMAN (no timeout for downloads)
             String command = String.format(
                     "source \"%s\" && sdk install %s <<< 'Y'",
                     sdkmanInit, pkg);
 
-            int exitCode = processRunner.runLive("bash", "-c", command);
+            int exitCode = processRunner.runLiveNoTimeout("bash", "-c", command);
             if (exitCode != 0) {
                 System.out.println("  Warning: Failed to install " + pkg);
                 allSuccess = false;
@@ -562,7 +566,8 @@ public class DoctorService {
             return false;
         }
 
-        int exitCode = processRunner.runLive(command.toArray(new String[0]));
+        // Use no timeout for package installations which can take a long time
+        int exitCode = processRunner.runLiveNoTimeout(command.toArray(new String[0]));
         return exitCode == 0;
     }
 

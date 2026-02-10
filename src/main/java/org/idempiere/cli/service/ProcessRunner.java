@@ -119,6 +119,14 @@ public class ProcessRunner {
         return runLiveInDir(null, command);
     }
 
+    /**
+     * Run a command with live output and no timeout.
+     * Useful for long-running installations like package managers.
+     */
+    public int runLiveNoTimeout(String... command) {
+        return runLiveInDirWithTimeout(null, null, 0, command);
+    }
+
     public int runLiveInDir(Path workDir, String... command) {
         return runLiveInDir(workDir, null, command);
     }

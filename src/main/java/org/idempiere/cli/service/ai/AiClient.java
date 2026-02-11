@@ -2,7 +2,20 @@ package org.idempiere.cli.service.ai;
 
 /**
  * Abstraction for AI code generation providers.
- * Implementations use java.net.http.HttpClient directly — no heavy SDKs.
+ *
+ * <p>Uses {@link java.net.http.HttpClient} directly instead of provider SDKs.
+ *
+ * <p><b>Rationale:</b>
+ * <ul>
+ *   <li>Single endpoint usage (messages/generateContent/completions)</li>
+ *   <li>Native image compatibility (no reflection-heavy SDKs)</li>
+ *   <li>Multi-provider support without 3 SDK dependency trees</li>
+ *   <li>Jackson handles JSON serialization; no manual string building</li>
+ * </ul>
+ *
+ * <p>If future features require streaming (SSE), function calling, or
+ * multi-turn conversations, reconsider adopting the official SDK
+ * for that specific provider.
  */
 public interface AiClient {
 

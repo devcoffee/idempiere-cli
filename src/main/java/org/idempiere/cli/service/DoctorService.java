@@ -4,26 +4,15 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import org.idempiere.cli.service.check.CheckResult;
-import org.idempiere.cli.service.check.CheckResult.Status;
 import org.idempiere.cli.service.check.EnvironmentCheck;
 import org.idempiere.cli.service.check.PluginCheck;
-import org.idempiere.cli.util.CliOutput;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 
 /**
  * Validates development environment and plugin structure.
@@ -35,7 +24,24 @@ import java.util.zip.ZipInputStream;
 public class DoctorService {
 
     /** Links a check result with its originating check for fix suggestions. */
-    record CheckEntry(EnvironmentCheck check, CheckResult result) {}
+    public record CheckEntry(EnvironmentCheck check, CheckResult result) {}
+
+    /** Structured result of an environment check run. */
+    public record EnvironmentResult(
+            List<CheckEntry> entries,
+            long passed,
+            long warnings,
+            long failed
+    ) {}
+
+    /** Structured result of a plugin check run. */
+    public record PluginCheckResult(
+            Path pluginDir,
+            List<CheckResult> results,
+            long passed,
+            long warnings,
+            long failed
+    ) {}
 
     @Inject
     ProcessRunner processRunner;
@@ -46,218 +52,54 @@ public class DoctorService {
     @Inject
     Instance<PluginCheck> pluginChecks;
 
-    public void checkEnvironment(boolean fix, boolean fixOptional) {
-        System.out.println();
-        System.out.println("iDempiere CLI - Environment Check");
-        System.out.println("==================================");
-        System.out.println();
-
+    /**
+     * Runs environment checks and returns structured data without printing.
+     */
+    public EnvironmentResult checkEnvironmentData() {
         List<CheckEntry> entries = new ArrayList<>();
 
-        // Run all registered environment checks
         for (EnvironmentCheck check : environmentChecks) {
-            if (!check.isApplicable()) {
-                continue;  // Silently skip non-applicable checks
-            }
+            if (!check.isApplicable()) continue;
             CheckResult result = check.check();
-            printResult(result);
             entries.add(new CheckEntry(check, result));
         }
 
-        System.out.println();
-        System.out.println("----------------------------------");
-
         List<CheckResult> results = entries.stream().map(CheckEntry::result).toList();
-        long passed = results.stream().filter(CheckResult::isOk).count();
-        long warnings = results.stream().filter(CheckResult::isWarn).count();
-        long failed = results.stream().filter(CheckResult::isFail).count();
-
-        System.out.printf("Results: %d passed, %d warnings, %d failed%n", passed, warnings, failed);
-
-        boolean dockerNotOk = results.stream().anyMatch(r -> r.tool().equals("Docker") && !r.isOk());
-        boolean postgresOutdated = results.stream().anyMatch(r -> r.tool().equals("PostgreSQL") && r.isWarn());
-        boolean hasFixableIssues = failed > 0 || (fixOptional && dockerNotOk);
-
-        if (fix && hasFixableIssues) {
-            runAutoFix(entries, fixOptional);
-        } else if (failed > 0 || dockerNotOk || postgresOutdated) {
-            printFixSuggestions(entries);
-        }
-
-        if (failed == 0) {
-            System.out.println();
-            if (warnings > 0) {
-                System.out.println("Environment is functional but has warnings. Consider addressing them.");
-            } else {
-                System.out.println("All checks passed! Your environment is ready.");
-            }
-            System.out.println("Run 'idempiere-cli setup-dev-env' to bootstrap your development environment.");
-        }
-
-        System.out.println();
-    }
-
-    public void checkPlugin(Path pluginDir) {
-        System.out.println();
-        System.out.println("iDempiere CLI - Plugin Validation");
-        System.out.println("==================================");
-        System.out.println();
-
-        if (!Files.exists(pluginDir)) {
-            System.err.println("  Error: Directory '" + pluginDir + "' does not exist.");
-            return;
-        }
-
-        List<CheckResult> results = new ArrayList<>();
-
-        // Run all registered plugin checks
-        for (PluginCheck check : pluginChecks) {
-            CheckResult result = check.check(pluginDir);
-            printResult(result);
-            results.add(result);
-        }
-
-        System.out.println();
-        System.out.println("----------------------------------");
-
-        long passed = results.stream().filter(CheckResult::isOk).count();
-        long warnings = results.stream().filter(CheckResult::isWarn).count();
-        long failed = results.stream().filter(CheckResult::isFail).count();
-
-        System.out.printf("Results: %d passed, %d warnings, %d failed%n", passed, warnings, failed);
-        System.out.println();
-    }
-    private boolean isDockerDesktopInstalled() {
-        String programFiles = System.getenv("ProgramFiles");
-        if (programFiles == null) programFiles = "C:\\Program Files";
-        return Files.exists(Path.of(programFiles, "Docker", "Docker", "Docker Desktop.exe"));
-    }
-
-    private void printResult(CheckResult result) {
-        String line = String.format("%-15s %s", result.tool(), result.message());
-        String output = switch (result.status()) {
-            case OK -> CliOutput.ok(line);
-            case WARN -> CliOutput.warn(line);
-            case FAIL -> CliOutput.fail(line);
-        };
-        System.out.println("  " + output);
-    }
-
-    private void printFixSuggestions(List<CheckEntry> entries) {
-        String os = System.getProperty("os.name", "").toLowerCase();
-
-        List<CheckEntry> failed = entries.stream()
-                .filter(e -> e.result().isFail())
-                .toList();
-
-        List<CheckEntry> warned = entries.stream()
-                .filter(e -> e.result().isWarn())
-                .toList();
-
-        if (failed.isEmpty() && warned.isEmpty()) return;
-
-        System.out.println();
-        System.out.println("Fix Suggestions");
-        System.out.println("---------------");
-
-        // Collect packages by package manager from FixSuggestion (use Set to avoid duplicates)
-        Set<String> sdkmanPackages = new LinkedHashSet<>();
-        Set<String> brewPackages = new LinkedHashSet<>();
-        Set<String> brewCasks = new LinkedHashSet<>();
-        Set<String> aptPackages = new LinkedHashSet<>();
-        Set<String> dnfPackages = new LinkedHashSet<>();
-        Set<String> pacmanPackages = new LinkedHashSet<>();
-        Set<String> wingetPackages = new LinkedHashSet<>();
-        Set<String> manualUrls = new LinkedHashSet<>();
-
-        for (CheckEntry entry : failed) {
-            EnvironmentCheck.FixSuggestion fix = entry.check().getFixSuggestion(os);
-            if (fix == null) continue;
-
-            if (fix.sdkmanPackage() != null) sdkmanPackages.add(fix.sdkmanPackage());
-            if (fix.brewPackage() != null) brewPackages.add(fix.brewPackage());
-            if (fix.brewCask() != null) brewCasks.add(fix.brewCask());
-            if (fix.aptPackage() != null) aptPackages.add(fix.aptPackage());
-            if (fix.dnfPackage() != null) dnfPackages.add(fix.dnfPackage());
-            if (fix.pacmanPackage() != null) pacmanPackages.add(fix.pacmanPackage());
-            if (fix.wingetPackage() != null) wingetPackages.add(fix.wingetPackage());
-            if (fix.manualUrl() != null) manualUrls.add(entry.check().toolName() + ": " + fix.manualUrl());
-        }
-
-        // Show what --fix will do (SDKMAN for Java/Maven on non-Windows, system packages for the rest)
-        if (!os.contains("win") && !sdkmanPackages.isEmpty()) {
-            // Remove Java/Maven from system packages since SDKMAN handles them
-            removeJavaMavenPackages(brewPackages);
-            removeJavaMavenPackages(aptPackages);
-            removeJavaMavenPackages(dnfPackages);
-            removeJavaMavenPackages(pacmanPackages);
-
-            System.out.println();
-            System.out.println("  " + CliOutput.tip("--fix will install via SDKMAN (recommended for Java/Maven):"));
-            for (String pkg : sdkmanPackages) {
-                System.out.println("    sdk install " + pkg);
-            }
-        }
-
-        // Show remaining system packages (excluding Java/Maven which SDKMAN handles)
-        if (os.contains("mac") && (!brewPackages.isEmpty() || !brewCasks.isEmpty())) {
-            System.out.println();
-            System.out.println("  --fix will install via Homebrew:");
-            if (!brewPackages.isEmpty()) {
-                System.out.println("    brew install " + String.join(" ", brewPackages));
-            }
-            for (String cask : brewCasks) {
-                System.out.println("    brew install --cask " + cask);
-            }
-        } else if (os.contains("linux") && !aptPackages.isEmpty()) {
-            System.out.println();
-            System.out.println("  --fix will install via apt:");
-            System.out.println("    sudo apt install " + String.join(" ", aptPackages));
-        } else if (os.contains("win") && !wingetPackages.isEmpty()) {
-            System.out.println();
-            System.out.println("  --fix will install via winget:");
-            for (String pkg : wingetPackages) {
-                System.out.println("    winget install " + pkg);
-            }
-        }
-
-        System.out.println();
-        System.out.println("  Run: idempiere-cli doctor --fix");
-
-        // Handle Docker specifically (optional tool with special messages)
-        CheckEntry dockerEntry = entries.stream()
-                .filter(e -> e.result().tool().equals("Docker") && !e.result().isOk())
-                .findFirst().orElse(null);
-
-        if (dockerEntry != null) {
-            System.out.println();
-            boolean daemonNotRunning = dockerEntry.result().message() != null
-                    && dockerEntry.result().message().contains("daemon is not running");
-
-            if (daemonNotRunning) {
-                System.out.println("Docker is installed but the daemon is not running.");
-                if (os.contains("mac")) {
-                    System.out.println("  Start Docker Desktop: open -a Docker");
-                } else if (os.contains("linux")) {
-                    System.out.println("  Start Docker: sudo systemctl start docker");
-                } else if (os.contains("win")) {
-                    System.out.println("  Start Docker Desktop from the Start menu");
-                }
-            } else {
-                System.out.println("Optional: Docker (for containerized PostgreSQL)");
-                System.out.println("  Run: idempiere-cli doctor --fix-optional");
-            }
-            System.out.println();
-            System.out.println("  With Docker, use: idempiere-cli setup-dev-env --with-docker");
-        }
-
-        System.out.println();
+        return new EnvironmentResult(
+                entries,
+                results.stream().filter(CheckResult::isOk).count(),
+                results.stream().filter(CheckResult::isWarn).count(),
+                results.stream().filter(CheckResult::isFail).count()
+        );
     }
 
     /**
-     * Check if a tool is installed but not in PATH based on the check result message.
+     * Runs plugin checks and returns structured data without printing.
      */
-    private void runAutoFix(List<CheckEntry> entries, boolean fixOptional) {
+    public PluginCheckResult checkPluginData(Path pluginDir) {
+        if (!Files.exists(pluginDir)) {
+            return new PluginCheckResult(pluginDir, List.of(), 0, 0, 0);
+        }
+
+        List<CheckResult> results = new ArrayList<>();
+        for (PluginCheck check : pluginChecks) {
+            results.add(check.check(pluginDir));
+        }
+
+        return new PluginCheckResult(
+                pluginDir,
+                results,
+                results.stream().filter(CheckResult::isOk).count(),
+                results.stream().filter(CheckResult::isWarn).count(),
+                results.stream().filter(CheckResult::isFail).count()
+        );
+    }
+
+    /**
+     * Runs automatic fix for failed environment checks.
+     * Installs missing tools using the appropriate package manager.
+     */
+    public void runAutoFix(List<CheckEntry> entries, boolean fixOptional) {
         String os = System.getProperty("os.name", "").toLowerCase();
 
         System.out.println();

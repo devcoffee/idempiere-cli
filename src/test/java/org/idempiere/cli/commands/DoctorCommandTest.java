@@ -50,5 +50,17 @@ class DoctorCommandTest {
         assertTrue(output.contains("--fix"));
         assertTrue(output.contains("--fix-optional"));
         assertTrue(output.contains("--dir"));
+        assertTrue(output.contains("--json"));
+    }
+
+    @Test
+    @Launch({"doctor", "--json"})
+    void testDoctorJsonOutput(LaunchResult result) {
+        assertEquals(0, result.exitCode());
+        String output = result.getOutput();
+        assertTrue(output.contains("\"passed\""));
+        assertTrue(output.contains("\"checks\""));
+        assertTrue(output.contains("\"tool\""));
+        assertTrue(output.contains("\"status\""));
     }
 }

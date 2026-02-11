@@ -1,5 +1,9 @@
 package org.idempiere.cli.service.ai;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.idempiere.cli.model.CliConfig;
@@ -22,6 +26,10 @@ public class GoogleAiClient implements AiClient {
     private static final String API_BASE = "https://generativelanguage.googleapis.com/v1beta/models/";
     private static final Duration TIMEOUT = Duration.ofSeconds(60);
     private static final String DEFAULT_MODEL = "gemini-2.5-flash";
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static final HttpClient httpClient = HttpClient.newBuilder()
+            .connectTimeout(TIMEOUT)
+            .build();
 
     @Inject
     CliConfigService configService;
@@ -58,17 +66,6 @@ public class GoogleAiClient implements AiClient {
                 return AiResponse.fail("Failed to parse Google AI response");
             }
 
-            // Retry once on 5xx
-            if (response.statusCode() >= 500) {
-                response = sendRequest(url, requestBody);
-                if (response.statusCode() == 200) {
-                    String content = extractContent(response.body());
-                    if (content != null) {
-                        return AiResponse.ok(content);
-                    }
-                }
-            }
-
             return AiResponse.fail("Google AI API error " + response.statusCode() + ": " + response.body());
         } catch (IOException e) {
             return AiResponse.fail("Network error: " + e.getMessage());
@@ -78,11 +75,7 @@ public class GoogleAiClient implements AiClient {
         }
     }
 
-    private HttpResponse<String> sendRequest(String url, String body) throws IOException, InterruptedException {
-        HttpClient client = HttpClient.newBuilder()
-                .connectTimeout(TIMEOUT)
-                .build();
-
+    HttpResponse<String> sendRequest(String url, String body) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("Content-Type", "application/json")
@@ -90,11 +83,21 @@ public class GoogleAiClient implements AiClient {
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
 
-        return client.send(request, HttpResponse.BodyHandlers.ofString());
+        return AiHttpUtils.sendWithRetry(httpClient, request);
     }
 
     private String buildRequestBody(String prompt) {
-        return "{\"contents\":[{\"parts\":[{\"text\":\"" + AnthropicClient.escapeJson(prompt) + "\"}]}]}";
+        try {
+            ObjectNode root = objectMapper.createObjectNode();
+            ArrayNode contents = root.putArray("contents");
+            ObjectNode content = contents.addObject();
+            ArrayNode parts = content.putArray("parts");
+            ObjectNode part = parts.addObject();
+            part.put("text", prompt);
+            return objectMapper.writeValueAsString(root);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to build request body", e);
+        }
     }
 
     /**
@@ -102,19 +105,19 @@ public class GoogleAiClient implements AiClient {
      * Format: { "candidates": [{ "content": { "parts": [{ "text": "..." }] } }] }
      */
     String extractContent(String responseBody) {
-        int candidatesIdx = responseBody.indexOf("\"candidates\"");
-        if (candidatesIdx < 0) return null;
-
-        int textIdx = responseBody.indexOf("\"text\"", candidatesIdx);
-        if (textIdx < 0) return null;
-
-        int colonIdx = responseBody.indexOf(":", textIdx);
-        if (colonIdx < 0) return null;
-
-        int startQuote = responseBody.indexOf("\"", colonIdx + 1);
-        if (startQuote < 0) return null;
-
-        return AnthropicClient.extractJsonString(responseBody, startQuote);
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+            JsonNode candidates = root.path("candidates");
+            if (candidates.isArray() && !candidates.isEmpty()) {
+                JsonNode parts = candidates.get(0).path("content").path("parts");
+                if (parts.isArray() && !parts.isEmpty()) {
+                    return parts.get(0).path("text").asText(null);
+                }
+            }
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private String getApiKey() {

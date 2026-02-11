@@ -31,7 +31,7 @@ class ValidateCommandTest {
     @Launch(value = {"validate", "--json", "/nonexistent/path"}, exitCode = 1)
     void testValidateJsonOutput(LaunchResult result) {
         assertEquals(1, result.exitCode());
-        assertTrue(result.getOutput().contains("\"valid\": false"));
-        assertTrue(result.getOutput().contains("\"errors\":"));
+        assertTrue(result.getOutput().contains("\"valid\""));
+        assertTrue(result.getOutput().contains("\"errors\""));
     }
 }

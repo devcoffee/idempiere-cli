@@ -127,30 +127,27 @@ public class ValidateCommand implements Callable<Integer> {
     }
 
     private Integer outputJson(ValidationResult result) {
-        StringBuilder json = new StringBuilder();
-        json.append("{\n");
-        json.append("  \"pluginId\": \"").append(escapeJson(result.pluginId())).append("\",\n");
-        json.append("  \"path\": \"").append(escapeJson(result.pluginDir().toString())).append("\",\n");
-        json.append("  \"valid\": ").append(result.isValid()).append(",\n");
-        json.append("  \"errors\": ").append(result.errors()).append(",\n");
-        json.append("  \"warnings\": ").append(result.warnings()).append(",\n");
-        json.append("  \"issues\": [\n");
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            com.fasterxml.jackson.databind.node.ObjectNode root = mapper.createObjectNode();
+            root.put("pluginId", result.pluginId());
+            root.put("path", result.pluginDir().toString());
+            root.put("valid", result.isValid());
+            root.put("errors", result.errors());
+            root.put("warnings", result.warnings());
 
-        boolean first = true;
-        for (ValidationIssue issue : result.issues()) {
-            if (!first) json.append(",\n");
-            first = false;
-            json.append("    {\n");
-            json.append("      \"severity\": \"").append(issue.severity()).append("\",\n");
-            json.append("      \"file\": \"").append(escapeJson(issue.file())).append("\",\n");
-            json.append("      \"message\": \"").append(escapeJson(issue.message())).append("\"\n");
-            json.append("    }");
+            com.fasterxml.jackson.databind.node.ArrayNode issues = root.putArray("issues");
+            for (ValidationIssue issue : result.issues()) {
+                com.fasterxml.jackson.databind.node.ObjectNode node = issues.addObject();
+                node.put("severity", issue.severity().name());
+                node.put("file", issue.file());
+                node.put("message", issue.message());
+            }
+
+            System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root));
+        } catch (Exception e) {
+            System.err.println("{\"error\": \"Failed to serialize JSON\"}");
         }
-
-        json.append("\n  ]\n");
-        json.append("}\n");
-
-        System.out.print(json);
 
         if (result.errors() > 0) {
             return 1;
@@ -159,15 +156,5 @@ public class ValidateCommand implements Callable<Integer> {
             return 2;
         }
         return 0;
-    }
-
-    private String escapeJson(String value) {
-        if (value == null) return "";
-        return value
-                .replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t");
     }
 }

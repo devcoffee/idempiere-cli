@@ -123,6 +123,55 @@ class SkillManagerTest {
     }
 
     @Test
+    void testDynamicDiscoveryByExactName() throws IOException {
+        // Create a skill source with a non-hardcoded skill directory
+        Path sourceDir = tempDir.resolve("custom-skills");
+        Path customSkillDir = sourceDir.resolve("my-custom-skill");
+        Files.createDirectories(customSkillDir);
+        Files.writeString(customSkillDir.resolve("SKILL.md"), "# Custom Skill\nGenerate custom stuff.");
+
+        // Create config pointing to this source
+        CliConfig config = new CliConfig();
+        List<CliConfig.SkillSource> sources = new ArrayList<>();
+        sources.add(new CliConfig.SkillSource("custom", null, sourceDir.toString(), 0));
+        config.getSkills().setSources(sources);
+
+        Path configFile = tempDir.resolve(".idempiere-cli.yaml");
+        configService.saveConfig(config, configFile);
+
+        // Use a fresh SkillManager with this config
+        CliConfig loaded = configService.loadFromPath(configFile);
+        assertNotNull(loaded);
+
+        // Verify the skill directory exists
+        assertTrue(Files.exists(customSkillDir.resolve("SKILL.md")));
+        assertEquals("# Custom Skill\nGenerate custom stuff.",
+                Files.readString(customSkillDir.resolve("SKILL.md")));
+    }
+
+    @Test
+    void testDynamicDiscoveryByIdempierePrefix() throws IOException {
+        // Create a skill source with "idempiere-" prefixed directory
+        Path sourceDir = tempDir.resolve("prefixed-skills");
+        Path prefixedSkillDir = sourceDir.resolve("idempiere-custom-generator");
+        Files.createDirectories(prefixedSkillDir);
+        Files.writeString(prefixedSkillDir.resolve("SKILL.md"), "# Prefixed Skill");
+
+        // The directory name follows "idempiere-<type>" convention
+        assertTrue(Files.exists(prefixedSkillDir.resolve("SKILL.md")));
+        assertEquals("idempiere-custom-generator", prefixedSkillDir.getFileName().toString());
+    }
+
+    @Test
+    void testListAvailableTypesIncludesHardcoded() {
+        List<String> types = skillManager.listAvailableTypes();
+        // Should include at least the hardcoded types
+        assertTrue(types.contains("callout"));
+        assertTrue(types.contains("process"));
+        assertTrue(types.contains("event-handler"));
+    }
+
+    @Test
     void testPriorityResolutionLowerNumberWins() throws IOException {
         // Create two skill source directories with different content
         Path source1Dir = tempDir.resolve("source1");

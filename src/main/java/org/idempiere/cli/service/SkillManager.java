@@ -64,20 +64,40 @@ public class SkillManager {
 
     /**
      * Resolves which source provides the skill for a given component type.
+     * Resolution order:
+     * 1. Hardcoded TYPE_TO_SKILL map (known iDempiere types)
+     * 2. Dynamic discovery: exact directory name match
+     * 3. Dynamic discovery: "idempiere-{type}" convention
+     *
      * Sources are checked in priority order (0 = highest).
      */
     public Optional<SkillResolution> resolveSkill(String componentType) {
-        String skillDir = TYPE_TO_SKILL.get(componentType);
-        if (skillDir == null) {
-            return Optional.empty();
-        }
-
         CliConfig config = configService.loadConfig();
         List<CliConfig.SkillSource> sources = new ArrayList<>(config.getSkills().getSources());
         sources.sort(Comparator.comparingInt(CliConfig.SkillSource::getPriority));
 
+        // 1. Try hardcoded mapping first
+        String skillDir = TYPE_TO_SKILL.get(componentType);
+        if (skillDir != null) {
+            Optional<SkillResolution> result = findSkillInSources(skillDir, sources, config.getSkills().getCacheDir());
+            if (result.isPresent()) {
+                return result;
+            }
+        }
+
+        // 2. Dynamic discovery: exact directory name match
+        Optional<SkillResolution> result = findSkillInSources(componentType, sources, config.getSkills().getCacheDir());
+        if (result.isPresent()) {
+            return result;
+        }
+
+        // 3. Dynamic discovery: "idempiere-{type}" convention
+        return findSkillInSources("idempiere-" + componentType, sources, config.getSkills().getCacheDir());
+    }
+
+    private Optional<SkillResolution> findSkillInSources(String skillDir, List<CliConfig.SkillSource> sources, String cacheDir) {
         for (CliConfig.SkillSource source : sources) {
-            Path sourceDir = resolveSourceDir(source, config.getSkills().getCacheDir());
+            Path sourceDir = resolveSourceDir(source, cacheDir);
             if (sourceDir == null || !Files.isDirectory(sourceDir)) {
                 continue;
             }
@@ -87,7 +107,6 @@ public class SkillManager {
                 return Optional.of(new SkillResolution(source.getName(), skillDir, skillMdPath));
             }
         }
-
         return Optional.empty();
     }
 
@@ -174,6 +193,37 @@ public class SkillManager {
         }
 
         return result;
+    }
+
+    /**
+     * Lists all available component types, combining hardcoded aliases with dynamically discovered skills.
+     * Dynamically discovered skills are named by their directory (stripped of "idempiere-" prefix if present).
+     */
+    public List<String> listAvailableTypes() {
+        List<String> types = new ArrayList<>(TYPE_TO_SKILL.keySet());
+
+        CliConfig config = configService.loadConfig();
+        for (CliConfig.SkillSource source : config.getSkills().getSources()) {
+            Path sourceDir = resolveSourceDir(source, config.getSkills().getCacheDir());
+            if (sourceDir == null || !Files.isDirectory(sourceDir)) {
+                continue;
+            }
+
+            try (Stream<Path> dirs = Files.list(sourceDir)) {
+                dirs.filter(Files::isDirectory)
+                        .filter(d -> Files.exists(d.resolve("SKILL.md")))
+                        .map(d -> d.getFileName().toString())
+                        .filter(name -> !TYPE_TO_SKILL.containsValue(name))
+                        .map(name -> name.startsWith("idempiere-") ? name.substring("idempiere-".length()) : name)
+                        .filter(name -> !types.contains(name))
+                        .forEach(types::add);
+            } catch (IOException e) {
+                // ignore unreadable source
+            }
+        }
+
+        types.sort(String::compareTo);
+        return types;
     }
 
     /**

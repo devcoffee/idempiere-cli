@@ -17,6 +17,7 @@ class DepsCommandTest {
         assertEquals(0, result.exitCode());
         String output = result.getOutput();
         assertTrue(output.contains("--dir"));
+        assertTrue(output.contains("--json"));
         assertTrue(output.contains("Analyze plugin dependencies"));
     }
 

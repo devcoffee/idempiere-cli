@@ -1,5 +1,9 @@
 package org.idempiere.cli.service.ai;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.idempiere.cli.model.CliConfig;
@@ -22,6 +26,10 @@ public class OpenAiClient implements AiClient {
     private static final String API_URL = "https://api.openai.com/v1/chat/completions";
     private static final Duration TIMEOUT = Duration.ofSeconds(60);
     private static final String DEFAULT_MODEL = "gpt-4o";
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static final HttpClient httpClient = HttpClient.newBuilder()
+            .connectTimeout(TIMEOUT)
+            .build();
 
     @Inject
     CliConfigService configService;
@@ -57,17 +65,6 @@ public class OpenAiClient implements AiClient {
                 return AiResponse.fail("Failed to parse OpenAI response");
             }
 
-            // Retry once on 5xx
-            if (response.statusCode() >= 500) {
-                response = sendRequest(apiKey, requestBody);
-                if (response.statusCode() == 200) {
-                    String content = extractContent(response.body());
-                    if (content != null) {
-                        return AiResponse.ok(content);
-                    }
-                }
-            }
-
             return AiResponse.fail("OpenAI API error " + response.statusCode() + ": " + response.body());
         } catch (IOException e) {
             return AiResponse.fail("Network error: " + e.getMessage());
@@ -77,11 +74,7 @@ public class OpenAiClient implements AiClient {
         }
     }
 
-    private HttpResponse<String> sendRequest(String apiKey, String body) throws IOException, InterruptedException {
-        HttpClient client = HttpClient.newBuilder()
-                .connectTimeout(TIMEOUT)
-                .build();
-
+    HttpResponse<String> sendRequest(String apiKey, String body) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(API_URL))
                 .header("Content-Type", "application/json")
@@ -90,12 +83,21 @@ public class OpenAiClient implements AiClient {
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
 
-        return client.send(request, HttpResponse.BodyHandlers.ofString());
+        return AiHttpUtils.sendWithRetry(httpClient, request);
     }
 
     private String buildRequestBody(String model, String prompt) {
-        return "{\"model\":\"" + AnthropicClient.escapeJson(model) + "\","
-                + "\"messages\":[{\"role\":\"user\",\"content\":\"" + AnthropicClient.escapeJson(prompt) + "\"}]}";
+        try {
+            ObjectNode root = objectMapper.createObjectNode();
+            root.put("model", model);
+            ArrayNode messages = root.putArray("messages");
+            ObjectNode msg = messages.addObject();
+            msg.put("role", "user");
+            msg.put("content", prompt);
+            return objectMapper.writeValueAsString(root);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to build request body", e);
+        }
     }
 
     /**
@@ -103,23 +105,16 @@ public class OpenAiClient implements AiClient {
      * Format: { "choices": [{ "message": { "content": "..." } }] }
      */
     String extractContent(String responseBody) {
-        int choicesIdx = responseBody.indexOf("\"choices\"");
-        if (choicesIdx < 0) return null;
-
-        // Find "content" within choices (skip role content)
-        int messageIdx = responseBody.indexOf("\"message\"", choicesIdx);
-        if (messageIdx < 0) return null;
-
-        int contentIdx = responseBody.indexOf("\"content\"", messageIdx);
-        if (contentIdx < 0) return null;
-
-        int colonIdx = responseBody.indexOf(":", contentIdx);
-        if (colonIdx < 0) return null;
-
-        int startQuote = responseBody.indexOf("\"", colonIdx + 1);
-        if (startQuote < 0) return null;
-
-        return AnthropicClient.extractJsonString(responseBody, startQuote);
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+            JsonNode choices = root.path("choices");
+            if (choices.isArray() && !choices.isEmpty()) {
+                return choices.get(0).path("message").path("content").asText(null);
+            }
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private String getApiKey() {

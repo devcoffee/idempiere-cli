@@ -28,6 +28,44 @@ public class DepsService {
             "org.idempiere.rest.api", List.of("org.idempiere.rest.")
     );
 
+    /** Structured result of dependency analysis. */
+    public record DepsResult(
+            Set<String> declaredBundles,
+            Set<String> requiredBundles,
+            Set<String> missingBundles,
+            Set<String> unusedBundles,
+            boolean isFragment
+    ) {}
+
+    /**
+     * Analyzes plugin dependencies and returns structured data without printing.
+     */
+    public DepsResult analyzeData(Path pluginDir) {
+        Set<String> declaredBundles = parseDeclaredBundles(pluginDir);
+        boolean isFragment = isFragmentHost(pluginDir);
+        Set<String> imports = scanImports(pluginDir);
+
+        Set<String> requiredBundles = new TreeSet<>();
+        for (String imp : imports) {
+            for (var entry : BUNDLE_PACKAGES.entrySet()) {
+                for (String prefix : entry.getValue()) {
+                    if (imp.startsWith(prefix)) {
+                        requiredBundles.add(entry.getKey());
+                        break;
+                    }
+                }
+            }
+        }
+
+        Set<String> missingBundles = new TreeSet<>(requiredBundles);
+        missingBundles.removeAll(declaredBundles);
+
+        Set<String> unusedBundles = new TreeSet<>(declaredBundles);
+        unusedBundles.removeAll(requiredBundles);
+
+        return new DepsResult(declaredBundles, requiredBundles, missingBundles, unusedBundles, isFragment);
+    }
+
     public void analyze(Path pluginDir) {
         System.out.println();
         System.out.println("Dependency Analysis");

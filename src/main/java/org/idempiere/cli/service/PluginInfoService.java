@@ -21,6 +21,62 @@ public class PluginInfoService {
     private static final Pattern REQUIRE_BUNDLE = Pattern.compile("Require-Bundle:\\s*(.+?)(?=\\n\\S|\\Z)", Pattern.DOTALL);
     private static final Pattern FRAGMENT_HOST = Pattern.compile("Fragment-Host:\\s*(\\S+)");
 
+    /** Structured plugin information. */
+    public record PluginInfo(
+            String pluginId,
+            String version,
+            String vendor,
+            String fragmentHost,
+            List<String> requiredBundles,
+            List<String> components
+    ) {}
+
+    /**
+     * Extracts plugin information and returns structured data without printing.
+     */
+    public PluginInfo getInfo(Path pluginDir) {
+        Path manifest = pluginDir.resolve("META-INF/MANIFEST.MF");
+        if (!Files.exists(manifest)) {
+            return null;
+        }
+
+        try {
+            String content = Files.readString(manifest);
+
+            String pluginId = extract(content, BUNDLE_SYMBOLIC_NAME, "unknown");
+            String version = extract(content, BUNDLE_VERSION, "unknown");
+            String vendor = extract(content, BUNDLE_VENDOR, "");
+            String fragmentHost = extract(content, FRAGMENT_HOST, null);
+
+            List<String> requiredBundles = new ArrayList<>();
+            Matcher requireMatcher = REQUIRE_BUNDLE.matcher(content);
+            if (requireMatcher.find()) {
+                String deps = requireMatcher.group(1).trim();
+                for (String bundle : deps.split(",")) {
+                    String trimmed = bundle.trim();
+                    if (!trimmed.isEmpty()) {
+                        requiredBundles.add(trimmed);
+                    }
+                }
+            }
+
+            List<String> components = new ArrayList<>();
+            Path srcDir = pluginDir.resolve("src").resolve(pluginId.replace('.', '/'));
+            if (Files.exists(srcDir)) {
+                try (var stream = Files.list(srcDir)) {
+                    stream.filter(p -> p.getFileName().toString().endsWith(".java"))
+                            .map(p -> p.getFileName().toString())
+                            .sorted()
+                            .forEach(components::add);
+                }
+            }
+
+            return new PluginInfo(pluginId, version, vendor, fragmentHost, requiredBundles, components);
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
     public void printInfo(Path pluginDir) {
         Path manifest = pluginDir.resolve("META-INF/MANIFEST.MF");
         if (!Files.exists(manifest)) {

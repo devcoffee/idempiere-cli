@@ -106,9 +106,15 @@ public class SkillsCommand {
                     System.out.println("  Expected skill directory: " + skillDir);
                     System.out.println("  Make sure a source contains this directory with a SKILL.md file.");
                 } else {
-                    System.out.println("  Unknown component type. Known types:");
-                    SkillManager.TYPE_TO_SKILL.keySet().stream().sorted()
-                            .forEach(t -> System.out.println("    - " + t));
+                    System.out.println("  No matching skill directory found.");
+                    System.out.println("  Looked for: " + componentType + ", idempiere-" + componentType);
+                    List<String> available = skillManager.listAvailableTypes();
+                    if (!available.isEmpty()) {
+                        System.out.println("  Available types:");
+                        available.forEach(t -> System.out.println("    - " + t));
+                    } else {
+                        System.out.println("  No skills available. Run 'skills sync' to fetch skills.");
+                    }
                 }
                 return;
             }

@@ -127,12 +127,43 @@ class AiClientTest {
         assertEquals("error msg", fail.error());
     }
 
+    // ========== Multiple blocks / edge cases ==========
+
     @Test
-    void testEscapeJson() {
-        assertEquals("hello", AnthropicClient.escapeJson("hello"));
-        assertEquals("line1\\nline2", AnthropicClient.escapeJson("line1\nline2"));
-        assertEquals("say \\\"hello\\\"", AnthropicClient.escapeJson("say \"hello\""));
-        assertEquals("tab\\there", AnthropicClient.escapeJson("tab\there"));
-        assertEquals("", AnthropicClient.escapeJson(null));
+    void testAnthropicExtractContentMultipleBlocks() {
+        String response = """
+                {"content":[{"type":"text","text":"first"},{"type":"text","text":"second"}]}""";
+        assertEquals("first", anthropicClient.extractContent(response));
+    }
+
+    @Test
+    void testAnthropicExtractContentMalformedJson() {
+        assertNull(anthropicClient.extractContent("{malformed"));
+        assertNull(anthropicClient.extractContent("not json at all"));
+    }
+
+    @Test
+    void testGoogleExtractContentEmpty() {
+        assertNull(googleAiClient.extractContent("{}"));
+        assertNull(googleAiClient.extractContent("{\"candidates\":[]}"));
+    }
+
+    @Test
+    void testOpenAiExtractContentEmpty() {
+        assertNull(openAiClient.extractContent("{}"));
+        assertNull(openAiClient.extractContent("{\"choices\":[]}"));
+    }
+
+    // ========== AiHttpUtils ==========
+
+    @Test
+    void testIsRetryable() {
+        assertTrue(AiHttpUtils.isRetryable(429));
+        assertTrue(AiHttpUtils.isRetryable(500));
+        assertTrue(AiHttpUtils.isRetryable(503));
+        assertFalse(AiHttpUtils.isRetryable(200));
+        assertFalse(AiHttpUtils.isRetryable(400));
+        assertFalse(AiHttpUtils.isRetryable(401));
+        assertFalse(AiHttpUtils.isRetryable(404));
     }
 }

@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class SmartScaffoldTest {
 
     @Inject
-    ScaffoldService scaffoldService;
+    SmartScaffoldService smartScaffoldService;
 
     @Test
     void testParseAiResponseValidJson() {
@@ -29,7 +29,7 @@ class SmartScaffoldTest {
                 }
                 """;
 
-        GeneratedCode code = scaffoldService.parseAiResponse(json);
+        GeneratedCode code = smartScaffoldService.parseAiResponse(json);
         assertNotNull(code);
         assertEquals(1, code.getFiles().size());
         assertEquals("src/org/example/MyCallout.java", code.getFiles().get(0).getPath());
@@ -49,20 +49,20 @@ class SmartScaffoldTest {
                 ```
                 """;
 
-        GeneratedCode code = scaffoldService.parseAiResponse(json);
+        GeneratedCode code = smartScaffoldService.parseAiResponse(json);
         assertNotNull(code);
         assertEquals(1, code.getFiles().size());
     }
 
     @Test
     void testParseAiResponseInvalidJson() {
-        GeneratedCode code = scaffoldService.parseAiResponse("this is not json");
+        GeneratedCode code = smartScaffoldService.parseAiResponse("this is not json");
         assertNull(code);
     }
 
     @Test
     void testParseAiResponseEmpty() {
-        GeneratedCode code = scaffoldService.parseAiResponse("");
+        GeneratedCode code = smartScaffoldService.parseAiResponse("");
         assertNull(code);
     }
 
@@ -75,7 +75,7 @@ class SmartScaffoldTest {
         );
         code.setFiles(List.of(file));
 
-        List<String> issues = scaffoldService.validateGeneratedCode(code, "org.example.plugin");
+        List<String> issues = smartScaffoldService.validateGeneratedCode(code, "org.example.plugin");
         assertTrue(issues.isEmpty());
     }
 
@@ -88,7 +88,7 @@ class SmartScaffoldTest {
         );
         code.setFiles(List.of(file));
 
-        List<String> issues = scaffoldService.validateGeneratedCode(code, "org.example");
+        List<String> issues = smartScaffoldService.validateGeneratedCode(code, "org.example");
         assertFalse(issues.isEmpty());
         assertTrue(issues.get(0).contains("Path traversal"));
     }
@@ -102,7 +102,7 @@ class SmartScaffoldTest {
         );
         code.setFiles(List.of(file));
 
-        List<String> issues = scaffoldService.validateGeneratedCode(code, "org.example.plugin");
+        List<String> issues = smartScaffoldService.validateGeneratedCode(code, "org.example.plugin");
         assertFalse(issues.isEmpty());
         assertTrue(issues.get(0).contains("Unexpected package"));
     }
@@ -116,7 +116,7 @@ class SmartScaffoldTest {
         );
         code.setFiles(List.of(file));
 
-        List<String> issues = scaffoldService.validateGeneratedCode(code, "org.example");
+        List<String> issues = smartScaffoldService.validateGeneratedCode(code, "org.example");
         assertFalse(issues.isEmpty());
         assertTrue(issues.stream().anyMatch(i -> i.contains("Empty content")));
     }
@@ -133,7 +133,7 @@ class SmartScaffoldTest {
                 .existingClasses(List.of("MyProcess", "MyCallout"))
                 .build();
 
-        String prompt = scaffoldService.buildAiPrompt(
+        String prompt = smartScaffoldService.buildAiPrompt(
                 "# Generate a callout",
                 ctx, "callout", "OrderValidator",
                 Map.of("tableName", "C_Order")

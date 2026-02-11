@@ -1,7 +1,10 @@
 package org.idempiere.cli.commands;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.inject.Inject;
 import org.idempiere.cli.service.DepsService;
+import org.idempiere.cli.service.DepsService.DepsResult;
 import org.idempiere.cli.service.ProjectDetector;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -45,6 +48,9 @@ public class DepsCommand implements Runnable {
     @Option(names = {"--dir"}, description = "Plugin directory (default: current directory)", defaultValue = ".")
     String dir;
 
+    @Option(names = {"--json"}, description = "Output results as JSON")
+    boolean json;
+
     @Inject
     DepsService depsService;
 
@@ -55,9 +61,42 @@ public class DepsCommand implements Runnable {
     public void run() {
         Path pluginDir = Path.of(dir);
         if (!projectDetector.isIdempierePlugin(pluginDir)) {
-            System.err.println("Error: Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
+            if (json) {
+                System.out.println("{\"error\": \"Not an iDempiere plugin in " + pluginDir.toAbsolutePath() + "\"}");
+            } else {
+                System.err.println("Error: Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
+            }
             return;
         }
-        depsService.analyze(pluginDir);
+
+        if (json) {
+            printJson(depsService.analyzeData(pluginDir));
+        } else {
+            depsService.analyze(pluginDir);
+        }
+    }
+
+    private void printJson(DepsResult result) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            ObjectNode root = mapper.createObjectNode();
+            root.put("isFragment", result.isFragment());
+
+            var declared = root.putArray("declaredBundles");
+            result.declaredBundles().forEach(declared::add);
+
+            var required = root.putArray("requiredBundles");
+            result.requiredBundles().forEach(required::add);
+
+            var missing = root.putArray("missingBundles");
+            result.missingBundles().forEach(missing::add);
+
+            var unused = root.putArray("unusedBundles");
+            result.unusedBundles().forEach(unused::add);
+
+            System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root));
+        } catch (Exception e) {
+            System.err.println("{\"error\": \"Failed to serialize JSON\"}");
+        }
     }
 }

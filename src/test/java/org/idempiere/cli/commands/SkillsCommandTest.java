@@ -50,7 +50,7 @@ class SkillsCommandTest {
     void testSkillsWhichUnknownType(LaunchResult result) {
         assertEquals(0, result.exitCode());
         String output = result.getOutput();
-        assertTrue(output.contains("Unknown component type"));
+        assertTrue(output.contains("No matching skill directory found"));
     }
 
     @Test

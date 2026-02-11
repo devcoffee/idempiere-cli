@@ -362,6 +362,7 @@ Reports columns added in the database but missing from code, columns in code but
 | Templates       | Qute                 |
 | Build           | Maven + Tycho        |
 | Database        | PostgreSQL, Oracle (JDBC) |
+| AI Integration  | java.net.http + Jackson (optional, multi-provider) |
 | Testing         | JUnit 5 + QuarkusMainTest |
 
 ---
@@ -440,6 +441,85 @@ workspace/
     └── my-plugin/             # inherits version 13
 ```
 
+### AI-Powered Generation (Optional)
+
+`idempiere-cli` can use AI to generate context-aware code that adapts to your project's patterns and naming conventions. When AI is not configured, standard Qute templates are used — the same CLI commands work either way.
+
+**Quick setup:**
+
+```bash
+# 1. Configure your AI provider
+idempiere-cli config set ai.provider anthropic
+idempiere-cli config set ai.apiKeyEnv ANTHROPIC_API_KEY
+export ANTHROPIC_API_KEY=sk-ant-...
+
+# 2. Add skill sources (iDempiere-specific generation instructions)
+# Edit ~/.idempiere-cli.yaml and add:
+#   skills:
+#     sources:
+#       - name: official
+#         url: https://github.com/hengsin/idempiere-skills.git
+#         priority: 1
+
+# 3. Sync skills
+idempiere-cli skills sync
+
+# 4. Use normally — AI generates code adapted to your project
+idempiere-cli add callout --name=OrderTotalCalculator --to=./my-plugin
+```
+
+**Supported providers:**
+
+| Provider | Config Value | Default API Key Env | Default Model |
+|----------|-------------|---------------------|---------------|
+| Anthropic | `anthropic` | `ANTHROPIC_API_KEY` | `claude-sonnet-4-20250514` |
+| Google | `google` | `GOOGLE_API_KEY` | `gemini-2.5-flash` |
+| OpenAI | `openai` | `OPENAI_API_KEY` | `gpt-4o` |
+
+**Skills management:**
+
+```bash
+idempiere-cli skills list              # List configured sources
+idempiere-cli skills sync              # Clone/pull remote sources
+idempiere-cli skills which callout     # Show which source provides a skill
+```
+
+**Configuration management:**
+
+```bash
+idempiere-cli config show              # Show current config (no API keys)
+idempiere-cli config get ai.provider   # Get a specific value
+idempiere-cli config set ai.model claude-opus-4-20250514  # Set a value
+```
+
+**Full YAML example:**
+
+```yaml
+# ~/.idempiere-cli.yaml
+defaults:
+  vendor: "My Company Inc."
+  idempiereVersion: 13
+
+ai:
+  provider: anthropic
+  apiKeyEnv: ANTHROPIC_API_KEY
+  model: claude-sonnet-4-20250514
+  fallback: templates           # "templates" (default) or "error"
+
+skills:
+  sources:
+    - name: official
+      url: https://github.com/hengsin/idempiere-skills.git
+      priority: 1
+    - name: local-overrides
+      path: /opt/mycompany/idempiere-skills
+      priority: 0              # 0 = highest priority
+  cacheDir: ~/.idempiere-cli/skills
+  updateInterval: 7d
+```
+
+**Without AI:** Everything works without AI configuration. Templates provide reliable, tested output. AI adds context-awareness (adapts to your project's coding patterns, naming conventions, and existing infrastructure).
+
 ### Custom Templates
 
 Override built-in templates by placing custom versions in your templates directory:
@@ -465,8 +545,9 @@ src/main/java/org/idempiere/cli/
   IdempiereCli.java              # Top-level command registry
   commands/                      # Picocli command classes
     add/                         # Subcommands for "add"
-  model/                         # Data models (PluginDescriptor, PlatformVersion, etc.)
+  model/                         # Data models (PluginDescriptor, ProjectContext, etc.)
   service/                       # Business logic services
+    ai/                          # AI client abstraction (Anthropic, Google, OpenAI)
 
 src/main/resources/templates/    # Qute templates for code generation
   plugin/                        # Base plugin files (pom.xml, MANIFEST.MF, etc.)
@@ -542,6 +623,11 @@ The MCP server gives AI agents **semantic understanding** of the iDempiere platf
 - [x] Integration tests with real plugin fixtures (scaffold → build → validate)
 - [x] Add `--config` support for persistent CLI preferences (~/.idempiere-cli.yaml)
 - [x] Template customization (user-defined templates in ~/.idempiere-cli/templates/)
+
+- [x] AI-powered scaffolding (optional, multi-provider: Anthropic, Google, OpenAI)
+- [x] Skill management (`skills list/sync/which`) with multi-source priority resolution
+- [x] Project context analysis for AI-aware code generation
+- [x] `config` command for managing CLI settings (`config show/get/set`)
 
 ### Short-term
 - [ ] Expand bundle-to-package mapping in `deps` command

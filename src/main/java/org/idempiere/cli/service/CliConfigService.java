@@ -2,9 +2,11 @@ package org.idempiere.cli.service;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import org.idempiere.cli.model.CliConfig;
+import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
+import org.yaml.snakeyaml.representer.Representer;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -180,6 +182,43 @@ public class CliConfigService {
             System.err.println("  " + e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Saves a CliConfig to the global config file (~/.idempiere-cli.yaml).
+     *
+     * @param config the config to save
+     * @throws IOException if writing fails
+     */
+    public void saveGlobalConfig(CliConfig config) throws IOException {
+        saveConfig(config, getGlobalConfigPath());
+    }
+
+    /**
+     * Saves a CliConfig to a specific file path.
+     *
+     * @param config the config to save
+     * @param configPath the path to write to
+     * @throws IOException if writing fails
+     */
+    public void saveConfig(CliConfig config, Path configPath) throws IOException {
+        DumperOptions dumperOptions = new DumperOptions();
+        dumperOptions.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
+        dumperOptions.setPrettyFlow(true);
+
+        Representer representer = new Representer(dumperOptions);
+        representer.getPropertyUtils().setSkipMissingProperties(true);
+        // Don't write class tags like !!org.idempiere.cli.model.CliConfig
+        representer.addClassTag(CliConfig.class, org.yaml.snakeyaml.nodes.Tag.MAP);
+        representer.addClassTag(CliConfig.AiConfig.class, org.yaml.snakeyaml.nodes.Tag.MAP);
+        representer.addClassTag(CliConfig.SkillsConfig.class, org.yaml.snakeyaml.nodes.Tag.MAP);
+        representer.addClassTag(CliConfig.SkillSource.class, org.yaml.snakeyaml.nodes.Tag.MAP);
+        representer.addClassTag(CliConfig.Defaults.class, org.yaml.snakeyaml.nodes.Tag.MAP);
+        representer.addClassTag(CliConfig.Templates.class, org.yaml.snakeyaml.nodes.Tag.MAP);
+
+        Yaml yaml = new Yaml(representer, dumperOptions);
+        String content = yaml.dump(config);
+        Files.writeString(configPath, content);
     }
 
     /**

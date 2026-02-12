@@ -27,12 +27,19 @@ public class GoogleAiClient implements AiClient {
     private static final Duration TIMEOUT = Duration.ofSeconds(60);
     private static final String DEFAULT_MODEL = "gemini-2.5-flash";
     private static final ObjectMapper objectMapper = new ObjectMapper();
-    private static final HttpClient httpClient = HttpClient.newBuilder()
-            .connectTimeout(TIMEOUT)
-            .build();
+    private volatile HttpClient httpClient;
 
     @Inject
     CliConfigService configService;
+
+    private HttpClient getHttpClient() {
+        if (httpClient == null) {
+            httpClient = HttpClient.newBuilder()
+                    .connectTimeout(TIMEOUT)
+                    .build();
+        }
+        return httpClient;
+    }
 
     @Override
     public boolean isConfigured() {
@@ -83,7 +90,7 @@ public class GoogleAiClient implements AiClient {
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
 
-        return AiHttpUtils.sendWithRetry(httpClient, request);
+        return AiHttpUtils.sendWithRetry(getHttpClient(), request);
     }
 
     private String buildRequestBody(String prompt) {

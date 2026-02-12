@@ -282,7 +282,7 @@ public class DoctorService {
         for (String pkg : wingetPackages) {
             System.out.println("  Installing " + pkg + "...");
             // Use no timeout for package installations which can take a long time
-            processRunner.runLiveNoTimeout("winget", "install", "--accept-package-agreements", pkg);
+            processRunner.runLiveNoTimeout("winget", "install", "--accept-package-agreements", "--source", "winget", pkg);
         }
 
         System.out.println();

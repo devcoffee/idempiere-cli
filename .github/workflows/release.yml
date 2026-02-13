@@ -28,8 +28,17 @@ jobs:
           distribution: 'mandrel'
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build native image
-        run: mvn -B package -Pnative -DskipTests -Dquarkus.native.additional-build-args=--initialize-at-run-time=org.postgresql.sspi.SSPIClient,--enable-url-protocols=https,-march=compatibility
+        run: mvn -B package -Pnative -DskipTests -Dquarkus.application.version=${{ steps.version.outputs.version }} -Dquarkus.native.additional-build-args=--initialize-at-run-time=org.postgresql.sspi.SSPIClient,--enable-url-protocols=https,-march=compatibility
 
       - name: Rename binary
         run: mv target/*-runner target/idempiere-cli-linux-amd64
@@ -53,8 +62,17 @@ jobs:
           distribution: 'mandrel'
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build native image
-        run: mvn -B package -Pnative -DskipTests -Dquarkus.native.additional-build-args=--initialize-at-run-time=org.postgresql.sspi.SSPIClient,--enable-url-protocols=https,-march=compatibility
+        run: mvn -B package -Pnative -DskipTests -Dquarkus.application.version=${{ steps.version.outputs.version }} -Dquarkus.native.additional-build-args=--initialize-at-run-time=org.postgresql.sspi.SSPIClient,--enable-url-protocols=https,-march=compatibility
 
       - name: Rename binary
         run: mv target/*-runner target/idempiere-cli-linux-arm64
@@ -77,8 +95,17 @@ jobs:
           distribution: 'graalvm'
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build native image
-        run: mvn -B package -Pnative -DskipTests
+        run: mvn -B package -Pnative -DskipTests -Dquarkus.application.version=${{ steps.version.outputs.version }}
 
       - name: Rename binary
         run: mv target/*-runner target/idempiere-cli-darwin-arm64
@@ -101,8 +128,17 @@ jobs:
           distribution: 'graalvm'
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build native image
-        run: mvn -B package -Pnative -DskipTests
+        run: mvn -B package -Pnative -DskipTests -Dquarkus.application.version=${{ steps.version.outputs.version }}
 
       - name: Rename binary
         run: mv target/*-runner target/idempiere-cli-darwin-amd64
@@ -130,8 +166,18 @@ jobs:
         with:
           arch: x64
 
+      - name: Get version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build native image
-        run: mvn -B package -Pnative -DskipTests
+        run: mvn -B package -Pnative -DskipTests -Dquarkus.application.version=${{ steps.version.outputs.version }}
 
       - name: Rename binary
         run: move target\*-runner.exe target\idempiere-cli-windows-amd64.exe

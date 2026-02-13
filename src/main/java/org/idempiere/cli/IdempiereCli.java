@@ -28,7 +28,7 @@ import picocli.CommandLine.Command;
         name = "idempiere-cli",
         description = "A Developer CLI for iDempiere plugin development",
         mixinStandardHelpOptions = true,
-        version = "1.0.0-SNAPSHOT",
+        versionProvider = VersionProvider.class,
         subcommands = {
                 DoctorCommand.class,
                 SetupDevEnvCommand.class,

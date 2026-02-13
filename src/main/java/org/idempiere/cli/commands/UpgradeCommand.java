@@ -1,6 +1,7 @@
 package org.idempiere.cli.commands;
 
 import jakarta.inject.Inject;
+import org.idempiere.cli.VersionProvider;
 import org.idempiere.cli.service.ProcessRunner;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -49,7 +50,6 @@ public class UpgradeCommand implements Runnable {
 
     private static final String GITHUB_API = "https://api.github.com/repos/devcoffee/idempiere-cli/releases/latest";
     private static final String GITHUB_RELEASES = "https://github.com/devcoffee/idempiere-cli/releases/download";
-    private static final String CURRENT_VERSION = "1.0.0-SNAPSHOT";
 
     @Option(names = {"--check"}, description = "Only check for updates, don't install")
     boolean checkOnly;
@@ -69,7 +69,7 @@ public class UpgradeCommand implements Runnable {
         System.out.println("iDempiere CLI Upgrade");
         System.out.println("=====================");
         System.out.println();
-        System.out.println("  Current version: " + CURRENT_VERSION);
+        System.out.println("  Current version: " + VersionProvider.getApplicationVersion());
 
         try {
             String latestVersion = targetVersion != null ? targetVersion : fetchLatestVersion();
@@ -81,13 +81,13 @@ public class UpgradeCommand implements Runnable {
             System.out.println("  Latest version:  " + latestVersion);
             System.out.println();
 
-            if (!force && isUpToDate(CURRENT_VERSION, latestVersion)) {
+            if (!force && isUpToDate(VersionProvider.getApplicationVersion(), latestVersion)) {
                 System.out.println("  Already up to date!");
                 return;
             }
 
             if (checkOnly) {
-                System.out.println("  Update available: " + CURRENT_VERSION + " -> " + latestVersion);
+                System.out.println("  Update available: " + VersionProvider.getApplicationVersion() + " -> " + latestVersion);
                 System.out.println("  Run 'idempiere-cli upgrade' to install.");
                 return;
             }
@@ -121,8 +121,11 @@ public class UpgradeCommand implements Runnable {
             System.out.println("  Backing up current binary to " + backupPath.getFileName() + "...");
 
             try {
-                Files.copy(currentBinary, backupPath, StandardCopyOption.REPLACE_EXISTING);
-                Files.copy(tempFile, currentBinary, StandardCopyOption.REPLACE_EXISTING);
+                // On Windows, a running .exe can't be overwritten but CAN be renamed.
+                // So: rename current -> .bak, then move new -> original name.
+                Files.deleteIfExists(backupPath);
+                Files.move(currentBinary, backupPath);
+                Files.move(tempFile, currentBinary);
 
                 // Make executable on Unix systems
                 if (!isWindows()) {
@@ -137,13 +140,15 @@ public class UpgradeCommand implements Runnable {
                     ));
                 }
 
-                Files.deleteIfExists(tempFile);
-
                 System.out.println();
                 System.out.println("  Upgrade successful!");
                 System.out.println("  Run 'idempiere-cli --version' to verify.");
 
             } catch (IOException e) {
+                // Restore from backup if the move failed mid-way
+                if (!Files.exists(currentBinary) && Files.exists(backupPath)) {
+                    try { Files.move(backupPath, currentBinary); } catch (IOException ignored) {}
+                }
                 System.err.println("  Failed to replace binary: " + e.getMessage());
                 System.err.println("  You may need to run with sudo/administrator privileges.");
                 System.err.println("  Or manually copy from: " + tempFile);

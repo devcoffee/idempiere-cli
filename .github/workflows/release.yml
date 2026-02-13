@@ -177,7 +177,7 @@ jobs:
           fi
 
       - name: Build native image
-        run: mvn -B package -Pnative -DskipTests -Dquarkus.application.version=${{ steps.version.outputs.version }}
+        run: mvn -B package -Pnative -DskipTests "-Dquarkus.application.version=${{ steps.version.outputs.version }}"
 
       - name: Rename binary
         run: move target\*-runner.exe target\idempiere-cli-windows-amd64.exe

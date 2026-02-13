@@ -6,6 +6,7 @@ import jakarta.inject.Inject;
 import org.idempiere.cli.service.check.CheckResult;
 import org.idempiere.cli.service.check.EnvironmentCheck;
 import org.idempiere.cli.service.check.PluginCheck;
+import org.idempiere.cli.service.check.PostgresCheck;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -45,6 +46,9 @@ public class DoctorService {
 
     @Inject
     ProcessRunner processRunner;
+
+    @Inject
+    PostgresCheck postgresCheck;
 
     @Inject
     Instance<EnvironmentCheck> environmentChecks;
@@ -273,20 +277,50 @@ public class DoctorService {
             return;
         }
 
-        if (wingetPackages.isEmpty()) {
-            System.out.println("Nothing to install via winget.");
-            return;
+        if (!wingetPackages.isEmpty()) {
+            System.out.println("Installing packages with winget...");
+            for (String pkg : wingetPackages) {
+                System.out.println("  Installing " + pkg + "...");
+                // Use no timeout for package installations which can take a long time
+                processRunner.runLiveNoTimeout("winget", "install", "--accept-package-agreements", "--source", "winget", pkg);
+            }
         }
 
-        System.out.println("Installing packages with winget...");
-        for (String pkg : wingetPackages) {
-            System.out.println("  Installing " + pkg + "...");
-            // Use no timeout for package installations which can take a long time
-            processRunner.runLiveNoTimeout("winget", "install", "--accept-package-agreements", "--source", "winget", pkg);
-        }
+        // Check if psql was installed but not in PATH, and fix it
+        addPsqlToPathIfNeeded();
 
         System.out.println();
         System.out.println("Installation complete. Restart your terminal and run 'idempiere-cli doctor' to verify.");
+    }
+
+    /**
+     * On Windows, check if psql.exe exists at a known location but is not in PATH.
+     * If so, add the bin directory to the user PATH via PowerShell.
+     */
+    private void addPsqlToPathIfNeeded() {
+        // Skip if psql is already in PATH
+        if (processRunner.isAvailable("psql")) {
+            return;
+        }
+
+        String psqlPath = postgresCheck.findPsqlOnWindows();
+        if (psqlPath == null) {
+            return;
+        }
+
+        String binDir = Path.of(psqlPath).getParent().toString();
+        System.out.println("  Adding " + binDir + " to user PATH...");
+
+        // Use PowerShell to append to user PATH only (avoids setx 1024-char limit)
+        String psCommand = String.format(
+                "$p = [Environment]::GetEnvironmentVariable('Path','User');" +
+                "if ($p -notlike '*%s*') {" +
+                "[Environment]::SetEnvironmentVariable('Path', $p + ';%s', 'User');" +
+                "Write-Host 'Added to PATH'" +
+                "} else { Write-Host 'Already in PATH' }",
+                binDir.replace("\\", "\\\\"), binDir);
+
+        processRunner.runLive("powershell", "-NoProfile", "-Command", psCommand);
     }
 
     /**

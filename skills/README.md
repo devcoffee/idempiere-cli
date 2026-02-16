@@ -14,6 +14,7 @@ These skills follow the [SKILL.md format](https://github.com/hengsin/idempiere-s
 | [idempiere-cli-build-deploy](idempiere-cli-build-deploy/SKILL.md) | Build, deploy, and package plugins |
 | [idempiere-cli-validate-analyze](idempiere-cli-validate-analyze/SKILL.md) | Validate structure, inspect metadata, analyze dependencies |
 | [idempiere-cli-migrate](idempiere-cli-migrate/SKILL.md) | Migrate plugins between iDempiere versions |
+| [idempiere-cli-dist](idempiere-cli-dist/SKILL.md) | Create iDempiere server distribution packages for all platforms |
 
 ## Usage with idempiere-cli
 

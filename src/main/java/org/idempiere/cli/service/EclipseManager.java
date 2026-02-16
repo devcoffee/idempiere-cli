@@ -304,8 +304,11 @@ public class EclipseManager {
 
         Path idePrefs = settingsDir.resolve("org.eclipse.ui.ide.prefs");
         if (!Files.exists(idePrefs)) {
+            // Eclipse .prefs uses Java Properties format where backslashes are escape characters.
+            // On Windows, paths must use forward slashes or escaped backslashes.
+            String workspacePath = sourceDir.toAbsolutePath().toString().replace("\\", "/");
             String content = "MAX_RECENT_WORKSPACES=10\n"
-                    + "RECENT_WORKSPACES=" + sourceDir.toAbsolutePath() + "\n"
+                    + "RECENT_WORKSPACES=" + workspacePath + "\n"
                     + "RECENT_WORKSPACES_PROTOCOL=3\n"
                     + "SHOW_RECENT_WORKSPACES=false\n"
                     + "SHOW_WORKSPACE_SELECTION_DIALOG=true\n"

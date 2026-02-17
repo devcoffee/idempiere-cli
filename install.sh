@@ -132,14 +132,59 @@ install() {
             fi
         fi
 
-        # Check if directory is in PATH
+        # Check if directory is in PATH and offer to add it permanently
         if [[ ":$PATH:" != *":${target_dir}:"* ]]; then
             warn "${target_dir} is not in your PATH"
             echo ""
-            echo "Add it to your PATH by adding this line to your shell profile:"
-            echo ""
-            echo "  export PATH=\"\$PATH:${target_dir}\""
-            echo ""
+
+            # Detect shell profile file
+            local shell_profile=""
+            local shell_name=$(basename "$SHELL")
+            case "$shell_name" in
+                zsh)  shell_profile="$HOME/.zshrc" ;;
+                bash)
+                    if [ -f "$HOME/.bashrc" ]; then
+                        shell_profile="$HOME/.bashrc"
+                    elif [ -f "$HOME/.bash_profile" ]; then
+                        shell_profile="$HOME/.bash_profile"
+                    else
+                        shell_profile="$HOME/.bashrc"
+                    fi
+                    ;;
+                *)    shell_profile="$HOME/.profile" ;;
+            esac
+
+            local path_line="export PATH=\"\$PATH:${target_dir}\""
+
+            # Check if not running in a pipe (interactive terminal)
+            if [ -t 0 ]; then
+                echo -n "Add ${target_dir} to PATH in ${shell_profile}? [Y/n] "
+                read -r answer
+                if [ "$answer" != "n" ] && [ "$answer" != "N" ]; then
+                    echo "" >> "$shell_profile"
+                    echo "# idempiere-cli" >> "$shell_profile"
+                    echo "$path_line" >> "$shell_profile"
+                    info "Added to ${shell_profile}. Restart your terminal or run:"
+                    echo ""
+                    echo "  source ${shell_profile}"
+                    echo ""
+                else
+                    echo ""
+                    echo "Add it manually to ${shell_profile}:"
+                    echo ""
+                    echo "  echo '${path_line}' >> ${shell_profile}"
+                    echo ""
+                fi
+            else
+                # Running in pipe (curl | bash), add automatically
+                echo "" >> "$shell_profile"
+                echo "# idempiere-cli" >> "$shell_profile"
+                echo "$path_line" >> "$shell_profile"
+                info "Added to ${shell_profile}. Restart your terminal or run:"
+                echo ""
+                echo "  source ${shell_profile}"
+                echo ""
+            fi
         fi
 
         echo "Run 'idempiere-cli doctor' to verify your environment."

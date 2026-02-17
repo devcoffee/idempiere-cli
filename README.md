@@ -95,9 +95,12 @@ idempiere-cli doctor
 Check required tools and environment prerequisites.
 
 ```bash
-idempiere-cli doctor              # Check Java, Maven, Git, Docker, PostgreSQL
-idempiere-cli doctor --fix        # Show fix suggestions with setup-dev-env commands
-idempiere-cli doctor --dir ./my-plugin  # Validate plugin structure
+idempiere-cli doctor                        # Check Java, Maven, Git, Docker, PostgreSQL
+idempiere-cli doctor --fix                  # Auto-install missing required tools
+idempiere-cli doctor --fix-optional         # Interactive selection of optional tools
+idempiere-cli doctor --fix-optional=all     # Install all optional tools (Docker, Maven)
+idempiere-cli doctor --fix-optional=docker  # Install specific optional tool
+idempiere-cli doctor --dir ./my-plugin      # Validate plugin structure
 ```
 
 **Example output:**

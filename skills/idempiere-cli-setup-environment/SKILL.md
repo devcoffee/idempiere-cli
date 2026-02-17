@@ -30,8 +30,15 @@ idempiere-cli doctor
 # Auto-fix missing required tools (Java, Maven, Git, PostgreSQL)
 idempiere-cli doctor --fix
 
-# Also install optional tools (Docker)
-idempiere-cli doctor --fix --fix-optional
+# Also install optional tools (interactive selection)
+idempiere-cli doctor --fix-optional
+
+# Install all optional tools
+idempiere-cli doctor --fix-optional=all
+
+# Install specific optional tools
+idempiere-cli doctor --fix-optional=docker
+idempiere-cli doctor --fix-optional=docker,maven
 
 # Validate a plugin directory too
 idempiere-cli doctor --dir /path/to/my-plugin

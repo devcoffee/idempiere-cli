@@ -16,9 +16,12 @@ import picocli.CommandLine.Option;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Scanner;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Validates the development environment and plugin structure.
@@ -56,8 +59,9 @@ public class DoctorCommand implements Runnable {
     @Option(names = {"--fix"}, description = "Attempt to auto-fix missing dependencies")
     boolean fix;
 
-    @Option(names = {"--fix-optional"}, description = "Also install optional tools (e.g. Docker) when using --fix")
-    boolean fixOptional;
+    @Option(names = {"--fix-optional"}, arity = "0..1", fallbackValue = "",
+            description = "Install optional tools. Without value: interactive. Values: all, docker, maven (comma-separated)")
+    String fixOptional;
 
     @Option(names = {"--dir"}, description = "Validate plugin structure in the given directory")
     String dir;
@@ -80,7 +84,7 @@ public class DoctorCommand implements Runnable {
             printEnvironmentJson(doctorService.checkEnvironmentData());
         } else {
             // --fix-optional implies --fix
-            if (fixOptional) fix = true;
+            if (fixOptional != null) fix = true;
             runEnvironmentCheck();
         }
     }
@@ -105,10 +109,13 @@ public class DoctorCommand implements Runnable {
         List<CheckResult> results = result.entries().stream().map(CheckEntry::result).toList();
         boolean dockerNotOk = results.stream().anyMatch(r -> r.tool().equals("Docker") && !r.isOk());
         boolean postgresOutdated = results.stream().anyMatch(r -> r.tool().equals("PostgreSQL") && r.isWarn());
-        boolean hasFixableIssues = result.failed() > 0 || (fixOptional && dockerNotOk);
+
+        // Resolve which optional tools to fix
+        Set<String> optionalFilter = resolveOptionalFilter(result.entries());
+        boolean hasFixableIssues = result.failed() > 0 || (optionalFilter != null && !optionalFilter.isEmpty());
 
         if (fix && hasFixableIssues) {
-            doctorService.runAutoFix(result.entries(), fixOptional);
+            doctorService.runAutoFix(result.entries(), optionalFilter);
         } else if (result.failed() > 0 || dockerNotOk || postgresOutdated) {
             printFixSuggestions(result.entries());
         }
@@ -237,16 +244,37 @@ public class DoctorCommand implements Runnable {
         System.out.println();
         System.out.println("  Run: idempiere-cli doctor --fix");
 
+        // Collect optional warnings for suggestions
+        List<CheckEntry> optionalWarnings = entries.stream()
+                .filter(e -> e.result().isWarn() && !e.check().isRequired())
+                .toList();
+
+        if (!optionalWarnings.isEmpty()) {
+            System.out.println();
+            System.out.println("Optional tools:");
+            for (CheckEntry entry : optionalWarnings) {
+                String toolName = entry.result().tool();
+                System.out.printf("  %-12s %s%n", toolName, entry.result().message());
+            }
+            System.out.println();
+            String toolNames = optionalWarnings.stream()
+                    .map(e -> e.result().tool().toLowerCase())
+                    .collect(Collectors.joining(","));
+            System.out.println("  Install all:      idempiere-cli doctor --fix-optional=all");
+            System.out.println("  Choose specific:  idempiere-cli doctor --fix-optional=" + toolNames);
+            System.out.println("  Interactive:      idempiere-cli doctor --fix-optional");
+        }
+
         CheckEntry dockerEntry = entries.stream()
                 .filter(e -> e.result().tool().equals("Docker") && !e.result().isOk())
                 .findFirst().orElse(null);
 
         if (dockerEntry != null) {
-            System.out.println();
             boolean daemonNotRunning = dockerEntry.result().message() != null
                     && dockerEntry.result().message().contains("daemon is not running");
 
             if (daemonNotRunning) {
+                System.out.println();
                 System.out.println("Docker is installed but the daemon is not running.");
                 if (os.contains("mac")) {
                     System.out.println("  Start Docker Desktop: open -a Docker");
@@ -255,15 +283,105 @@ public class DoctorCommand implements Runnable {
                 } else if (os.contains("win")) {
                     System.out.println("  Start Docker Desktop from the Start menu");
                 }
-            } else {
-                System.out.println("Optional: Docker (for containerized PostgreSQL)");
-                System.out.println("  Run: idempiere-cli doctor --fix-optional");
             }
             System.out.println();
             System.out.println("  With Docker, use: idempiere-cli setup-dev-env --with-docker");
         }
 
         System.out.println();
+    }
+
+    /**
+     * Resolves which optional tools to fix based on --fix-optional value.
+     * @return null if no optional fix requested, empty set if none selected, or set of tool names
+     */
+    private Set<String> resolveOptionalFilter(List<CheckEntry> entries) {
+        if (fixOptional == null) {
+            return null; // --fix-optional not used
+        }
+
+        // Collect optional tools that have warnings
+        List<CheckEntry> optionalWarnings = entries.stream()
+                .filter(e -> e.result().isWarn() && !e.check().isRequired())
+                .toList();
+
+        if (optionalWarnings.isEmpty()) {
+            return Set.of(); // nothing to fix
+        }
+
+        if (fixOptional.equalsIgnoreCase("all")) {
+            // --fix-optional=all → fix all optional
+            return optionalWarnings.stream()
+                    .map(e -> e.result().tool().toLowerCase())
+                    .collect(Collectors.toSet());
+        }
+
+        if (!fixOptional.isEmpty()) {
+            // --fix-optional=docker,maven → filter specific tools
+            Set<String> requested = Arrays.stream(fixOptional.split(","))
+                    .map(String::trim)
+                    .map(String::toLowerCase)
+                    .collect(Collectors.toSet());
+
+            // Validate tool names
+            Set<String> validNames = optionalWarnings.stream()
+                    .map(e -> e.result().tool().toLowerCase())
+                    .collect(Collectors.toSet());
+
+            Set<String> invalid = requested.stream()
+                    .filter(r -> !validNames.contains(r))
+                    .collect(Collectors.toSet());
+
+            if (!invalid.isEmpty()) {
+                System.out.println();
+                System.out.println("Unknown optional tool(s): " + String.join(", ", invalid));
+                System.out.println("Available: " + String.join(", ", validNames));
+                return Set.of();
+            }
+
+            return requested;
+        }
+
+        // --fix-optional (no value) → interactive mode
+        System.out.println();
+        System.out.println("Optional tools available to install:");
+        System.out.println();
+        for (int i = 0; i < optionalWarnings.size(); i++) {
+            CheckEntry entry = optionalWarnings.get(i);
+            System.out.printf("  %d. %-12s %s%n", i + 1,
+                    entry.result().tool(), entry.result().message());
+        }
+        System.out.println("  a. All of the above");
+        System.out.println();
+        System.out.print("Select tools to install (e.g. 1,2 or a for all) [a]: ");
+
+        @SuppressWarnings("resource")
+        Scanner scanner = new Scanner(System.in);
+        String input = scanner.nextLine().trim();
+
+        if (input.isEmpty() || input.equalsIgnoreCase("a")) {
+            return optionalWarnings.stream()
+                    .map(e -> e.result().tool().toLowerCase())
+                    .collect(Collectors.toSet());
+        }
+
+        Set<String> selected = new LinkedHashSet<>();
+        for (String part : input.split(",")) {
+            try {
+                int idx = Integer.parseInt(part.trim()) - 1;
+                if (idx >= 0 && idx < optionalWarnings.size()) {
+                    selected.add(optionalWarnings.get(idx).result().tool().toLowerCase());
+                }
+            } catch (NumberFormatException e) {
+                // Try as tool name
+                String name = part.trim().toLowerCase();
+                if (optionalWarnings.stream().anyMatch(w -> w.result().tool().equalsIgnoreCase(name))) {
+                    selected.add(name);
+                }
+            }
+        }
+
+        return selected;
     }
 
     private void removeJavaMavenPackages(Set<String> packages) {

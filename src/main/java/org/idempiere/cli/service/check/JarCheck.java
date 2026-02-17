@@ -33,6 +33,7 @@ public class JarCheck implements EnvironmentCheck {
     public FixSuggestion getFixSuggestion(String os) {
         // jar comes with JDK, so use same fix as Java
         return FixSuggestion.builder()
+                .sdkman("java 21-tem")
                 .brew("openjdk@21")
                 .apt("openjdk-21-jdk")
                 .dnf("java-21-openjdk-devel")

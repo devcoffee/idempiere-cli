@@ -102,8 +102,11 @@ public class DoctorService {
     /**
      * Runs automatic fix for failed environment checks.
      * Installs missing tools using the appropriate package manager.
+     *
+     * @param entries the check entries to evaluate
+     * @param optionalFilter set of lowercase tool names to fix as optional, or null to skip optional fixes
      */
-    public void runAutoFix(List<CheckEntry> entries, boolean fixOptional) {
+    public void runAutoFix(List<CheckEntry> entries, Set<String> optionalFilter) {
         String os = System.getProperty("os.name", "").toLowerCase();
 
         System.out.println();
@@ -121,7 +124,9 @@ public class DoctorService {
 
         for (CheckEntry entry : entries) {
             CheckResult result = entry.result();
-            boolean shouldFix = result.isFail() || (fixOptional && result.isWarn());
+            boolean shouldFix = result.isFail()
+                    || (optionalFilter != null && result.isWarn()
+                        && optionalFilter.contains(result.tool().toLowerCase()));
             if (!shouldFix) continue;
 
             EnvironmentCheck.FixSuggestion fix = entry.check().getFixSuggestion(os);
@@ -154,12 +159,13 @@ public class DoctorService {
             }
         }
 
+        boolean fixDocker = optionalFilter != null && optionalFilter.contains("docker");
         if (os.contains("mac")) {
-            runAutoFixMac(brewPackages, brewCasks, entries, fixOptional);
+            runAutoFixMac(brewPackages, brewCasks, entries, fixDocker);
         } else if (os.contains("linux") || os.contains("nix")) {
-            runAutoFixLinux(aptPackages, dnfPackages, pacmanPackages, entries, fixOptional);
+            runAutoFixLinux(aptPackages, dnfPackages, pacmanPackages, entries, fixDocker);
         } else if (os.contains("win")) {
-            runAutoFixWindows(wingetPackages, entries, fixOptional);
+            runAutoFixWindows(wingetPackages, entries, fixDocker);
         } else {
             System.out.println("Auto-fix is not supported on this platform.");
             System.out.println("Please install the missing tools manually.");
@@ -167,7 +173,7 @@ public class DoctorService {
     }
 
     private void runAutoFixMac(Set<String> brewPackages, Set<String> brewCasks,
-                               List<CheckEntry> entries, boolean fixOptional) {
+                               List<CheckEntry> entries, boolean fixDocker) {
         if (!processRunner.isAvailable("brew")) {
             System.out.println("Homebrew not found. Install it first:");
             System.out.println("  /bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"");
@@ -197,7 +203,7 @@ public class DoctorService {
         CheckEntry dockerEntry = entries.stream()
                 .filter(e -> e.result().tool().equals("Docker"))
                 .findFirst().orElse(null);
-        if (fixOptional && dockerEntry != null && dockerEntry.result().message() != null
+        if (fixDocker && dockerEntry != null && dockerEntry.result().message() != null
                 && dockerEntry.result().message().contains("daemon is not running")) {
             System.out.println("Starting Docker Desktop...");
             processRunner.runLive("open", "-a", "Docker");
@@ -212,7 +218,7 @@ public class DoctorService {
     }
 
     private void runAutoFixLinux(Set<String> aptPackages, Set<String> dnfPackages,
-                                 Set<String> pacmanPackages, List<CheckEntry> entries, boolean fixOptional) {
+                                 Set<String> pacmanPackages, List<CheckEntry> entries, boolean fixDocker) {
         String pkgManager = null;
         Set<String> packages = null;
 
@@ -253,7 +259,7 @@ public class DoctorService {
         CheckEntry dockerEntry = entries.stream()
                 .filter(e -> e.result().tool().equals("Docker"))
                 .findFirst().orElse(null);
-        if (fixOptional && dockerEntry != null && !dockerEntry.result().isOk()) {
+        if (fixDocker && dockerEntry != null && !dockerEntry.result().isOk()) {
             System.out.println("Starting Docker daemon...");
             List<String> startCmd = new ArrayList<>();
             if (!isRoot) startCmd.add("sudo");
@@ -271,7 +277,7 @@ public class DoctorService {
         }
     }
 
-    private void runAutoFixWindows(Set<String> wingetPackages, List<CheckEntry> entries, boolean fixOptional) {
+    private void runAutoFixWindows(Set<String> wingetPackages, List<CheckEntry> entries, boolean fixDocker) {
         if (!processRunner.isAvailable("winget")) {
             System.out.println("winget not found. Install from: https://aka.ms/getwinget");
             return;
@@ -386,10 +392,38 @@ public class DoctorService {
         if (allSuccess) {
             System.out.println();
             System.out.println("SDKMAN packages installed successfully!");
+            System.out.println();
+
+            // Verify installed tools by running them through SDKMAN-sourced bash
+            verifySdkmanInstalls(sdkmanInit, sdkmanPackages);
+
+            System.out.println();
             System.out.println("Note: Run 'source ~/.sdkman/bin/sdkman-init.sh' or restart your terminal.");
         }
 
         return allSuccess;
+    }
+
+    /**
+     * Verify SDKMAN-installed tools by running version commands through a SDKMAN-sourced bash shell.
+     * This provides immediate feedback that the tools were installed correctly.
+     */
+    private void verifySdkmanInstalls(Path sdkmanInit, Set<String> packages) {
+        System.out.println("  Verifying installations:");
+        for (String pkg : packages) {
+            // Extract tool name: "java 21-tem" -> "java", "maven" -> "mvn"
+            String tool = pkg.split("\\s+")[0];
+            String versionCmd = tool.equals("maven") ? "mvn -version" : tool + " -version";
+
+            String command = String.format(
+                    "source \"%s\" && %s 2>&1 | head -1",
+                    sdkmanInit, versionCmd);
+
+            ProcessRunner.RunResult result = processRunner.run("bash", "-c", command);
+            if (result.isSuccess() && result.output() != null && !result.output().isBlank()) {
+                System.out.println("    " + result.output().trim());
+            }
+        }
     }
 
     /**

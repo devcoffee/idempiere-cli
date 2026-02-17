@@ -3,10 +3,13 @@ package org.idempiere.cli.commands;
 import jakarta.inject.Inject;
 import org.idempiere.cli.model.CliConfig;
 import org.idempiere.cli.service.CliConfigService;
+import org.idempiere.cli.service.InteractivePromptService;
+import org.idempiere.cli.util.CliOutput;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * Manages CLI configuration (AI provider, skills, defaults).
@@ -18,7 +21,8 @@ import java.io.IOException;
         subcommands = {
                 ConfigCommand.ShowCmd.class,
                 ConfigCommand.GetCmd.class,
-                ConfigCommand.SetCmd.class
+                ConfigCommand.SetCmd.class,
+                ConfigCommand.InitCmd.class
         }
 )
 public class ConfigCommand {
@@ -123,6 +127,98 @@ public class ConfigCommand {
             try {
                 configService.saveGlobalConfig(config);
                 System.out.println("Set " + key + " = " + value);
+            } catch (IOException e) {
+                System.err.println("Failed to save config: " + e.getMessage());
+            }
+        }
+    }
+
+    @Command(name = "init", description = "Initialize configuration interactively",
+            mixinStandardHelpOptions = true)
+    static class InitCmd implements Runnable {
+
+        private static final Map<String, String> DEFAULT_API_KEY_ENV = Map.of(
+                "anthropic", "ANTHROPIC_API_KEY",
+                "openai", "OPENAI_API_KEY",
+                "google", "GOOGLE_API_KEY"
+        );
+
+        private static final Map<String, String> DEFAULT_MODEL = Map.of(
+                "anthropic", "claude-sonnet-4-20250514",
+                "openai", "gpt-4o",
+                "google", "gemini-2.5-flash"
+        );
+
+        @Inject
+        CliConfigService configService;
+
+        @Inject
+        InteractivePromptService promptService;
+
+        @Override
+        public void run() {
+            CliConfig config = configService.loadConfig();
+
+            System.out.println();
+            System.out.println("iDempiere CLI Configuration");
+            System.out.println("===========================");
+
+            // Defaults section
+            System.out.println();
+            System.out.println("Plugin Defaults:");
+            String vendor = promptService.prompt("  Vendor name",
+                    config.getDefaults().hasVendor() ? config.getDefaults().getVendor() : null);
+            config.getDefaults().setVendor(vendor);
+
+            String version = promptService.prompt("  iDempiere version",
+                    String.valueOf(config.getDefaults().getIdempiereVersion()));
+            try {
+                config.getDefaults().setIdempiereVersion(Integer.parseInt(version));
+            } catch (NumberFormatException e) {
+                System.out.println("  Invalid version, keeping default: " + config.getDefaults().getIdempiereVersion());
+            }
+
+            // AI section
+            System.out.println();
+            System.out.println("AI-Powered Code Generation (optional):");
+            boolean enableAi = promptService.confirm("  Enable AI?", config.getAi().isEnabled());
+
+            if (enableAi) {
+                String provider = promptService.prompt("  Provider (anthropic/openai/google)",
+                        config.getAi().isEnabled() ? config.getAi().getProvider() : "anthropic");
+                config.getAi().setProvider(provider);
+
+                String defaultKeyEnv = DEFAULT_API_KEY_ENV.getOrDefault(provider,
+                        config.getAi().getApiKeyEnv());
+                String currentKeyEnv = config.getAi().hasApiKeyEnv() ? config.getAi().getApiKeyEnv() : defaultKeyEnv;
+                String apiKeyEnv = promptService.prompt("  API key env variable", currentKeyEnv);
+                config.getAi().setApiKeyEnv(apiKeyEnv);
+
+                String defaultModel = DEFAULT_MODEL.getOrDefault(provider, config.getAi().getModel());
+                String currentModel = config.getAi().hasModel() ? config.getAi().getModel() : defaultModel;
+                String model = promptService.prompt("  Model", currentModel);
+                config.getAi().setModel(model);
+
+                // Verify API key
+                System.out.println();
+                String keyValue = System.getenv(apiKeyEnv);
+                if (keyValue != null && !keyValue.isEmpty()) {
+                    System.out.println("  " + CliOutput.ok("$" + apiKeyEnv + " is set"));
+                } else {
+                    System.out.println("  " + CliOutput.warn("$" + apiKeyEnv + " is not set"));
+                    System.out.println("    Export it before using AI features:");
+                    System.out.println("    export " + apiKeyEnv + "=your-api-key");
+                }
+            } else {
+                config.getAi().setProvider("none");
+            }
+
+            // Save
+            try {
+                configService.saveGlobalConfig(config);
+                System.out.println();
+                System.out.println("Config saved to " + configService.getGlobalConfigPath());
+                System.out.println();
             } catch (IOException e) {
                 System.err.println("Failed to save config: " + e.getMessage());
             }

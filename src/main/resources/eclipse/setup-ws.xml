@@ -89,43 +89,50 @@ if idempiere_path_property is None:
 else:
     idempiereSrcDir = File(idempiere_path_property)
 
+    excluded_suffixes = [
+        "org.idempiere.javadoc", "ztl", "selenese", "doc", "fitnesse",
+        "migration", "event.test", "org.adempiere.report.jasper.fragment.test",
+        "utils_dev", "db", "org.adempiere.ui.zk.example"
+    ]
+
+    def import_project(project_dir):
+        """Import a single Eclipse project from a directory containing .project"""
+        fullPath = project_dir.getAbsolutePath()
+        if any(fullPath.endswith(suffix) for suffix in excluded_suffixes):
+            return
+        projectFile = File(project_dir, ".project")
+        if not projectFile.exists():
+            return
+        try:
+            projectDescription = workspace.loadProjectDescription(Path(projectFile.getAbsolutePath()))
+            project_name = projectDescription.getName()
+            print project_name
+            eclipse_project = workspace.getRoot().getProject(project_name)
+            if not eclipse_project.isOpen():
+                eclipse_project.create(projectDescription, None)
+                eclipse_project.open(None)
+            else:
+                eclipse_project.refreshLocal(IResource.DEPTH_INFINITE, None)
+        except Exception, e:
+            print "Error processing project {}: {}".format(fullPath, str(e))
+
     if idempiereSrcDir.exists() and idempiereSrcDir.isDirectory():
         for item_name in os.listdir(idempiereSrcDir.getAbsolutePath()):
-            it_file = File(idempiereSrcDir, item_name) # File object for the item in idempiereSrcDir
+            it_file = File(idempiereSrcDir, item_name)
 
-            if not it_file.isDirectory(): # We are looking for project directories
+            if not it_file.isDirectory():
                 continue
 
-            fullPath = it_file.getAbsolutePath()
-
-            excluded_suffixes = [
-                "org.idempiere.javadoc", "ztl", "selenese", "doc", "fitnesse",
-                "migration", "event.test", "org.adempiere.report.jasper.fragment.test",
-                "utils_dev", "db", "org.adempiere.ui.zk.example"
-            ]
-
-            if any(fullPath.endswith(suffix) for suffix in excluded_suffixes):
-                continue
-
-            projectFile = File(it_file, ".project") # .project file within the item directory
-            if not projectFile.exists():
-                continue
-
-            try:
-                projectDescription = workspace.loadProjectDescription(Path(projectFile.getAbsolutePath()))
-                project_name = projectDescription.getName()
-                print project_name # Print the name of the project being processed
-
-                eclipse_project = workspace.getRoot().getProject(project_name)
-
-                if not eclipse_project.isOpen():
-                    # Last argument is IProgressMonitor, None is equivalent to null
-                    eclipse_project.create(projectDescription, None)
-                    eclipse_project.open(None)
-                else:
-                    eclipse_project.refreshLocal(IResource.DEPTH_INFINITE, None)
-            except Exception, e:
-                print "Error processing project {}: {}".format(fullPath, str(e))
+            projectFile = File(it_file, ".project")
+            if projectFile.exists():
+                # Direct Eclipse project (e.g. org.adempiere.base)
+                import_project(it_file)
+            else:
+                # Nested repository (e.g. idempiere-rest/) — scan its children
+                for child_name in os.listdir(it_file.getAbsolutePath()):
+                    child_file = File(it_file, child_name)
+                    if child_file.isDirectory() and File(child_file, ".project").exists():
+                        import_project(child_file)
     elif idempiere_path_property : # Only print if property was set but path is invalid
         print "Source directory '{}' does not exist or is not a directory.".format(idempiere_path_property)
 

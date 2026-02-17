@@ -177,12 +177,21 @@ public class EclipseManager {
         Path eclipseDir = config.getEclipseDir();
 
         try {
-            // Count projects for info
+            // Count projects for info (top-level + nested repos like idempiere-rest)
             int projectCount = 0;
             try (var dirs = Files.list(sourceDir)) {
-                projectCount = (int) dirs.filter(Files::isDirectory)
-                        .filter(d -> Files.exists(d.resolve(".project")))
-                        .count();
+                for (Path dir : dirs.filter(Files::isDirectory).toList()) {
+                    if (Files.exists(dir.resolve(".project"))) {
+                        projectCount++;
+                    } else {
+                        // Nested repository — count its children
+                        try (var children = Files.list(dir)) {
+                            projectCount += (int) children.filter(Files::isDirectory)
+                                    .filter(d -> Files.exists(d.resolve(".project")))
+                                    .count();
+                        }
+                    }
+                }
             }
 
             sessionLogger.logInfo("Found " + projectCount + " Eclipse projects in source directory");

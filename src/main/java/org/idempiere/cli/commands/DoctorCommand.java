@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.inject.Inject;
+import org.idempiere.cli.model.CliConfig;
+import org.idempiere.cli.service.CliConfigService;
 import org.idempiere.cli.service.DoctorService;
 import org.idempiere.cli.service.DoctorService.CheckEntry;
 import org.idempiere.cli.service.DoctorService.EnvironmentResult;
@@ -77,6 +79,9 @@ public class DoctorCommand implements Runnable {
     @Inject
     DoctorService doctorService;
 
+    @Inject
+    CliConfigService configService;
+
     @Override
     public void run() {
         if (dir != null) {
@@ -110,6 +115,8 @@ public class DoctorCommand implements Runnable {
         System.out.println("----------------------------------");
         System.out.printf("Results: %d passed, %d warnings, %d failed%n",
                 result.passed(), result.warnings(), result.failed());
+
+        printConfigStatus();
 
         List<CheckResult> results = result.entries().stream().map(CheckEntry::result).toList();
         boolean dockerNotOk = results.stream().anyMatch(r -> r.tool().equals("Docker") && !r.isOk());
@@ -170,6 +177,43 @@ public class DoctorCommand implements Runnable {
             case FAIL -> CliOutput.fail(line);
         };
         System.out.println("  " + output);
+    }
+
+    private void printConfigStatus() {
+        System.out.println();
+        System.out.println("Configuration:");
+
+        boolean hasGlobal = configService.hasGlobalConfig();
+        Path projectConfig = configService.findConfigInHierarchy();
+
+        if (!hasGlobal && projectConfig == null) {
+            System.out.println("  " + CliOutput.warn("No config file found"));
+            System.out.println("    AI-powered features are disabled.");
+            System.out.println("    Run: idempiere-cli config init");
+            return;
+        }
+
+        if (projectConfig != null) {
+            System.out.println("  " + CliOutput.ok("Project config: " + projectConfig));
+        }
+        if (hasGlobal) {
+            System.out.println("  " + CliOutput.ok("Global config:  " + configService.getGlobalConfigPath()));
+        }
+
+        CliConfig config = configService.loadConfig();
+        if (config.getAi().isEnabled()) {
+            String apiKeyEnv = config.getAi().getApiKeyEnv();
+            boolean hasKey = apiKeyEnv != null && System.getenv(apiKeyEnv) != null;
+            if (hasKey) {
+                System.out.println("  " + CliOutput.ok("AI provider:    " + config.getAi().getProvider()));
+            } else {
+                System.out.println("  " + CliOutput.warn("AI provider:    " + config.getAi().getProvider()
+                        + " ($" + apiKeyEnv + " not set)"));
+            }
+        } else {
+            System.out.println("  " + CliOutput.warn("AI provider:    not configured"));
+            System.out.println("    Run: idempiere-cli config init");
+        }
     }
 
     private void printFixSuggestions(List<CheckEntry> entries) {
@@ -424,6 +468,14 @@ public class DoctorCommand implements Runnable {
                 node.put("status", cr.status().name());
                 node.put("message", cr.message());
             }
+
+            // Config status
+            ObjectNode configNode = root.putObject("config");
+            configNode.put("globalConfigFound", configService.hasGlobalConfig());
+            configNode.put("projectConfigFound", configService.findConfigInHierarchy() != null);
+            CliConfig config = configService.loadConfig();
+            configNode.put("aiEnabled", config.getAi().isEnabled());
+            configNode.put("aiProvider", config.getAi().getProvider());
 
             System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root));
         } catch (Exception e) {

@@ -250,7 +250,7 @@ public class SetupDevEnvService {
             }
         }
         if (config.isIncludeRest()) {
-            System.out.println("  REST API:    included");
+            System.out.println("  REST API:    " + CliDefaults.IDEMPIERE_REST_REPO_URL);
         }
         System.out.println();
     }

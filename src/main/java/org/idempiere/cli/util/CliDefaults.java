@@ -13,7 +13,7 @@ public final class CliDefaults {
     // ========== Git Configuration ==========
     public static final String GIT_BRANCH = "master";
     public static final String IDEMPIERE_REPO_URL = "https://github.com/idempiere/idempiere.git";
-    public static final String IDEMPIERE_REST_REPO_URL = "https://github.com/idempiere/idempiere-rest.git";
+    public static final String IDEMPIERE_REST_REPO_URL = "https://github.com/bxservice/idempiere-rest.git";
 
     // ========== Database Configuration ==========
     public static final String DB_TYPE = "postgresql";

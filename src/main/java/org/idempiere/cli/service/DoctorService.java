@@ -105,8 +105,9 @@ public class DoctorService {
      *
      * @param entries the check entries to evaluate
      * @param optionalFilter set of lowercase tool names to fix as optional, or null to skip optional fixes
+     * @param javaVersion the Java version identifier (SDKMAN id on macOS/Linux, winget id on Windows)
      */
-    public void runAutoFix(List<CheckEntry> entries, Set<String> optionalFilter) {
+    public void runAutoFix(List<CheckEntry> entries, Set<String> optionalFilter, String javaVersion) {
         String os = System.getProperty("os.name", "").toLowerCase();
 
         System.out.println();
@@ -141,6 +142,16 @@ public class DoctorService {
             if (fix.wingetPackage() != null) wingetPackages.add(fix.wingetPackage());
         }
 
+        // Override default Java version with user-specified --java value
+        if (javaVersion != null) {
+            if (sdkmanPackages.removeIf(pkg -> pkg.startsWith("java "))) {
+                sdkmanPackages.add("java " + javaVersion);
+            }
+            if (wingetPackages.removeIf(pkg -> pkg.contains("Temurin") && pkg.contains("JDK"))) {
+                wingetPackages.add(javaVersion);
+            }
+        }
+
         // Use SDKMAN for Java/Maven on non-Windows systems (no fallback to system packages)
         if (!os.contains("win") && !sdkmanPackages.isEmpty()) {
             // Always remove Java/Maven from system packages - SDKMAN is the only way
@@ -155,7 +166,8 @@ public class DoctorService {
                 System.out.println("Please install SDKMAN manually:");
                 System.out.println("  curl -s \"https://get.sdkman.io\" | bash");
                 System.out.println("  source ~/.sdkman/bin/sdkman-init.sh");
-                System.out.println("  sdk install java 21-tem");
+                String javaId = javaVersion != null ? javaVersion : "21-tem";
+                System.out.println("  sdk install java " + javaId);
             }
         }
 

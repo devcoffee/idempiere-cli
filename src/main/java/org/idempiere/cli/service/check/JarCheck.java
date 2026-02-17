@@ -31,14 +31,10 @@ public class JarCheck implements EnvironmentCheck {
 
     @Override
     public FixSuggestion getFixSuggestion(String os) {
-        // jar comes with JDK, so use same fix as Java
+        // jar comes with JDK — same fix as Java.
+        // No system package fallbacks — fail explicitly if SDKMAN fails.
         return FixSuggestion.builder()
                 .sdkman("java 21-tem")
-                .brew("openjdk@21")
-                .apt("openjdk-21-jdk")
-                .dnf("java-21-openjdk-devel")
-                .pacman("jdk-openjdk")
-                .zypper("java-21-openjdk-devel")
                 .winget("EclipseAdoptium.Temurin.21.JDK")
                 .url("https://adoptium.net/")
                 .build();

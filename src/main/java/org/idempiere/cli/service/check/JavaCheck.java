@@ -50,15 +50,12 @@ public class JavaCheck implements EnvironmentCheck {
 
     @Override
     public FixSuggestion getFixSuggestion(String os) {
+        // Java is installed via SDKMAN on macOS/Linux, winget on Windows.
+        // No system package fallbacks — fail explicitly if SDKMAN fails.
         return FixSuggestion.builder()
-                .sdkman("java 21-tem")  // Recommended: version manager for Java
-                .brew("openjdk@21")
-                .apt("openjdk-21-jdk")
-                .dnf("java-21-openjdk-devel")
-                .pacman("jdk21-openjdk")
-                .zypper("java-21-openjdk-devel")
+                .sdkman("java 21-tem")
                 .winget("EclipseAdoptium.Temurin.21.JDK")
-                .url("https://sdkman.io/")
+                .url("https://adoptium.net/")
                 .build();
     }
 }

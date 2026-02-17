@@ -66,6 +66,11 @@ public class DoctorCommand implements Runnable {
     @Option(names = {"--dir"}, description = "Validate plugin structure in the given directory")
     String dir;
 
+    @Option(names = {"--java"}, defaultValue = "21-tem",
+            description = "Java version to install. SDKMAN id on macOS/Linux (e.g. 21-tem, 21-graal), " +
+                    "winget package id on Windows (default: ${DEFAULT-VALUE})")
+    String javaVersion;
+
     @Option(names = {"--json"}, description = "Output results as JSON")
     boolean json;
 
@@ -115,7 +120,7 @@ public class DoctorCommand implements Runnable {
         boolean hasFixableIssues = result.failed() > 0 || (optionalFilter != null && !optionalFilter.isEmpty());
 
         if (fix && hasFixableIssues) {
-            doctorService.runAutoFix(result.entries(), optionalFilter);
+            doctorService.runAutoFix(result.entries(), optionalFilter, javaVersion);
         } else if (result.failed() > 0 || dockerNotOk || postgresOutdated) {
             printFixSuggestions(result.entries());
         }
@@ -213,6 +218,11 @@ public class DoctorCommand implements Runnable {
             removeJavaMavenPackages(dnfPackages);
             removeJavaMavenPackages(pacmanPackages);
 
+            // Override default Java version with --java value
+            if (sdkmanPackages.removeIf(pkg -> pkg.startsWith("java "))) {
+                sdkmanPackages.add("java " + javaVersion);
+            }
+
             System.out.println();
             System.out.println("  " + CliOutput.tip("--fix will install via SDKMAN (recommended for Java/Maven):"));
             for (String pkg : sdkmanPackages) {
@@ -234,6 +244,11 @@ public class DoctorCommand implements Runnable {
             System.out.println("  --fix will install via apt:");
             System.out.println("    sudo apt install " + String.join(" ", aptPackages));
         } else if (os.contains("win") && !wingetPackages.isEmpty()) {
+            // Override default Java winget package with --java value
+            if (wingetPackages.removeIf(pkg -> pkg.contains("Temurin") && pkg.contains("JDK"))) {
+                wingetPackages.add(javaVersion);
+            }
+
             System.out.println();
             System.out.println("  --fix will install via winget:");
             for (String pkg : wingetPackages) {

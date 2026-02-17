@@ -24,6 +24,9 @@ public class SetupDevEnvService {
     DatabaseManager databaseManager;
 
     @Inject
+    ProcessRunner processRunner;
+
+    @Inject
     SessionLogger sessionLogger;
 
     public void setup(SetupConfig config) {
@@ -230,6 +233,7 @@ public class SetupDevEnvService {
         System.out.println("  Source:      " + config.getSourceDir().toAbsolutePath());
         System.out.println("  Branch:      " + config.getBranch());
         System.out.println("  Repository:  " + config.getRepositoryUrl());
+        System.out.println("  Java:        " + getJavaVersionString());
         if (!config.isSkipWorkspace()) {
             System.out.println("  Eclipse:     " + config.getEclipseDir().toAbsolutePath());
         }
@@ -249,6 +253,15 @@ public class SetupDevEnvService {
             System.out.println("  REST API:    included");
         }
         System.out.println();
+    }
+
+    private String getJavaVersionString() {
+        ProcessRunner.RunResult result = processRunner.run("java", "-version");
+        if (result.exitCode() != 0 || result.output() == null) {
+            return "Not found";
+        }
+        String firstLine = result.output().lines().findFirst().orElse("").trim();
+        return firstLine.isEmpty() ? "Unknown" : firstLine;
     }
 
     private void printStep(int current, int total, String description) {

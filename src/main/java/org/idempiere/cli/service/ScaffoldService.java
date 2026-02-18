@@ -137,10 +137,9 @@ public class ScaffoldService {
             // Create .mvn/jvm.config at root
             Path mvnDir = rootDir.resolve(".mvn");
             Files.createDirectories(mvnDir);
-            Files.writeString(mvnDir.resolve("jvm.config"),
+            writeFileAndReport(mvnDir.resolve("jvm.config"),
                     "-Djdk.xml.maxGeneralEntitySizeLimit=0\n" +
                     "-Djdk.xml.totalEntitySizeLimit=0\n");
-            System.out.println("  Created: " + mvnDir.resolve("jvm.config"));
 
             // Add Maven Wrapper
             if (mavenWrapperService.addWrapper(rootDir)) {
@@ -285,14 +284,13 @@ public class ScaffoldService {
         templateRenderer.render("plugin/plugin.xml", data, pluginDir.resolve("plugin.xml"));
 
         // Create build.properties
-        Files.writeString(pluginDir.resolve("build.properties"),
+        writeFileAndReport(pluginDir.resolve("build.properties"),
                 "source.. = src/\n" +
                 "output.. = bin/\n" +
                 "bin.includes = META-INF/,\\\n" +
                 "               OSGI-INF/,\\\n" +
                 "               .,\\\n" +
                 "               plugin.xml\n");
-        System.out.println("  Created: " + pluginDir.resolve("build.properties"));
 
         // Generate component files (callout, process, etc.) in the plugin
         ScaffoldResult componentResult = generateComponentFiles(pluginDir, descriptor);
@@ -312,12 +310,11 @@ public class ScaffoldService {
         templateRenderer.render("multi-module/test-MANIFEST.MF", data, testDir.resolve("META-INF/MANIFEST.MF"));
 
         // Create build.properties
-        Files.writeString(testDir.resolve("build.properties"),
+        writeFileAndReport(testDir.resolve("build.properties"),
                 "source.. = src/\n" +
                 "output.. = bin/\n" +
                 "bin.includes = META-INF/,\\\n" +
                 "               .\n");
-        System.out.println("  Created: " + testDir.resolve("build.properties"));
 
         // Create a sample test class
         Path srcDir = testDir.resolve("src").resolve(descriptor.getBasePackagePath());
@@ -340,12 +337,11 @@ public class ScaffoldService {
         templateRenderer.render("fragment/MANIFEST.MF", data, fragmentDir.resolve("META-INF/MANIFEST.MF"));
 
         // Create build.properties
-        Files.writeString(fragmentDir.resolve("build.properties"),
+        writeFileAndReport(fragmentDir.resolve("build.properties"),
                 "source.. = src/\n" +
                 "output.. = bin/\n" +
                 "bin.includes = META-INF/,\\\n" +
                 "               .\n");
-        System.out.println("  Created: " + fragmentDir.resolve("build.properties"));
     }
 
     /**
@@ -358,9 +354,8 @@ public class ScaffoldService {
         templateRenderer.render("feature/feature.xml", data, featureDir.resolve("feature.xml"));
 
         // Create build.properties
-        Files.writeString(featureDir.resolve("build.properties"),
+        writeFileAndReport(featureDir.resolve("build.properties"),
                 "bin.includes = feature.xml\n");
-        System.out.println("  Created: " + featureDir.resolve("build.properties"));
     }
 
     /**
@@ -541,20 +536,18 @@ public class ScaffoldService {
         templateRenderer.render("plugin/plugin.xml", data, baseDir.resolve("plugin.xml"));
 
         // Create build.properties
-        Files.writeString(baseDir.resolve("build.properties"),
+        writeFileAndReport(baseDir.resolve("build.properties"),
                 "source.. = src/\n" +
                 "output.. = bin/\n" +
                 "bin.includes = META-INF/,\\\n" +
                 "               OSGI-INF/,\\\n" +
                 "               .,\\\n" +
                 "               plugin.xml\n");
-        System.out.println("  Created: " + baseDir.resolve("build.properties"));
 
         // Create .mvn/jvm.config to increase XML parser limits for large p2 repositories
-        Files.writeString(baseDir.resolve(".mvn/jvm.config"),
+        writeFileAndReport(baseDir.resolve(".mvn/jvm.config"),
                 "-Djdk.xml.maxGeneralEntitySizeLimit=0\n" +
                 "-Djdk.xml.totalEntitySizeLimit=0\n");
-        System.out.println("  Created: " + baseDir.resolve(".mvn/jvm.config"));
     }
 
     private Map<String, Object> buildPluginData(PluginDescriptor descriptor) {
@@ -625,7 +618,7 @@ public class ScaffoldService {
      */
     private void generateGitignore(Path dir) throws IOException {
         Path gitignore = dir.resolve(".gitignore");
-        Files.writeString(gitignore,
+        writeFileAndReport(gitignore,
                 "# Build output\n" +
                 "target/\n" +
                 "bin/\n" +
@@ -641,7 +634,6 @@ public class ScaffoldService {
                 "# OS files\n" +
                 ".DS_Store\n" +
                 "Thumbs.db\n");
-        System.out.println("  Created: " + gitignore);
     }
 
     /**
@@ -649,7 +641,7 @@ public class ScaffoldService {
      */
     private void generateEclipseProject(Path moduleDir, String projectName) throws IOException {
         Path projectFile = moduleDir.resolve(".project");
-        Files.writeString(projectFile,
+        writeFileAndReport(projectFile,
                 "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
                 "<projectDescription>\n" +
                 "\t<name>" + projectName + "</name>\n" +
@@ -674,7 +666,6 @@ public class ScaffoldService {
                 "\t\t<nature>org.eclipse.jdt.core.javanature</nature>\n" +
                 "\t</natures>\n" +
                 "</projectDescription>\n");
-        System.out.println("  Created: " + projectFile);
     }
 
     // ========================================================================
@@ -977,6 +968,11 @@ public class ScaffoldService {
      */
     private String extractBaseProjectId(Path rootDir) {
         return rootDir.getFileName().toString();
+    }
+
+    private void writeFileAndReport(Path file, String content) throws IOException {
+        Files.writeString(file, content);
+        System.out.println("  Created: " + file);
     }
 
     private ScaffoldResult directoryExistsError(Path dir) {

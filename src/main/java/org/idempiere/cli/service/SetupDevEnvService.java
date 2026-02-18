@@ -87,8 +87,7 @@ public class SetupDevEnvService {
                     System.err.println("  After fixing the database, run this command again.");
                     System.err.println("  Or use --skip-db to skip database setup.");
                     System.err.println("  Or use --with-docker to use a Docker container instead.");
-                    sessionLogger.logError("Database not reachable. Aborting.");
-                    sessionLogger.endSession(false);
+                    abortSetup("Database not reachable. Aborting.", null);
                     return;
                 }
             }
@@ -107,9 +106,8 @@ public class SetupDevEnvService {
 
         // Source is always required - cannot continue without it
         if (!sourceOk) {
-            sessionLogger.logError("Cannot continue without source code. Aborting.");
-            sessionLogger.endSession(false);
-            System.err.println("Cannot continue without source code. Aborting.");
+            abortSetup("Cannot continue without source code. Aborting.",
+                    "Cannot continue without source code. Aborting.");
             return;
         }
 
@@ -123,10 +121,9 @@ public class SetupDevEnvService {
 
             if (!buildOk) {
                 hadErrors = true;
-                if (!config.isContinueOnError()) {
-                    sessionLogger.logError("Build failed. Aborting.");
-                    sessionLogger.endSession(false);
-                    System.err.println("Build failed. Aborting. Use --continue-on-error to proceed anyway.");
+                if (abortIfStepFailed(buildOk, config,
+                        "Build failed. Aborting.",
+                        "Build failed. Aborting. Use --continue-on-error to proceed anyway.")) {
                     return;
                 }
             }
@@ -140,10 +137,9 @@ public class SetupDevEnvService {
 
             if (!jythonOk) {
                 hadErrors = true;
-                if (!config.isContinueOnError()) {
-                    sessionLogger.logError("Jython download failed. Aborting.");
-                    sessionLogger.endSession(false);
-                    System.err.println("Jython download failed. Aborting. Use --continue-on-error to proceed anyway.");
+                if (abortIfStepFailed(jythonOk, config,
+                        "Jython download failed. Aborting.",
+                        "Jython download failed. Aborting. Use --continue-on-error to proceed anyway.")) {
                     return;
                 }
             }
@@ -160,10 +156,9 @@ public class SetupDevEnvService {
 
             if (!eclipseOk) {
                 hadErrors = true;
-                if (!config.isContinueOnError()) {
-                    sessionLogger.logError("Eclipse installation failed. Aborting.");
-                    sessionLogger.endSession(false);
-                    System.err.println("Eclipse installation failed. Aborting. Use --continue-on-error to proceed anyway.");
+                if (abortIfStepFailed(eclipseOk, config,
+                        "Eclipse installation failed. Aborting.",
+                        "Eclipse installation failed. Aborting. Use --continue-on-error to proceed anyway.")) {
                     return;
                 }
             }
@@ -178,10 +173,9 @@ public class SetupDevEnvService {
 
                 if (!pluginsOk) {
                     hadErrors = true;
-                    if (!config.isContinueOnError()) {
-                        sessionLogger.logError("Eclipse plugins installation failed. Aborting.");
-                        sessionLogger.endSession(false);
-                        System.err.println("Eclipse plugins installation failed. Aborting. Use --continue-on-error to proceed anyway.");
+                    if (abortIfStepFailed(pluginsOk, config,
+                            "Eclipse plugins installation failed. Aborting.",
+                            "Eclipse plugins installation failed. Aborting. Use --continue-on-error to proceed anyway.")) {
                         return;
                     }
                 }
@@ -195,10 +189,9 @@ public class SetupDevEnvService {
 
                 if (!workspaceOk) {
                     hadErrors = true;
-                    if (!config.isContinueOnError()) {
-                        sessionLogger.logError("Workspace configuration failed. Aborting.");
-                        sessionLogger.endSession(false);
-                        System.err.println("Workspace configuration failed. Aborting. Use --continue-on-error to proceed anyway.");
+                    if (abortIfStepFailed(workspaceOk, config,
+                            "Workspace configuration failed. Aborting.",
+                            "Workspace configuration failed. Aborting. Use --continue-on-error to proceed anyway.")) {
                         return;
                     }
                 }
@@ -215,10 +208,9 @@ public class SetupDevEnvService {
 
             if (!dbOk) {
                 hadErrors = true;
-                if (!config.isContinueOnError()) {
-                    sessionLogger.logError("Database setup failed. Aborting.");
-                    sessionLogger.endSession(false);
-                    System.err.println("Database setup failed. Aborting. Use --continue-on-error to proceed anyway.");
+                if (abortIfStepFailed(dbOk, config,
+                        "Database setup failed. Aborting.",
+                        "Database setup failed. Aborting. Use --continue-on-error to proceed anyway.")) {
                     return;
                 }
             }
@@ -313,6 +305,22 @@ public class SetupDevEnvService {
             steps += 1; // database
         }
         return steps;
+    }
+
+    private boolean abortIfStepFailed(boolean stepOk, SetupConfig config, String logMessage, String errorMessage) {
+        if (stepOk || config.isContinueOnError()) {
+            return false;
+        }
+        abortSetup(logMessage, errorMessage);
+        return true;
+    }
+
+    private void abortSetup(String logMessage, String errorMessage) {
+        sessionLogger.logError(logMessage);
+        sessionLogger.endSession(false);
+        if (errorMessage != null && !errorMessage.isBlank()) {
+            System.err.println(errorMessage);
+        }
     }
 
     private void printSummary(SetupConfig config, boolean hadErrors) {

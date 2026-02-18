@@ -53,9 +53,9 @@ class InitCommandExitCodeTest {
     }
 
     @Test
-    @Launch(value = {"init", "org.test.existing", "--standalone", "--name=/tmp/idempiere-cli-test-init-existing"}, exitCode = 1)
+    @Launch(value = {"init", "org.test.existing", "--standalone", "--name=/tmp/idempiere-cli-test-init-existing"}, exitCode = 3)
     void testInitReturnsErrorWhenTargetDirectoryAlreadyExists(LaunchResult result) {
-        assertEquals(1, result.exitCode());
+        assertEquals(3, result.exitCode());
         String output = result.getOutput() + result.getErrorOutput();
         assertTrue(output.contains("already exists"));
     }

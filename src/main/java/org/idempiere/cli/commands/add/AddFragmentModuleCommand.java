@@ -1,5 +1,6 @@
 package org.idempiere.cli.commands.add;
 
+import org.idempiere.cli.commands.ExitCodeMapper;
 import jakarta.inject.Inject;
 import org.idempiere.cli.model.PlatformVersion;
 import org.idempiere.cli.model.PluginDescriptor;
@@ -102,6 +103,6 @@ public class AddFragmentModuleCommand implements Callable<Integer> {
         descriptor.setWithFragment(true);
         descriptor.setFragmentHost(fragmentHost);
 
-        return scaffoldService.addFragmentModuleToProject(rootDir, fragmentHost, descriptor).success() ? 0 : 1;
+        return ExitCodeMapper.fromScaffold(scaffoldService.addFragmentModuleToProject(rootDir, fragmentHost, descriptor));
     }
 }

@@ -85,25 +85,25 @@ class AddModuleExitCodeTest {
     }
 
     @Test
-    @Launch(value = {"add", "plugin", "org.test.existing.module", "--to=/tmp/idempiere-cli-test-add-plugin-root"}, exitCode = 1)
+    @Launch(value = {"add", "plugin", "org.test.existing.module", "--to=/tmp/idempiere-cli-test-add-plugin-root"}, exitCode = 3)
     void testAddPluginReturnsErrorWhenModuleDirectoryAlreadyExists(LaunchResult result) {
-        assertEquals(1, result.exitCode());
+        assertEquals(3, result.exitCode());
         String output = result.getOutput() + result.getErrorOutput();
         assertTrue(output.contains("already exists"));
     }
 
     @Test
-    @Launch(value = {"add", "fragment", "--to=/tmp/idempiere-cli-test-add-fragment-root"}, exitCode = 1)
+    @Launch(value = {"add", "fragment", "--to=/tmp/idempiere-cli-test-add-fragment-root"}, exitCode = 3)
     void testAddFragmentReturnsErrorWhenModuleDirectoryAlreadyExists(LaunchResult result) {
-        assertEquals(1, result.exitCode());
+        assertEquals(3, result.exitCode());
         String output = result.getOutput() + result.getErrorOutput();
         assertTrue(output.contains("already exists"));
     }
 
     @Test
-    @Launch(value = {"add", "feature", "--to=/tmp/idempiere-cli-test-add-feature-root"}, exitCode = 1)
+    @Launch(value = {"add", "feature", "--to=/tmp/idempiere-cli-test-add-feature-root"}, exitCode = 3)
     void testAddFeatureReturnsErrorWhenModuleDirectoryAlreadyExists(LaunchResult result) {
-        assertEquals(1, result.exitCode());
+        assertEquals(3, result.exitCode());
         String output = result.getOutput() + result.getErrorOutput();
         assertTrue(output.contains("already exists"));
     }

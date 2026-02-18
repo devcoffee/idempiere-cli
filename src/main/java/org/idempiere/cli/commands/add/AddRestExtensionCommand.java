@@ -1,5 +1,6 @@
 package org.idempiere.cli.commands.add;
 
+import org.idempiere.cli.commands.ExitCodeMapper;
 import jakarta.inject.Inject;
 import org.idempiere.cli.service.ProjectDetector;
 import org.idempiere.cli.service.ScaffoldService;
@@ -47,6 +48,6 @@ public class AddRestExtensionCommand implements Callable<Integer> {
         Map<String, Object> extraData = new HashMap<>();
         extraData.put("resourcePath", resourcePath);
         if (prompt != null) extraData.put("prompt", prompt);
-        return scaffoldService.addComponent("rest-extension", name, dir, pluginId, extraData).success() ? 0 : 1;
+        return ExitCodeMapper.fromScaffold(scaffoldService.addComponent("rest-extension", name, dir, pluginId, extraData));
     }
 }

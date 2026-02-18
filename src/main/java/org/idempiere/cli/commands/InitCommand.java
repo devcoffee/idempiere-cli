@@ -282,6 +282,6 @@ public class InitCommand implements Callable<Integer> {
         if (withFactsValidator) descriptor.addFeature("facts-validator");
         if (withTest) descriptor.addFeature("test");
 
-        return scaffoldService.createPlugin(descriptor).success() ? 0 : 1;
+        return ExitCodeMapper.fromScaffold(scaffoldService.createPlugin(descriptor));
     }
 }

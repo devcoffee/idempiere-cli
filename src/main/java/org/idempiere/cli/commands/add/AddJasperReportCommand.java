@@ -1,5 +1,6 @@
 package org.idempiere.cli.commands.add;
 
+import org.idempiere.cli.commands.ExitCodeMapper;
 import jakarta.inject.Inject;
 import org.idempiere.cli.service.ProjectDetector;
 import org.idempiere.cli.service.ScaffoldService;
@@ -39,7 +40,7 @@ public class AddJasperReportCommand implements Callable<Integer> {
             projectDetector.printPluginNotFoundError(dir);
             return 1;
         }
-        return scaffoldService.addComponent("jasper-report", name, dir, pluginId,
-                prompt != null ? Map.of("prompt", prompt) : null).success() ? 0 : 1;
+        return ExitCodeMapper.fromScaffold(scaffoldService.addComponent("jasper-report", name, dir, pluginId,
+                prompt != null ? Map.of("prompt", prompt) : null));
     }
 }

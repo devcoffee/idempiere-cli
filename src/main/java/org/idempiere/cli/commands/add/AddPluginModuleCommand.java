@@ -1,5 +1,6 @@
 package org.idempiere.cli.commands.add;
 
+import org.idempiere.cli.commands.ExitCodeMapper;
 import jakarta.inject.Inject;
 import org.idempiere.cli.model.PlatformVersion;
 import org.idempiere.cli.model.PluginDescriptor;
@@ -93,6 +94,6 @@ public class AddPluginModuleCommand implements Callable<Integer> {
         // Override basePluginId to the new plugin ID
         descriptor.setBasePluginId(pluginId);
 
-        return scaffoldService.addPluginModuleToProject(rootDir, pluginId, descriptor).success() ? 0 : 1;
+        return ExitCodeMapper.fromScaffold(scaffoldService.addPluginModuleToProject(rootDir, pluginId, descriptor));
     }
 }

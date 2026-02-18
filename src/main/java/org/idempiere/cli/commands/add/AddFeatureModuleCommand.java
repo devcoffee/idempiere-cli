@@ -1,5 +1,6 @@
 package org.idempiere.cli.commands.add;
 
+import org.idempiere.cli.commands.ExitCodeMapper;
 import jakarta.inject.Inject;
 import org.idempiere.cli.model.PlatformVersion;
 import org.idempiere.cli.model.PluginDescriptor;
@@ -103,6 +104,6 @@ public class AddFeatureModuleCommand implements Callable<Integer> {
         descriptor.setWithFeature(true);
         descriptor.setWithFragment(hasFragment);
 
-        return scaffoldService.addFeatureModuleToProject(rootDir, descriptor).success() ? 0 : 1;
+        return ExitCodeMapper.fromScaffold(scaffoldService.addFeatureModuleToProject(rootDir, descriptor));
     }
 }

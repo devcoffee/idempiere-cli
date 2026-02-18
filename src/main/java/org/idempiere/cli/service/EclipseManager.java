@@ -9,6 +9,8 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Downloads and configures Eclipse IDE for iDempiere development.
@@ -65,14 +67,7 @@ public class EclipseManager {
         Path sourceDir = config.getSourceDir();
 
         // Detect bundled JRE for -vm flag (same as setup-ws.sh)
-        Path javaHome = detectJavaHome(eclipseDir);
-        String vmArg = null;
-        if (javaHome != null) {
-            Path javaBin = javaHome.resolve("bin/java");
-            if (Files.exists(javaBin)) {
-                vmArg = javaBin.toAbsolutePath().toString();
-            }
-        }
+        String vmArg = detectVmArg(eclipseDir);
 
         boolean success = true;
 
@@ -131,29 +126,16 @@ public class EclipseManager {
 
     private int runP2Director(Path eclipseExe, String vm, Path dataDir, String destination,
                               String repository, String installIUs) {
-        ProcessRunner.RunResult result;
-        if (vm != null) {
-            result = processRunner.runQuiet(
-                    eclipseExe.toString(),
-                    "-vm", vm,
-                    "-nosplash",
-                    "-data", dataDir.toAbsolutePath().toString(),
-                    "-application", "org.eclipse.equinox.p2.director",
-                    "-repository", repository,
-                    "-destination", destination,
-                    "-installIU", installIUs
-            );
-        } else {
-            result = processRunner.runQuiet(
-                    eclipseExe.toString(),
-                    "-nosplash",
-                    "-data", dataDir.toAbsolutePath().toString(),
-                    "-application", "org.eclipse.equinox.p2.director",
-                    "-repository", repository,
-                    "-destination", destination,
-                    "-installIU", installIUs
-            );
-        }
+        ProcessRunner.RunResult result = runEclipseCommand(
+                eclipseExe,
+                vm,
+                "-nosplash",
+                "-data", dataDir.toAbsolutePath().toString(),
+                "-application", "org.eclipse.equinox.p2.director",
+                "-repository", repository,
+                "-destination", destination,
+                "-installIU", installIUs
+        );
 
         // Only show output on failure
         if (!result.isSuccess()) {
@@ -163,11 +145,7 @@ public class EclipseManager {
             System.err.println("  P2 Director failed. See session log for details.");
             // Show last 30 lines as summary on screen
             System.err.println("  Last 30 lines:");
-            String[] lines = result.output().split("\n");
-            int start = Math.max(0, lines.length - 30);
-            for (int i = start; i < lines.length; i++) {
-                System.err.println("    " + lines[i]);
-            }
+            printLastLines(result.output(), 30);
         }
         return result.exitCode();
     }
@@ -216,14 +194,7 @@ public class EclipseManager {
                 return false;
             }
 
-            Path javaHome = detectJavaHome(eclipseDir);
-            String vmArg = null;
-            if (javaHome != null) {
-                Path javaBin = javaHome.resolve("bin/java");
-                if (Files.exists(javaBin)) {
-                    vmArg = javaBin.toAbsolutePath().toString();
-                }
-            }
+            String vmArg = detectVmArg(eclipseDir);
 
             // Step 1: Import projects using setup-ws.xml
             System.out.println("  Importing projects into workspace...");
@@ -260,29 +231,16 @@ public class EclipseManager {
     }
 
     private boolean runAntRunner(Path eclipseExe, String vm, Path dataDir, Path buildFile, Path idempiereDir) {
-        ProcessRunner.RunResult result;
         String idempiereProperty = "-Didempiere=" + idempiereDir.toAbsolutePath().toString();
-
-        if (vm != null) {
-            result = processRunner.runQuiet(
-                    eclipseExe.toString(),
-                    "-vm", vm,
-                    "-nosplash",
-                    "-data", dataDir.toAbsolutePath().toString(),
-                    "-application", "org.eclipse.ant.core.antRunner",
-                    "-buildfile", buildFile.toAbsolutePath().toString(),
-                    idempiereProperty
-            );
-        } else {
-            result = processRunner.runQuiet(
-                    eclipseExe.toString(),
-                    "-nosplash",
-                    "-data", dataDir.toAbsolutePath().toString(),
-                    "-application", "org.eclipse.ant.core.antRunner",
-                    "-buildfile", buildFile.toAbsolutePath().toString(),
-                    idempiereProperty
-            );
-        }
+        ProcessRunner.RunResult result = runEclipseCommand(
+                eclipseExe,
+                vm,
+                "-nosplash",
+                "-data", dataDir.toAbsolutePath().toString(),
+                "-application", "org.eclipse.ant.core.antRunner",
+                "-buildfile", buildFile.toAbsolutePath().toString(),
+                idempiereProperty
+        );
 
         // Only show output on failure
         if (!result.isSuccess()) {
@@ -291,11 +249,7 @@ public class EclipseManager {
             System.err.println("  Ant Runner failed. See session log for details.");
             // Show last 30 lines as summary on screen
             System.err.println("  Last 30 lines:");
-            String[] lines = result.output().split("\n");
-            int start = Math.max(0, lines.length - 30);
-            for (int i = start; i < lines.length; i++) {
-                System.err.println("    " + lines[i]);
-            }
+            printLastLines(result.output(), 30);
         }
         return result.isSuccess();
     }
@@ -350,14 +304,7 @@ public class EclipseManager {
             }
             copyResourceToFile("eclipse/import-project.xml", libDir.resolve("import-project.xml"));
 
-            Path javaHome = detectJavaHome(eclipseDir);
-            String vmArg = null;
-            if (javaHome != null) {
-                Path javaBin = javaHome.resolve("bin/java");
-                if (Files.exists(javaBin)) {
-                    vmArg = javaBin.toAbsolutePath().toString();
-                }
-            }
+            String vmArg = detectVmArg(eclipseDir);
 
             System.out.println("  Importing projects into workspace...");
             boolean success = runAntRunnerWithProperty(eclipseExe, vmArg, workspaceDir,
@@ -381,38 +328,58 @@ public class EclipseManager {
                                               Path buildFile, String propName, String propValue) {
         String property = "-D" + propName + "=" + propValue;
 
-        ProcessRunner.RunResult result;
-        if (vm != null) {
-            result = processRunner.runQuiet(
-                    eclipseExe.toString(),
-                    "-vm", vm,
-                    "-nosplash",
-                    "-data", dataDir.toAbsolutePath().toString(),
-                    "-application", "org.eclipse.ant.core.antRunner",
-                    "-buildfile", buildFile.toAbsolutePath().toString(),
-                    property
-            );
-        } else {
-            result = processRunner.runQuiet(
-                    eclipseExe.toString(),
-                    "-nosplash",
-                    "-data", dataDir.toAbsolutePath().toString(),
-                    "-application", "org.eclipse.ant.core.antRunner",
-                    "-buildfile", buildFile.toAbsolutePath().toString(),
-                    property
-            );
-        }
+        ProcessRunner.RunResult result = runEclipseCommand(
+                eclipseExe,
+                vm,
+                "-nosplash",
+                "-data", dataDir.toAbsolutePath().toString(),
+                "-application", "org.eclipse.ant.core.antRunner",
+                "-buildfile", buildFile.toAbsolutePath().toString(),
+                property
+        );
 
         if (!result.isSuccess()) {
             sessionLogger.logCommandOutput("ant-runner-import", result.output());
             System.err.println("  Ant Runner failed. See session log for details.");
-            String[] lines = result.output().split("\n");
-            int start = Math.max(0, lines.length - 30);
-            for (int i = start; i < lines.length; i++) {
-                System.err.println("    " + lines[i]);
-            }
+            printLastLines(result.output(), 30);
         }
         return result.isSuccess();
+    }
+
+    private String detectVmArg(Path eclipseDir) {
+        Path javaHome = detectJavaHome(eclipseDir);
+        if (javaHome == null) {
+            return null;
+        }
+        Path javaBin = javaHome.resolve("bin/java");
+        if (!Files.exists(javaBin)) {
+            return null;
+        }
+        return javaBin.toAbsolutePath().toString();
+    }
+
+    private ProcessRunner.RunResult runEclipseCommand(Path eclipseExe, String vm, String... args) {
+        List<String> command = new ArrayList<>();
+        command.add(eclipseExe.toString());
+        if (vm != null && !vm.isBlank()) {
+            command.add("-vm");
+            command.add(vm);
+        }
+        for (String arg : args) {
+            command.add(arg);
+        }
+        return processRunner.runQuiet(command.toArray(new String[0]));
+    }
+
+    private void printLastLines(String output, int maxLines) {
+        if (output == null || output.isEmpty()) {
+            return;
+        }
+        String[] lines = output.split("\n");
+        int start = Math.max(0, lines.length - maxLines);
+        for (int i = start; i < lines.length; i++) {
+            System.err.println("    " + lines[i]);
+        }
     }
 
     public Path detectJavaHome(Path eclipseDir) {

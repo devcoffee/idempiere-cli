@@ -98,6 +98,9 @@ public class DepsCommand implements Callable<Integer> {
             var unused = root.putArray("unusedBundles");
             result.unusedBundles().forEach(unused::add);
 
+            var unmapped = root.putArray("unmappedImports");
+            result.unmappedImports().forEach(unmapped::add);
+
             System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root));
             return 0;
         } catch (Exception e) {

@@ -5,6 +5,7 @@ import org.idempiere.cli.service.BuildService;
 import org.idempiere.cli.service.PackageService;
 import org.idempiere.cli.service.ProjectDetector;
 import org.idempiere.cli.util.ExitCodes;
+import org.idempiere.cli.util.Troubleshooting;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -82,6 +83,10 @@ public class PackageCommand implements Callable<Integer> {
             return handleZipPackage(projectDir, multiModuleRoot);
         } else {
             System.err.println("Error: Unknown format '" + format + "'. Use 'zip' or 'p2'.");
+            Troubleshooting.printHowToResolve(
+                    "Use --format=zip for standalone plugins.",
+                    "Use --format=p2 only in a multi-module project created with idempiere-cli init."
+            );
             return ExitCodes.VALIDATION_ERROR;
         }
     }
@@ -98,6 +103,10 @@ public class PackageCommand implements Callable<Integer> {
             System.err.println("generates proper Eclipse update site metadata.");
             System.err.println();
             System.err.println("For standalone plugins, use --format=zip instead.");
+            Troubleshooting.printHowToResolve(
+                    "Generate a multi-module project: idempiere-cli init org.example.myplugin",
+                    "Or switch to zip packaging: idempiere-cli package --format=zip"
+            );
             return ExitCodes.STATE_ERROR;
         }
 
@@ -108,6 +117,10 @@ public class PackageCommand implements Callable<Integer> {
         if (p2Module.isEmpty()) {
             System.err.println("Error: No .p2 module found in multi-module project.");
             System.err.println("The project may have been created without p2 support.");
+            Troubleshooting.printHowToResolve(
+                    "Confirm the root pom.xml includes a *.p2 module.",
+                    "If missing, recreate or migrate the project to include the p2 module."
+            );
             return ExitCodes.STATE_ERROR;
         }
 
@@ -118,6 +131,10 @@ public class PackageCommand implements Callable<Integer> {
             System.err.println("Build the project first:");
             System.err.println("  cd " + rootDir);
             System.err.println("  idempiere-cli build");
+            Troubleshooting.printHowToResolve(
+                    "Run build at the multi-module root before packaging.",
+                    "Confirm the p2 repository exists at <project>.p2/target/repository."
+            );
             return ExitCodes.STATE_ERROR;
         }
 
@@ -143,6 +160,10 @@ public class PackageCommand implements Callable<Integer> {
             Optional<Path> basePlugin = findBasePluginModule(rootDir);
             if (basePlugin.isEmpty()) {
                 System.err.println("Error: Could not find base plugin module in " + rootDir);
+                Troubleshooting.printHowToResolve(
+                        "Ensure at least one plugin module has META-INF/MANIFEST.MF.",
+                        "If modules were renamed, update the multi-module structure and try again."
+                );
                 return ExitCodes.STATE_ERROR;
             }
             pluginDir = basePlugin.get();
@@ -153,6 +174,10 @@ public class PackageCommand implements Callable<Integer> {
 
         if (!projectDetector.isIdempierePlugin(pluginDir)) {
             System.err.println("Error: Not an iDempiere plugin in " + pluginDir);
+            Troubleshooting.printHowToResolve(
+                    "Run package from a plugin directory or provide --dir with plugin path.",
+                    "Validate plugin structure: idempiere-cli doctor --plugin --dir " + pluginDir
+            );
             return ExitCodes.STATE_ERROR;
         }
 
@@ -160,6 +185,10 @@ public class PackageCommand implements Callable<Integer> {
         if (jar.isEmpty()) {
             System.err.println("Error: No built .jar found in target/");
             System.err.println("Run 'idempiere-cli build' first.");
+            Troubleshooting.printHowToResolve(
+                    "Build the plugin first: idempiere-cli build --dir " + pluginDir,
+                    "Then run package again."
+            );
             return ExitCodes.STATE_ERROR;
         }
 

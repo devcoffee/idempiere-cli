@@ -71,7 +71,6 @@ public class SetupDevEnvService {
                     }
                     System.err.println();
                     databaseManager.printDockerError(dockerStatus);
-                    System.err.println("  Or use --skip-db to skip database setup.");
                     sessionLogger.endSession(false);
                     return;
                 }

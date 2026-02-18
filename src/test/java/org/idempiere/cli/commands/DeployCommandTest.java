@@ -31,5 +31,6 @@ class DeployCommandTest {
     void testDeployWithMissingPlugin(LaunchResult result) {
         assertEquals(3, result.exitCode());
         assertTrue(result.getErrorOutput().contains("Not an iDempiere plugin"));
+        assertTrue(result.getErrorOutput().contains("How to resolve"));
     }
 }

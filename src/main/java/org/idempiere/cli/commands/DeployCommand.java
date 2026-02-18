@@ -4,6 +4,7 @@ import jakarta.inject.Inject;
 import org.idempiere.cli.service.DeployService;
 import org.idempiere.cli.service.ProjectDetector;
 import org.idempiere.cli.util.ExitCodes;
+import org.idempiere.cli.util.Troubleshooting;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import java.nio.file.Path;
@@ -69,6 +70,10 @@ public class DeployCommand implements Callable<Integer> {
         Path pluginDir = Path.of(dir);
         if (!projectDetector.isIdempierePlugin(pluginDir)) {
             System.err.println("Error: Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
+            Troubleshooting.printHowToResolve(
+                    "Run deploy from a plugin directory or provide --dir with plugin path.",
+                    "Validate plugin structure: idempiere-cli doctor --plugin --dir /path/to/plugin"
+            );
             return ExitCodes.STATE_ERROR;
         }
 
@@ -76,6 +81,10 @@ public class DeployCommand implements Callable<Integer> {
         if (jar.isEmpty()) {
             System.err.println("Error: No built .jar found in target/");
             System.err.println("Run 'idempiere-cli build' first.");
+            Troubleshooting.printHowToResolve(
+                    "Build the plugin: idempiere-cli build --dir " + pluginDir.toAbsolutePath(),
+                    "Retry deploy after confirming target/*.jar exists."
+            );
             return ExitCodes.STATE_ERROR;
         }
 

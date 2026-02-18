@@ -16,6 +16,7 @@ class CommandExitCodeContractTest {
     void testPackageReturnsStateErrorOutsidePlugin(LaunchResult result) {
         assertEquals(3, result.exitCode());
         assertTrue(result.getErrorOutput().contains("Not an iDempiere plugin"));
+        assertTrue(result.getErrorOutput().contains("How to resolve"));
     }
 
     @Test

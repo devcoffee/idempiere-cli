@@ -32,5 +32,6 @@ class BuildCommandTest {
         String errorOutput = result.getErrorOutput();
         assertTrue(errorOutput.contains("Error"));
         assertTrue(errorOutput.contains("Not an iDempiere plugin"));
+        assertTrue(errorOutput.contains("How to resolve"));
     }
 }

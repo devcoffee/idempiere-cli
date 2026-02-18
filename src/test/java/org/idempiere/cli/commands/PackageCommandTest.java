@@ -28,4 +28,12 @@ class PackageCommandTest {
         assertEquals(0, result.exitCode());
         assertTrue(result.getOutput().contains("package"));
     }
+
+    @Test
+    @Launch(value = {"package", "--format=invalid"}, exitCode = 1)
+    void testUnknownFormatShowsTroubleshooting(LaunchResult result) {
+        assertEquals(1, result.exitCode());
+        assertTrue(result.getErrorOutput().contains("Unknown format"));
+        assertTrue(result.getErrorOutput().contains("How to resolve"));
+    }
 }

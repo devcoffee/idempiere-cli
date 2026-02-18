@@ -4,6 +4,7 @@ import jakarta.inject.Inject;
 import org.idempiere.cli.service.BuildService;
 import org.idempiere.cli.service.ProjectDetector;
 import org.idempiere.cli.util.ExitCodes;
+import org.idempiere.cli.util.Troubleshooting;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import java.nio.file.Files;
@@ -75,12 +76,21 @@ public class BuildCommand implements Callable<Integer> {
         if (!projectDetector.isIdempierePlugin(pluginDir)) {
             System.err.println("Error: Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
             System.err.println("Make sure you are inside a plugin directory or use --dir to specify one.");
+            Troubleshooting.printHowToResolve(
+                    "Run this command inside a plugin project (with META-INF/MANIFEST.MF and pom.xml).",
+                    "Or pass the plugin path explicitly: idempiere-cli build --dir /path/to/plugin",
+                    "Validate plugin structure: idempiere-cli doctor --plugin --dir /path/to/plugin"
+            );
             return ExitCodes.STATE_ERROR;
         }
 
         Path idHome = resolveIdempiereHome();
         if (idHome != null && !Files.exists(idHome)) {
             System.err.println("Error: iDempiere home directory not found: " + idHome.toAbsolutePath());
+            Troubleshooting.printHowToResolve(
+                    "Use a valid --idempiere-home path that contains org.idempiere.p2/target/repository.",
+                    "Or unset IDEMPIERE_HOME and run build without local target platform."
+            );
             return ExitCodes.STATE_ERROR;
         }
 

@@ -326,6 +326,95 @@ public class EclipseManager {
         }
     }
 
+    /**
+     * Imports plugin projects (with .project files) into an Eclipse workspace.
+     *
+     * @param eclipseDir  Eclipse installation directory
+     * @param workspaceDir Eclipse workspace directory (used as -data)
+     * @param pluginDir   Plugin project directory to import
+     * @return true if import succeeded
+     */
+    public boolean importProject(Path eclipseDir, Path workspaceDir, Path pluginDir) {
+        Path eclipseExe = getEclipseExecutable(eclipseDir);
+        if (!Files.exists(eclipseExe)) {
+            sessionLogger.logError("Eclipse executable not found at: " + eclipseExe.toAbsolutePath());
+            System.err.println("Error: Eclipse executable not found at: " + eclipseExe.toAbsolutePath());
+            return false;
+        }
+
+        try {
+            // Copy import script to a temp location alongside Jython
+            Path libDir = workspaceDir.resolve("lib");
+            if (!Files.exists(libDir)) {
+                Files.createDirectories(libDir);
+            }
+            copyResourceToFile("eclipse/import-project.xml", libDir.resolve("import-project.xml"));
+
+            Path javaHome = detectJavaHome(eclipseDir);
+            String vmArg = null;
+            if (javaHome != null) {
+                Path javaBin = javaHome.resolve("bin/java");
+                if (Files.exists(javaBin)) {
+                    vmArg = javaBin.toAbsolutePath().toString();
+                }
+            }
+
+            System.out.println("  Importing projects into workspace...");
+            boolean success = runAntRunnerWithProperty(eclipseExe, vmArg, workspaceDir,
+                    libDir.resolve("import-project.xml"),
+                    "pluginPath", pluginDir.toAbsolutePath().toString());
+
+            if (success) {
+                System.out.println("  Projects imported successfully.");
+            } else {
+                System.err.println("  Warning: Import may have had issues. Check Eclipse manually.");
+            }
+            return success;
+        } catch (IOException e) {
+            sessionLogger.logError("Failed to import projects: " + e.getMessage());
+            System.err.println("Error: Failed to import projects: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean runAntRunnerWithProperty(Path eclipseExe, String vm, Path dataDir,
+                                              Path buildFile, String propName, String propValue) {
+        String property = "-D" + propName + "=" + propValue;
+
+        ProcessRunner.RunResult result;
+        if (vm != null) {
+            result = processRunner.runQuiet(
+                    eclipseExe.toString(),
+                    "-vm", vm,
+                    "-nosplash",
+                    "-data", dataDir.toAbsolutePath().toString(),
+                    "-application", "org.eclipse.ant.core.antRunner",
+                    "-buildfile", buildFile.toAbsolutePath().toString(),
+                    property
+            );
+        } else {
+            result = processRunner.runQuiet(
+                    eclipseExe.toString(),
+                    "-nosplash",
+                    "-data", dataDir.toAbsolutePath().toString(),
+                    "-application", "org.eclipse.ant.core.antRunner",
+                    "-buildfile", buildFile.toAbsolutePath().toString(),
+                    property
+            );
+        }
+
+        if (!result.isSuccess()) {
+            sessionLogger.logCommandOutput("ant-runner-import", result.output());
+            System.err.println("  Ant Runner failed. See session log for details.");
+            String[] lines = result.output().split("\n");
+            int start = Math.max(0, lines.length - 30);
+            for (int i = start; i < lines.length; i++) {
+                System.err.println("    " + lines[i]);
+            }
+        }
+        return result.isSuccess();
+    }
+
     public Path detectJavaHome(Path eclipseDir) {
         // Look for bundled JustJ JRE in Eclipse plugins
         Path pluginsDir = getEclipsePluginsDir(eclipseDir);

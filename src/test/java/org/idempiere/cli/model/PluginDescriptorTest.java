@@ -116,4 +116,34 @@ class PluginDescriptorTest {
 
         assertEquals(outputDir, descriptor.getOutputDir());
     }
+
+    @Test
+    void testGetProjectNameDefaultsToPluginName() {
+        PluginDescriptor descriptor = new PluginDescriptor("org.mycompany.myplugin");
+
+        assertEquals("myplugin", descriptor.getProjectName());
+    }
+
+    @Test
+    void testGetProjectNameCustomValue() {
+        PluginDescriptor descriptor = new PluginDescriptor("org.mycompany.myplugin");
+        descriptor.setProjectName("custom-name");
+
+        assertEquals("custom-name", descriptor.getProjectName());
+    }
+
+    @Test
+    void testWithEclipseProjectDefaultTrue() {
+        PluginDescriptor descriptor = new PluginDescriptor();
+
+        assertTrue(descriptor.isWithEclipseProject());
+    }
+
+    @Test
+    void testWithEclipseProjectSetFalse() {
+        PluginDescriptor descriptor = new PluginDescriptor();
+        descriptor.setWithEclipseProject(false);
+
+        assertFalse(descriptor.isWithEclipseProject());
+    }
 }

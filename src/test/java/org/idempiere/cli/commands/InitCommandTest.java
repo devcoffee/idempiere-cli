@@ -24,19 +24,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class InitCommandTest {
 
-    private static final String TEST_PLUGIN_ID = "org.test.myplugin";
-    private static final String TEST_PLUGIN_V13 = "org.test.pluginv13";
+    // Directory names now use the last segment of pluginId (projectName default)
+    private static final String TEST_PLUGIN_DIR = "myplugin";
+    private static final String TEST_PLUGIN_V13_DIR = "pluginv13";
 
     @BeforeEach
     void setup() throws IOException {
-        deleteDir(Path.of(TEST_PLUGIN_ID));
-        deleteDir(Path.of(TEST_PLUGIN_V13));
+        deleteDir(Path.of(TEST_PLUGIN_DIR));
+        deleteDir(Path.of(TEST_PLUGIN_V13_DIR));
     }
 
     @AfterEach
     void cleanup() throws IOException {
-        deleteDir(Path.of(TEST_PLUGIN_ID));
-        deleteDir(Path.of(TEST_PLUGIN_V13));
+        deleteDir(Path.of(TEST_PLUGIN_DIR));
+        deleteDir(Path.of(TEST_PLUGIN_V13_DIR));
     }
 
     private void deleteDir(Path dir) throws IOException {
@@ -63,12 +64,14 @@ class InitCommandTest {
     void testInitBasicPlugin(LaunchResult result) throws IOException {
         assertEquals(0, result.exitCode());
 
-        Path pluginDir = Path.of(TEST_PLUGIN_ID);
+        Path pluginDir = Path.of(TEST_PLUGIN_DIR);
         assertTrue(Files.exists(pluginDir.resolve("pom.xml")));
         assertTrue(Files.exists(pluginDir.resolve("META-INF/MANIFEST.MF")));
         assertTrue(Files.exists(pluginDir.resolve("plugin.xml")));
         assertTrue(Files.exists(pluginDir.resolve("build.properties")));
         assertTrue(Files.exists(pluginDir.resolve("OSGI-INF")));
+        assertTrue(Files.exists(pluginDir.resolve(".gitignore")));
+        assertTrue(Files.exists(pluginDir.resolve(".project")));
 
         // Default platform version is 13 (latest) → Java 21
         String pom = Files.readString(pluginDir.resolve("pom.xml"));
@@ -86,7 +89,7 @@ class InitCommandTest {
     void testInitPluginWithFeatures(LaunchResult result) {
         assertEquals(0, result.exitCode());
 
-        Path pluginDir = Path.of(TEST_PLUGIN_ID);
+        Path pluginDir = Path.of(TEST_PLUGIN_DIR);
         Path srcDir = pluginDir.resolve("src/org/test/myplugin");
 
         assertTrue(Files.exists(srcDir.resolve("MypluginCallout.java")));
@@ -100,7 +103,7 @@ class InitCommandTest {
     void testInitWithPlatformVersion12(LaunchResult result) throws IOException {
         assertEquals(0, result.exitCode());
 
-        Path pluginDir = Path.of(TEST_PLUGIN_V13);
+        Path pluginDir = Path.of(TEST_PLUGIN_V13_DIR);
         String pom = Files.readString(pluginDir.resolve("pom.xml"));
         assertTrue(pom.contains("<maven.compiler.release>17</maven.compiler.release>"));
         assertTrue(pom.contains("<tycho.version>4.0.4</tycho.version>"));
@@ -124,5 +127,7 @@ class InitCommandTest {
         assertTrue(output.contains("--with-zk-form"));
         assertTrue(output.contains("--with-report"));
         assertTrue(output.contains("--idempiere-version"));
+        assertTrue(output.contains("--name"));
+        assertTrue(output.contains("eclipse-project"));
     }
 }

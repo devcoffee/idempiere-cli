@@ -77,9 +77,9 @@ public class ScaffoldService {
     private void createMultiModulePlugin(PluginDescriptor descriptor) {
         Path rootDir;
         if (descriptor.getOutputDir() != null) {
-            rootDir = descriptor.getOutputDir().resolve(descriptor.getPluginId());
+            rootDir = descriptor.getOutputDir().resolve(descriptor.getProjectName());
         } else {
-            rootDir = Path.of(descriptor.getPluginId());
+            rootDir = Path.of(descriptor.getProjectName());
         }
 
         if (Files.exists(rootDir)) {
@@ -142,14 +142,31 @@ public class ScaffoldService {
             System.out.println("  Created: " + mvnDir.resolve("jvm.config"));
 
             // Add Maven Wrapper
-            mavenWrapperService.addWrapper(rootDir);
-            System.out.println("  Created: mvnw, mvnw.cmd (Maven Wrapper)");
+            if (mavenWrapperService.addWrapper(rootDir)) {
+                System.out.println("  Created: mvnw, mvnw.cmd (Maven Wrapper)");
+            }
+
+            // Generate .gitignore
+            generateGitignore(rootDir);
+
+            // Generate Eclipse .project files (if enabled)
+            if (descriptor.isWithEclipseProject()) {
+                generateEclipseProject(pluginDir, descriptor.getBasePluginId());
+                if (descriptor.isWithTest()) {
+                    generateEclipseProject(rootDir.resolve(descriptor.getBasePluginId() + ".test"),
+                            descriptor.getBasePluginId() + ".test");
+                }
+                if (descriptor.isWithFragment()) {
+                    generateEclipseProject(rootDir.resolve(descriptor.getPluginId() + ".fragment"),
+                            descriptor.getPluginId() + ".fragment");
+                }
+            }
 
             System.out.println();
             System.out.println("Multi-module project created successfully!");
             System.out.println();
             System.out.println("Structure:");
-            System.out.println("  " + descriptor.getPluginId() + "/");
+            System.out.println("  " + descriptor.getProjectName() + "/");
             System.out.println("  ├── " + descriptor.getPluginId() + ".parent/    (Maven parent)");
             System.out.println("  ├── " + descriptor.getBasePluginId() + "/    (Main plugin)");
             if (descriptor.isWithTest()) {
@@ -164,8 +181,13 @@ public class ScaffoldService {
             System.out.println("  └── " + descriptor.getPluginId() + ".p2/    (P2 repository)");
             System.out.println();
             System.out.println("Next steps:");
-            System.out.println("  1. cd " + descriptor.getPluginId());
-            System.out.println("  2. Import in Eclipse: File > Import > Maven > Existing Maven Projects");
+            System.out.println("  1. cd " + descriptor.getProjectName());
+            if (descriptor.isWithEclipseProject()) {
+                System.out.println("  2. Import in Eclipse: File > Import > Existing Projects into Workspace");
+                System.out.println("     Or run: idempiere-cli import-workspace --dir=" + descriptor.getProjectName());
+            } else {
+                System.out.println("  2. Import in Eclipse: File > Import > Maven > Existing Maven Projects");
+            }
             System.out.println("  3. Select this directory as root and click Finish");
             System.out.println();
             System.out.println("To build:");
@@ -173,6 +195,8 @@ public class ScaffoldService {
             System.out.println();
             System.out.println("To package for distribution:");
             System.out.println("  ./mvnw verify    (JAR will be in p2/target/repository/)");
+            System.out.println();
+            System.out.println("Tip: Use 'idempiere-cli add <component>' for AI-powered code generation.");
             System.out.println();
         } catch (IOException e) {
             System.err.println("Error creating project: " + e.getMessage());
@@ -186,9 +210,9 @@ public class ScaffoldService {
     private void createStandalonePlugin(PluginDescriptor descriptor) {
         Path baseDir;
         if (descriptor.getOutputDir() != null) {
-            baseDir = descriptor.getOutputDir().resolve(descriptor.getPluginId());
+            baseDir = descriptor.getOutputDir().resolve(descriptor.getProjectName());
         } else {
-            baseDir = Path.of(descriptor.getPluginId());
+            baseDir = Path.of(descriptor.getProjectName());
         }
 
         if (Files.exists(baseDir)) {
@@ -207,19 +231,35 @@ public class ScaffoldService {
             generateComponentFiles(baseDir, descriptor);
 
             // Add Maven Wrapper
-            mavenWrapperService.addWrapper(baseDir);
-            System.out.println("  Created: mvnw, mvnw.cmd (Maven Wrapper)");
+            if (mavenWrapperService.addWrapper(baseDir)) {
+                System.out.println("  Created: mvnw, mvnw.cmd (Maven Wrapper)");
+            }
+
+            // Generate .gitignore
+            generateGitignore(baseDir);
+
+            // Generate Eclipse .project file (if enabled)
+            if (descriptor.isWithEclipseProject()) {
+                generateEclipseProject(baseDir, descriptor.getPluginId());
+            }
 
             System.out.println();
             System.out.println("Plugin created successfully!");
             System.out.println();
             System.out.println("Next steps:");
-            System.out.println("  1. cd " + descriptor.getPluginId());
-            System.out.println("  2. Import in Eclipse: File > Import > Maven > Existing Maven Projects");
+            System.out.println("  1. cd " + descriptor.getProjectName());
+            if (descriptor.isWithEclipseProject()) {
+                System.out.println("  2. Import in Eclipse: File > Import > Existing Projects into Workspace");
+                System.out.println("     Or run: idempiere-cli import-workspace --dir=" + descriptor.getProjectName());
+            } else {
+                System.out.println("  2. Import in Eclipse: File > Import > Maven > Existing Maven Projects");
+            }
             System.out.println("  3. Select this directory as root and click Finish");
             System.out.println();
             System.out.println("To build:");
             System.out.println("  ./mvnw verify    (or mvnw.cmd on Windows)");
+            System.out.println();
+            System.out.println("Tip: Use 'idempiere-cli add <component>' for AI-powered code generation.");
             System.out.println();
         } catch (IOException e) {
             System.err.println("Error creating plugin: " + e.getMessage());
@@ -540,6 +580,63 @@ public class ScaffoldService {
             return osgiVersion.replace(".qualifier", "-SNAPSHOT");
         }
         return osgiVersion;
+    }
+
+    /**
+     * Generates a .gitignore file in the given directory.
+     */
+    private void generateGitignore(Path dir) throws IOException {
+        Path gitignore = dir.resolve(".gitignore");
+        Files.writeString(gitignore,
+                "# Build output\n" +
+                "target/\n" +
+                "bin/\n" +
+                "\n" +
+                "# Eclipse IDE\n" +
+                ".settings/\n" +
+                ".classpath\n" +
+                "\n" +
+                "# IntelliJ IDEA\n" +
+                ".idea/\n" +
+                "*.iml\n" +
+                "\n" +
+                "# OS files\n" +
+                ".DS_Store\n" +
+                "Thumbs.db\n");
+        System.out.println("  Created: " + gitignore);
+    }
+
+    /**
+     * Generates an Eclipse .project file for a plugin/module directory.
+     */
+    private void generateEclipseProject(Path moduleDir, String projectName) throws IOException {
+        Path projectFile = moduleDir.resolve(".project");
+        Files.writeString(projectFile,
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+                "<projectDescription>\n" +
+                "\t<name>" + projectName + "</name>\n" +
+                "\t<comment></comment>\n" +
+                "\t<projects></projects>\n" +
+                "\t<buildSpec>\n" +
+                "\t\t<buildCommand>\n" +
+                "\t\t\t<name>org.eclipse.jdt.core.javabuilder</name>\n" +
+                "\t\t\t<arguments></arguments>\n" +
+                "\t\t</buildCommand>\n" +
+                "\t\t<buildCommand>\n" +
+                "\t\t\t<name>org.eclipse.pde.ManifestBuilder</name>\n" +
+                "\t\t\t<arguments></arguments>\n" +
+                "\t\t</buildCommand>\n" +
+                "\t\t<buildCommand>\n" +
+                "\t\t\t<name>org.eclipse.pde.SchemaBuilder</name>\n" +
+                "\t\t\t<arguments></arguments>\n" +
+                "\t\t</buildCommand>\n" +
+                "\t</buildSpec>\n" +
+                "\t<natures>\n" +
+                "\t\t<nature>org.eclipse.pde.PluginNature</nature>\n" +
+                "\t\t<nature>org.eclipse.jdt.core.javanature</nature>\n" +
+                "\t</natures>\n" +
+                "</projectDescription>\n");
+        System.out.println("  Created: " + projectFile);
     }
 
     // ========================================================================

@@ -58,7 +58,8 @@ class ScaffoldServiceTest {
         descriptor.setMultiModule(false); // Test standalone mode
 
         // When
-        Path pluginDir = tempDir.resolve("org.test.basic");
+        // projectName defaults to pluginName ("basic")
+        Path pluginDir = tempDir.resolve("basic");
         scaffoldService.createPlugin(descriptor);
 
         // Then: Basic structure should exist
@@ -68,6 +69,8 @@ class ScaffoldServiceTest {
         assertTrue(Files.exists(pluginDir.resolve("build.properties")), "build.properties should exist");
         assertTrue(Files.exists(pluginDir.resolve("OSGI-INF")), "OSGI-INF directory should exist");
         assertTrue(Files.exists(pluginDir.resolve(".mvn/jvm.config")), ".mvn/jvm.config should exist");
+        assertTrue(Files.exists(pluginDir.resolve(".gitignore")), ".gitignore should exist");
+        assertTrue(Files.exists(pluginDir.resolve(".project")), ".project should exist (default enabled)");
     }
 
     @Test
@@ -83,7 +86,7 @@ class ScaffoldServiceTest {
         scaffoldService.createPlugin(descriptor);
 
         // Then
-        Path pluginDir = tempDir.resolve("org.test.callout");
+        Path pluginDir = tempDir.resolve("callout");
         Path srcDir = pluginDir.resolve("src/org/test/callout");
 
         assertTrue(Files.exists(srcDir.resolve("CalloutCallout.java")), "Callout class should exist");
@@ -103,7 +106,7 @@ class ScaffoldServiceTest {
         scaffoldService.createPlugin(descriptor);
 
         // Then
-        Path srcDir = tempDir.resolve("org.test.proc/src/org/test/proc");
+        Path srcDir = tempDir.resolve("proc/src/org/test/proc");
         assertTrue(Files.exists(srcDir.resolve("ProcProcess.java")), "Process class should exist");
         assertTrue(Files.exists(srcDir.resolve("ProcProcessFactory.java")), "ProcessFactory should exist");
     }
@@ -121,12 +124,13 @@ class ScaffoldServiceTest {
         scaffoldService.createPlugin(descriptor);
 
         // Then
-        Path srcDir = tempDir.resolve("org.test.form/src/org/test/form");
+        Path pluginDir = tempDir.resolve("form");
+        Path srcDir = pluginDir.resolve("src/org/test/form");
         assertTrue(Files.exists(srcDir.resolve("FormForm.java")), "Form class should exist");
         assertTrue(Files.exists(srcDir.resolve("FormFormFactory.java")), "FormFactory should exist");
 
         // Check MANIFEST.MF has ZK bundles
-        String manifest = Files.readString(tempDir.resolve("org.test.form/META-INF/MANIFEST.MF"));
+        String manifest = Files.readString(pluginDir.resolve("META-INF/MANIFEST.MF"));
         assertTrue(manifest.contains("org.adempiere.ui.zk"), "Should include ZK bundle");
     }
 
@@ -143,10 +147,11 @@ class ScaffoldServiceTest {
         scaffoldService.createPlugin(descriptor);
 
         // Then: ZUL form uses different naming to avoid conflicts
-        Path srcDir = tempDir.resolve("org.test.zul/src/org/test/zul");
+        Path pluginDir = tempDir.resolve("zul");
+        Path srcDir = pluginDir.resolve("src/org/test/zul");
         assertTrue(Files.exists(srcDir.resolve("ZulZulForm.java")), "ZulForm class should exist");
         assertTrue(Files.exists(srcDir.resolve("ZulZulFormController.java")), "Controller should exist");
-        assertTrue(Files.exists(tempDir.resolve("org.test.zul/src/web/form.zul")), "ZUL file should exist");
+        assertTrue(Files.exists(pluginDir.resolve("src/web/form.zul")), "ZUL file should exist");
     }
 
     @Test
@@ -163,7 +168,7 @@ class ScaffoldServiceTest {
         scaffoldService.createPlugin(descriptor);
 
         // Then: Both form types should have distinct names
-        Path srcDir = tempDir.resolve("org.test.forms/src/org/test/forms");
+        Path srcDir = tempDir.resolve("forms/src/org/test/forms");
         assertTrue(Files.exists(srcDir.resolve("FormsForm.java")), "Programmatic form should exist");
         assertTrue(Files.exists(srcDir.resolve("FormsZulForm.java")), "ZUL form should exist");
     }
@@ -181,7 +186,7 @@ class ScaffoldServiceTest {
         scaffoldService.createPlugin(descriptor);
 
         // Then
-        Path srcDir = tempDir.resolve("org.test.mapped/src/org/test/mapped");
+        Path srcDir = tempDir.resolve("mapped/src/org/test/mapped");
         assertTrue(Files.exists(srcDir.resolve("MappedProcess.java")), "Process class should exist");
         assertTrue(Files.exists(srcDir.resolve("MappedActivator.java")), "Activator should exist");
 
@@ -204,7 +209,7 @@ class ScaffoldServiceTest {
         scaffoldService.createPlugin(descriptor);
 
         // Then
-        Path pluginDir = tempDir.resolve("org.test.jasper");
+        Path pluginDir = tempDir.resolve("jasper");
         assertTrue(Files.exists(pluginDir.resolve("reports/JasperReport.jrxml")), "JRXML file should exist");
         assertTrue(Files.exists(pluginDir.resolve("src/org/test/jasper/JasperActivator.java")), "Activator should exist");
     }
@@ -223,7 +228,7 @@ class ScaffoldServiceTest {
         scaffoldService.createPlugin(descriptor);
 
         // Then: Only one Activator should be created (shared)
-        Path srcDir = tempDir.resolve("org.test.shared/src/org/test/shared");
+        Path srcDir = tempDir.resolve("shared/src/org/test/shared");
 
         // Count Activator files
         long activatorCount = Files.list(srcDir)
@@ -246,7 +251,7 @@ class ScaffoldServiceTest {
         scaffoldService.createPlugin(descriptor);
 
         // Then: Should have minigrid import
-        String manifest = Files.readString(tempDir.resolve("org.test.wlist/META-INF/MANIFEST.MF"));
+        String manifest = Files.readString(tempDir.resolve("wlist/META-INF/MANIFEST.MF"));
         assertTrue(manifest.contains("org.compiere.minigrid"), "Should include minigrid import for WListbox");
     }
 
@@ -263,11 +268,12 @@ class ScaffoldServiceTest {
         scaffoldService.createPlugin(descriptor);
 
         // Then
-        Path srcDir = tempDir.resolve("org.test.testing/src/org/test/testing");
+        Path pluginDir = tempDir.resolve("testing");
+        Path srcDir = pluginDir.resolve("src/org/test/testing");
         assertTrue(Files.exists(srcDir.resolve("TestingTest.java")), "Test class should exist");
 
         // Check MANIFEST.MF has test imports
-        String manifest = Files.readString(tempDir.resolve("org.test.testing/META-INF/MANIFEST.MF"));
+        String manifest = Files.readString(pluginDir.resolve("META-INF/MANIFEST.MF"));
         assertTrue(manifest.contains("org.idempiere.test"), "Should include iDempiere test import");
         assertTrue(manifest.contains("org.junit.jupiter.api"), "Should include JUnit import");
     }
@@ -284,11 +290,12 @@ class ScaffoldServiceTest {
         scaffoldService.createPlugin(descriptor);
 
         // Then: Should use Java 21 and Tycho 4.0.8
-        String pom = Files.readString(tempDir.resolve("org.test.v13/pom.xml"));
+        Path pluginDir = tempDir.resolve("v13");
+        String pom = Files.readString(pluginDir.resolve("pom.xml"));
         assertTrue(pom.contains("<maven.compiler.release>21</maven.compiler.release>"), "Should use Java 21");
         assertTrue(pom.contains("<tycho.version>4.0.8</tycho.version>"), "Should use Tycho 4.0.8");
 
-        String manifest = Files.readString(tempDir.resolve("org.test.v13/META-INF/MANIFEST.MF"));
+        String manifest = Files.readString(pluginDir.resolve("META-INF/MANIFEST.MF"));
         assertTrue(manifest.contains("JavaSE-21"), "Should target JavaSE-21");
         assertTrue(manifest.contains("bundle-version=\"13.0.0\""), "Should use bundle version 13.0.0");
     }
@@ -305,9 +312,106 @@ class ScaffoldServiceTest {
         // When
         scaffoldService.createPlugin(descriptor);
 
-        // Then: Source should be in correct package path
-        Path srcDir = tempDir.resolve("com.mycompany.idempiere.customizations/src/com/mycompany/idempiere/customizations");
+        // Then: Source should be in correct package path (dir uses pluginName = "customizations")
+        Path srcDir = tempDir.resolve("customizations/src/com/mycompany/idempiere/customizations");
         assertTrue(Files.exists(srcDir), "Source directory should match package structure");
         assertTrue(Files.exists(srcDir.resolve("CustomizationsCallout.java")), "Callout should use last segment for naming");
+    }
+
+    @Test
+    void testProjectNameUsedForDirectory() throws IOException {
+        // Given: Custom project name
+        PluginDescriptor descriptor = new PluginDescriptor("org.mycompany.myplugin");
+        descriptor.setPlatformVersion(PlatformVersion.of(12));
+        descriptor.setOutputDir(tempDir);
+        descriptor.setMultiModule(false);
+        descriptor.setProjectName("my-custom-dir");
+
+        // When
+        scaffoldService.createPlugin(descriptor);
+
+        // Then: Directory should use projectName, not pluginId
+        assertTrue(Files.exists(tempDir.resolve("my-custom-dir/pom.xml")), "Should use custom directory name");
+        assertFalse(Files.exists(tempDir.resolve("org.mycompany.myplugin")), "Should NOT use pluginId as directory");
+    }
+
+    @Test
+    void testGitignoreGenerated() throws IOException {
+        // Given
+        PluginDescriptor descriptor = new PluginDescriptor("org.test.gitignore");
+        descriptor.setPlatformVersion(PlatformVersion.of(12));
+        descriptor.setOutputDir(tempDir);
+        descriptor.setMultiModule(false);
+
+        // When
+        scaffoldService.createPlugin(descriptor);
+
+        // Then
+        Path gitignore = tempDir.resolve("gitignore/.gitignore");
+        assertTrue(Files.exists(gitignore), ".gitignore should exist");
+        String content = Files.readString(gitignore);
+        assertTrue(content.contains("target/"), "Should ignore target/");
+        assertTrue(content.contains("bin/"), "Should ignore bin/");
+        assertTrue(content.contains(".settings/"), "Should ignore .settings/");
+    }
+
+    @Test
+    void testEclipseProjectGenerated() throws IOException {
+        // Given: Eclipse project enabled (default)
+        PluginDescriptor descriptor = new PluginDescriptor("org.test.eclipse");
+        descriptor.setPlatformVersion(PlatformVersion.of(12));
+        descriptor.setOutputDir(tempDir);
+        descriptor.setMultiModule(false);
+
+        // When
+        scaffoldService.createPlugin(descriptor);
+
+        // Then
+        Path projectFile = tempDir.resolve("eclipse/.project");
+        assertTrue(Files.exists(projectFile), ".project should exist");
+        String content = Files.readString(projectFile);
+        assertTrue(content.contains("<name>org.test.eclipse</name>"), "Should use pluginId as project name");
+        assertTrue(content.contains("org.eclipse.jdt.core.javabuilder"), "Should have Java builder");
+        assertTrue(content.contains("org.eclipse.pde.PluginNature"), "Should have PDE nature");
+    }
+
+    @Test
+    void testEclipseProjectNotGeneratedWhenDisabled() throws IOException {
+        // Given: Eclipse project disabled
+        PluginDescriptor descriptor = new PluginDescriptor("org.test.noeclipse");
+        descriptor.setPlatformVersion(PlatformVersion.of(12));
+        descriptor.setOutputDir(tempDir);
+        descriptor.setMultiModule(false);
+        descriptor.setWithEclipseProject(false);
+
+        // When
+        scaffoldService.createPlugin(descriptor);
+
+        // Then
+        assertFalse(Files.exists(tempDir.resolve("noeclipse/.project")), ".project should NOT exist");
+    }
+
+    @Test
+    void testMultiModuleWithEclipseProject() throws IOException {
+        // Given: Multi-module with Eclipse project
+        PluginDescriptor descriptor = new PluginDescriptor("org.test.multi");
+        descriptor.setPlatformVersion(PlatformVersion.of(12));
+        descriptor.setOutputDir(tempDir);
+        descriptor.setMultiModule(true);
+
+        // When
+        scaffoldService.createPlugin(descriptor);
+
+        // Then: .project for base and test modules, .gitignore at root
+        Path rootDir = tempDir.resolve("multi");
+        assertTrue(Files.exists(rootDir.resolve(".gitignore")), ".gitignore at root");
+        assertTrue(Files.exists(rootDir.resolve("org.test.multi.base/.project")), ".project for base module");
+        assertTrue(Files.exists(rootDir.resolve("org.test.multi.base.test/.project")), ".project for test module");
+
+        // Verify .project content
+        String baseProject = Files.readString(rootDir.resolve("org.test.multi.base/.project"));
+        assertTrue(baseProject.contains("<name>org.test.multi.base</name>"), "Base project name");
+        String testProject = Files.readString(rootDir.resolve("org.test.multi.base.test/.project"));
+        assertTrue(testProject.contains("<name>org.test.multi.base.test</name>"), "Test project name");
     }
 }

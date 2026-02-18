@@ -26,6 +26,8 @@ public class PluginDescriptor {
     private String groupId;
     private String basePluginId;  // e.g., org.example.myplugin.base
     private String fragmentHost = "org.adempiere.ui.zk";  // Default fragment host
+    private String projectName;  // Directory name for the project (defaults to pluginName)
+    private boolean withEclipseProject = true;  // Generate .project files for Eclipse
 
     public PluginDescriptor() {
         this.version = "1.0.0.qualifier";
@@ -176,6 +178,26 @@ public class PluginDescriptor {
 
     public void setFragmentHost(String fragmentHost) {
         this.fragmentHost = fragmentHost;
+    }
+
+    /**
+     * Get the project directory name.
+     * Defaults to pluginName (last segment of pluginId) if not explicitly set.
+     */
+    public String getProjectName() {
+        return projectName != null ? projectName : pluginName;
+    }
+
+    public void setProjectName(String projectName) {
+        this.projectName = projectName;
+    }
+
+    public boolean isWithEclipseProject() {
+        return withEclipseProject;
+    }
+
+    public void setWithEclipseProject(boolean withEclipseProject) {
+        this.withEclipseProject = withEclipseProject;
     }
 
     /**

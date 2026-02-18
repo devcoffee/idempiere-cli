@@ -24,6 +24,9 @@ import java.nio.file.Path;
  *   <li>Selected component templates (callout, process, form, etc.)</li>
  * </ul>
  *
+ * <p>Components are generated using built-in templates.
+ * For AI-powered generation with context-aware code, use {@code add <component>} after creating the project.
+ *
  * <h2>Interactive Mode</h2>
  * <p>When run in a terminal without explicit flags, prompts for component selection.
  * Use {@code --no-interactive} to disable prompts in scripts.
@@ -35,6 +38,9 @@ import java.nio.file.Path;
  *
  * # Non-interactive with specific components
  * idempiere-cli init org.mycompany.myplugin --with-callout --with-process
+ *
+ * # Custom project directory name
+ * idempiere-cli init org.mycompany.myplugin --name=myplugin
  * </pre>
  *
  * @see ScaffoldService#createPlugin(PluginDescriptor)
@@ -48,6 +54,15 @@ public class InitCommand implements Runnable {
 
     @Parameters(index = "0", description = "Plugin ID (e.g., org.mycompany.myplugin)")
     String pluginId;
+
+    // Project options
+    @Option(names = "--name", description = "Project directory name (default: last segment of plugin ID)")
+    String projectName;
+
+    @Option(names = "--eclipse-project", negatable = true,
+            description = "Generate Eclipse .project files (default: true)",
+            defaultValue = "true")
+    boolean eclipseProject;
 
     // Project structure options
     @Option(names = "--standalone", description = "Create a single standalone plugin (default: multi-module)")
@@ -165,6 +180,10 @@ public class InitCommand implements Runnable {
         System.out.println("==========================================");
         System.out.println();
 
+        // Derive default project name from pluginId last segment
+        String defaultName = pluginId.substring(pluginId.lastIndexOf('.') + 1);
+        projectName = promptService.prompt("Project directory name", projectName != null ? projectName : defaultName);
+
         version = promptService.prompt("Plugin version", version);
         vendor = promptService.prompt("Vendor name", vendor.isEmpty() ? null : vendor);
         String idVer = promptService.prompt("Target iDempiere version", String.valueOf(idempiereVersion));
@@ -188,6 +207,8 @@ public class InitCommand implements Runnable {
             if (promptService.confirm("  Include feature module (for grouping)?")) withFeature = true;
             noTest = !promptService.confirm("  Include test module?", true);
         }
+
+        eclipseProject = promptService.confirm("  Generate Eclipse .project files?", true);
 
         System.out.println();
         System.out.println("Select components to include:");
@@ -238,6 +259,8 @@ public class InitCommand implements Runnable {
         descriptor.setVersion(version);
         descriptor.setVendor(vendor);
         descriptor.setPlatformVersion(PlatformVersion.of(idempiereVersion));
+        descriptor.setProjectName(projectName);
+        descriptor.setWithEclipseProject(eclipseProject);
 
         // Multi-module settings (default: multi-module)
         descriptor.setMultiModule(!standalone);

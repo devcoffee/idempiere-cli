@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Import plugin projects with .project files into an Eclipse workspace -->
+<project name="import-project" default="default">
+	<path id="jython.classpath">
+        <fileset dir="${basedir}">
+            <include name="jython-standalone-2.7.4.jar" />
+        </fileset>
+	</path>
+	<target name="default">
+        <script language="jython" classpathref="jython.classpath">
+            <![CDATA[
+import os
+from java.io import File
+from java.time import LocalDateTime
+
+# Eclipse imports
+from org.eclipse.core.runtime import Path
+from org.eclipse.core.resources import IResource, ResourcesPlugin
+
+# --- Main script logic ---
+
+try:
+    workspace = ResourcesPlugin.getWorkspace()
+except Exception, e:
+    print "Fatal Error: Could not get workspace."
+    print str(e)
+    raise
+
+print ""
+print "*** {} Import plugin projects into workspace ***".format(LocalDateTime.now().toString())
+print ""
+
+plugin_path = project.getProperty("pluginPath")
+
+if plugin_path is None:
+    print "Error: Ant property 'pluginPath' is not set."
+else:
+    def import_project(project_dir):
+        """Import a single Eclipse project from a directory containing .project"""
+        projectFile = File(project_dir, ".project")
+        if not projectFile.exists():
+            return
+        try:
+            projectDescription = workspace.loadProjectDescription(Path(projectFile.getAbsolutePath()))
+            project_name = projectDescription.getName()
+            eclipse_project = workspace.getRoot().getProject(project_name)
+            if not eclipse_project.isOpen():
+                eclipse_project.create(projectDescription, None)
+                eclipse_project.open(None)
+                print "Imported: " + project_name
+            else:
+                eclipse_project.refreshLocal(IResource.DEPTH_INFINITE, None)
+                print "Refreshed: " + project_name
+        except Exception, e:
+            print "Error importing {}: {}".format(project_dir.getAbsolutePath(), str(e))
+
+    pluginDir = File(plugin_path)
+    if pluginDir.isDirectory():
+        imported = 0
+        # Import direct .project (standalone plugin or module)
+        if File(pluginDir, ".project").exists():
+            import_project(pluginDir)
+            imported += 1
+        # Import child modules with .project (multi-module project)
+        for child_name in pluginDir.list():
+            child = File(pluginDir, child_name)
+            if child.isDirectory() and File(child, ".project").exists():
+                import_project(child)
+                imported += 1
+        if imported == 0:
+            print "No .project files found in: " + plugin_path
+    else:
+        print "Directory does not exist: " + plugin_path
+
+print ""
+print "*** {} Saving workspace ***".format(LocalDateTime.now().toString())
+print ""
+
+try:
+    workspace.save(True, None)
+except Exception, e:
+    print "Error saving workspace: {}".format(str(e))
+
+            ]]>
+        </script>
+    </target>
+</project>

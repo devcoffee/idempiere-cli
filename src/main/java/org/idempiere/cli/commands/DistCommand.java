@@ -6,6 +6,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
 import java.nio.file.Path;
+import java.util.concurrent.Callable;
 
 /**
  * Creates iDempiere server distribution packages for deployment.
@@ -34,7 +35,7 @@ import java.nio.file.Path;
         description = "Create iDempiere server distribution packages",
         mixinStandardHelpOptions = true
 )
-public class DistCommand implements Runnable {
+public class DistCommand implements Callable<Integer> {
 
     @Option(names = "--source-dir", description = "Path to iDempiere source directory (default: current directory)",
             defaultValue = ".")
@@ -57,7 +58,8 @@ public class DistCommand implements Runnable {
     DistService distService;
 
     @Override
-    public void run() {
-        distService.createDistribution(Path.of(sourceDir), Path.of(outputDir), version, skipBuild, clean);
+    public Integer call() {
+        boolean success = distService.createDistribution(Path.of(sourceDir), Path.of(outputDir), version, skipBuild, clean);
+        return success ? 0 : 1;
     }
 }

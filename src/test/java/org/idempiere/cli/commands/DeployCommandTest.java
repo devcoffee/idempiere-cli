@@ -27,10 +27,8 @@ class DeployCommandTest {
     }
 
     @Test
-    @Launch({"deploy", "--target=/tmp"})
+    @Launch(value = {"deploy", "--target=/tmp"}, exitCode = 1)
     void testDeployWithMissingPlugin(LaunchResult result) {
-        // Command runs but may output nothing to stdout if error goes to stderr
-        // Just verify the command executed (0 exit code because error handling doesn't call System.exit)
-        assertEquals(0, result.exitCode());
+        assertEquals(1, result.exitCode());
     }
 }

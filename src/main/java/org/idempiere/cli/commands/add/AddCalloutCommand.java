@@ -7,13 +7,14 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 @Command(
         name = "callout",
         description = "Add a callout to the plugin",
         mixinStandardHelpOptions = true
 )
-public class AddCalloutCommand implements Runnable {
+public class AddCalloutCommand implements Callable<Integer> {
 
     @Option(names = {"--name"}, required = true, description = "Callout class name")
     String name;
@@ -31,14 +32,15 @@ public class AddCalloutCommand implements Runnable {
     ProjectDetector projectDetector;
 
     @Override
-    public void run() {
+    public Integer call() {
         Path dir = pluginDir != null ? Path.of(pluginDir) : Path.of(".");
         String pluginId = projectDetector.detectPluginId(dir).orElse(null);
         if (pluginId == null) {
             projectDetector.printPluginNotFoundError(dir);
-            return;
+            return 1;
         }
         scaffoldService.addComponent("callout", name, dir, pluginId,
                 prompt != null ? Map.of("prompt", prompt) : null);
+        return 0;
     }
 }

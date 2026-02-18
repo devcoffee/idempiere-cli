@@ -24,9 +24,10 @@ class InfoCommandTest {
     }
 
     @Test
-    @Launch({"info"})
+    @Launch(value = {"info"}, exitCode = 1)
     void testInfoWithoutPlugin(LaunchResult result) {
         // Should report error because we're not in a plugin directory
+        assertEquals(1, result.exitCode());
         // The output could be on stdout or stderr
         String output = result.getOutput();
         assertTrue(output.contains("Error") || output.contains("not") ||

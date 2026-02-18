@@ -8,6 +8,7 @@ import picocli.CommandLine.Option;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.Callable;
 
 /**
  * Imports plugin projects with Eclipse .project files into an Eclipse workspace.
@@ -29,7 +30,7 @@ import java.nio.file.Path;
         description = "Import plugin projects into Eclipse workspace",
         mixinStandardHelpOptions = true
 )
-public class ImportWorkspaceCommand implements Runnable {
+public class ImportWorkspaceCommand implements Callable<Integer> {
 
     @Option(names = {"--dir"}, description = "Plugin project directory to import", required = true)
     Path pluginDir;
@@ -47,7 +48,7 @@ public class ImportWorkspaceCommand implements Runnable {
     SessionLogger sessionLogger;
 
     @Override
-    public void run() {
+    public Integer call() {
         // Resolve paths
         pluginDir = pluginDir.toAbsolutePath();
         eclipseDir = eclipseDir.toAbsolutePath();
@@ -56,7 +57,7 @@ public class ImportWorkspaceCommand implements Runnable {
         // Validate plugin directory
         if (!Files.isDirectory(pluginDir)) {
             System.err.println("Error: Plugin directory does not exist: " + pluginDir);
-            return;
+            return 1;
         }
 
         // Check for .project files
@@ -73,13 +74,13 @@ public class ImportWorkspaceCommand implements Runnable {
         if (!hasProject) {
             System.err.println("Error: No .project files found in: " + pluginDir);
             System.err.println("Hint: Use 'idempiere-cli init' with --eclipse-project to generate .project files.");
-            return;
+            return 1;
         }
 
         // Validate Eclipse directory
         if (!Files.isDirectory(eclipseDir)) {
             System.err.println("Error: Eclipse directory does not exist: " + eclipseDir);
-            return;
+            return 1;
         }
 
         // Check workspace lock
@@ -105,6 +106,8 @@ public class ImportWorkspaceCommand implements Runnable {
         if (success) {
             System.out.println();
             System.out.println("Done! Open Eclipse with workspace: " + workspaceDir);
+            return 0;
         }
+        return 1;
     }
 }

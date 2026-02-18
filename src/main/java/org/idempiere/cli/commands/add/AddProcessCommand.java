@@ -7,13 +7,14 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 @Command(
         name = "process",
         description = "Add a process to the plugin",
         mixinStandardHelpOptions = true
 )
-public class AddProcessCommand implements Runnable {
+public class AddProcessCommand implements Callable<Integer> {
 
     @Option(names = {"--name"}, required = true, description = "Process class name")
     String name;
@@ -31,14 +32,15 @@ public class AddProcessCommand implements Runnable {
     ProjectDetector projectDetector;
 
     @Override
-    public void run() {
+    public Integer call() {
         Path dir = pluginDir != null ? Path.of(pluginDir) : Path.of(".");
         String pluginId = projectDetector.detectPluginId(dir).orElse(null);
         if (pluginId == null) {
             projectDetector.printPluginNotFoundError(dir);
-            return;
+            return 1;
         }
         scaffoldService.addComponent("process", name, dir, pluginId,
                 prompt != null ? Map.of("prompt", prompt) : null);
+        return 0;
     }
 }

@@ -10,6 +10,7 @@ import picocli.CommandLine.Option;
 
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 
 /**
  * Adds a fragment module to an existing multi-module project.
@@ -44,7 +45,7 @@ import java.util.Optional;
         description = "Add a fragment module to a multi-module project",
         mixinStandardHelpOptions = true
 )
-public class AddFragmentModuleCommand implements Runnable {
+public class AddFragmentModuleCommand implements Callable<Integer> {
 
     @Option(names = {"--to"}, description = "Multi-module project root directory (default: current directory)")
     String projectDir;
@@ -65,7 +66,7 @@ public class AddFragmentModuleCommand implements Runnable {
     ProjectDetector projectDetector;
 
     @Override
-    public void run() {
+    public Integer call() {
         Path dir = projectDir != null ? Path.of(projectDir) : Path.of(".");
 
         // Find multi-module root
@@ -73,7 +74,7 @@ public class AddFragmentModuleCommand implements Runnable {
         if (rootOpt.isEmpty()) {
             System.err.println("Error: Not inside a multi-module project.");
             System.err.println("Use 'idempiere-cli init' to create a new project first.");
-            return;
+            return 1;
         }
 
         Path rootDir = rootOpt.get();
@@ -81,7 +82,7 @@ public class AddFragmentModuleCommand implements Runnable {
         // Check if fragment already exists
         if (projectDetector.hasFragment(rootDir)) {
             System.err.println("Error: A fragment module already exists in this project.");
-            return;
+            return 1;
         }
 
         // Detect project settings from existing project
@@ -102,5 +103,6 @@ public class AddFragmentModuleCommand implements Runnable {
         descriptor.setFragmentHost(fragmentHost);
 
         scaffoldService.addFragmentModuleToProject(rootDir, fragmentHost, descriptor);
+        return 0;
     }
 }

@@ -7,6 +7,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.Callable;
 
 /**
  * Builds an iDempiere plugin using Maven and Tycho.
@@ -38,7 +39,7 @@ import java.nio.file.Path;
         description = "Build an iDempiere plugin using Maven/Tycho",
         mixinStandardHelpOptions = true
 )
-public class BuildCommand implements Runnable {
+public class BuildCommand implements Callable<Integer> {
 
     @Option(names = {"--dir"}, description = "Plugin directory (default: current directory)", defaultValue = ".")
     String dir;
@@ -68,18 +69,18 @@ public class BuildCommand implements Runnable {
     ProjectDetector projectDetector;
 
     @Override
-    public void run() {
+    public Integer call() {
         Path pluginDir = Path.of(dir);
         if (!projectDetector.isIdempierePlugin(pluginDir)) {
             System.err.println("Error: Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
             System.err.println("Make sure you are inside a plugin directory or use --dir to specify one.");
-            return;
+            return 1;
         }
 
         Path idHome = resolveIdempiereHome();
         if (idHome != null && !Files.exists(idHome)) {
             System.err.println("Error: iDempiere home directory not found: " + idHome.toAbsolutePath());
-            return;
+            return 1;
         }
 
         System.out.println();
@@ -88,9 +89,7 @@ public class BuildCommand implements Runnable {
         System.out.println();
 
         boolean success = buildService.build(pluginDir, idHome, clean, skipTests, update, disableP2Mirrors, mavenArgs);
-        if (!success) {
-            System.exit(1);
-        }
+        return success ? 0 : 1;
     }
 
     private Path resolveIdempiereHome() {

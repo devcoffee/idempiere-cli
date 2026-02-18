@@ -10,6 +10,7 @@ import picocli.CommandLine.Option;
 
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 
 /**
  * Compares model classes against database schema to detect drift.
@@ -45,7 +46,7 @@ import java.util.Optional;
         description = "Compare model classes against database schema",
         mixinStandardHelpOptions = true
 )
-public class DiffSchemaCommand implements Runnable {
+public class DiffSchemaCommand implements Callable<Integer> {
 
     @Option(names = {"--table"}, required = true, description = "Database table name")
     String tableName;
@@ -81,22 +82,23 @@ public class DiffSchemaCommand implements Runnable {
     ProjectDetector projectDetector;
 
     @Override
-    public void run() {
+    public Integer call() {
         Path pluginDir = Path.of(dir);
         if (!projectDetector.isIdempierePlugin(pluginDir)) {
             System.err.println("Error: Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
-            return;
+            return 1;
         }
 
         Optional<String> pluginId = projectDetector.detectPluginId(pluginDir);
         if (pluginId.isEmpty()) {
             System.err.println("Error: Could not detect plugin ID.");
-            return;
+            return 1;
         }
 
         DbConfig dbConfig = modelGeneratorService.resolveDbConfig(dbHost, dbPort, dbName, dbUser, dbPass, configPath);
         Path srcDir = pluginDir.resolve("src").resolve(pluginId.get().replace('.', '/'));
 
         diffSchemaService.diff(tableName, srcDir, pluginId.get(), dbConfig);
+        return 0;
     }
 }

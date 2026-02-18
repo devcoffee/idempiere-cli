@@ -10,6 +10,7 @@ import picocli.CommandLine.Option;
 
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 
 /**
  * Adds a feature module to an existing multi-module project.
@@ -45,7 +46,7 @@ import java.util.Optional;
         description = "Add a feature module to a multi-module project",
         mixinStandardHelpOptions = true
 )
-public class AddFeatureModuleCommand implements Runnable {
+public class AddFeatureModuleCommand implements Callable<Integer> {
 
     @Option(names = {"--to"}, description = "Multi-module project root directory (default: current directory)")
     String projectDir;
@@ -63,7 +64,7 @@ public class AddFeatureModuleCommand implements Runnable {
     ProjectDetector projectDetector;
 
     @Override
-    public void run() {
+    public Integer call() {
         Path dir = projectDir != null ? Path.of(projectDir) : Path.of(".");
 
         // Find multi-module root
@@ -71,7 +72,7 @@ public class AddFeatureModuleCommand implements Runnable {
         if (rootOpt.isEmpty()) {
             System.err.println("Error: Not inside a multi-module project.");
             System.err.println("Use 'idempiere-cli init' to create a new project first.");
-            return;
+            return 1;
         }
 
         Path rootDir = rootOpt.get();
@@ -79,7 +80,7 @@ public class AddFeatureModuleCommand implements Runnable {
         // Check if feature already exists
         if (projectDetector.hasFeature(rootDir)) {
             System.err.println("Error: A feature module already exists in this project.");
-            return;
+            return 1;
         }
 
         // Detect project settings from existing project
@@ -103,5 +104,6 @@ public class AddFeatureModuleCommand implements Runnable {
         descriptor.setWithFragment(hasFragment);
 
         scaffoldService.addFeatureModuleToProject(rootDir, descriptor);
+        return 0;
     }
 }

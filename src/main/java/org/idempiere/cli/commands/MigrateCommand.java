@@ -8,6 +8,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
 import java.nio.file.Path;
+import java.util.concurrent.Callable;
 
 /**
  * Migrates a plugin between iDempiere versions.
@@ -41,7 +42,7 @@ import java.nio.file.Path;
         description = "Migrate a plugin from one iDempiere version to another",
         mixinStandardHelpOptions = true
 )
-public class MigrateCommand implements Runnable {
+public class MigrateCommand implements Callable<Integer> {
 
     @Option(names = {"--from"}, required = true, description = "Source iDempiere major version")
     int fromVersion;
@@ -59,14 +60,15 @@ public class MigrateCommand implements Runnable {
     ProjectDetector projectDetector;
 
     @Override
-    public void run() {
+    public Integer call() {
         Path pluginDir = Path.of(dir);
         if (!projectDetector.isIdempierePlugin(pluginDir)) {
             System.err.println("Error: Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
-            return;
+            return 1;
         }
         PlatformVersion from = PlatformVersion.of(fromVersion);
         PlatformVersion to = PlatformVersion.of(toVersion);
         migrateService.migrate(pluginDir, from, to);
+        return 0;
     }
 }

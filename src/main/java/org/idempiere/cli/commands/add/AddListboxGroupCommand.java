@@ -7,13 +7,14 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 @Command(
         name = "listbox-group",
         description = "Add a form with grouped Listbox (GroupsModel)",
         mixinStandardHelpOptions = true
 )
-public class AddListboxGroupCommand implements Runnable {
+public class AddListboxGroupCommand implements Callable<Integer> {
 
     @Option(names = {"--name"}, required = true, description = "Form class name")
     String name;
@@ -31,14 +32,15 @@ public class AddListboxGroupCommand implements Runnable {
     ProjectDetector projectDetector;
 
     @Override
-    public void run() {
+    public Integer call() {
         Path dir = pluginDir != null ? Path.of(pluginDir) : Path.of(".");
         String pluginId = projectDetector.detectPluginId(dir).orElse(null);
         if (pluginId == null) {
             projectDetector.printPluginNotFoundError(dir);
-            return;
+            return 1;
         }
         scaffoldService.addComponent("listbox-group", name, dir, pluginId,
                 prompt != null ? Map.of("prompt", prompt) : null);
+        return 0;
     }
 }

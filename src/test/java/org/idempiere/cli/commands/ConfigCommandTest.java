@@ -48,9 +48,9 @@ class ConfigCommandTest {
     }
 
     @Test
-    @Launch({"config", "get", "nonexistent.key"})
+    @Launch(value = {"config", "get", "nonexistent.key"}, exitCode = 1)
     void testConfigGetUnknownKey(LaunchResult result) {
-        // picocli exits with 0, but error output contains the message
+        assertEquals(1, result.exitCode());
         String errorOutput = result.getErrorOutput();
         assertTrue(errorOutput.contains("Unknown config key"));
     }

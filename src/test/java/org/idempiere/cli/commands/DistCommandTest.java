@@ -31,8 +31,9 @@ class DistCommandTest {
     }
 
     @Test
-    @Launch({"dist", "--source-dir=nonexistent"})
+    @Launch(value = {"dist", "--source-dir=nonexistent"}, exitCode = 1)
     void testDistNoSource(LaunchResult result) {
+        assertEquals(1, result.exitCode());
         String output = result.getErrorOutput();
         assertTrue(output.contains("Not an iDempiere source directory"));
     }

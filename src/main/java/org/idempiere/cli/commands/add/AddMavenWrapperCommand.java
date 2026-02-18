@@ -7,13 +7,14 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 import java.nio.file.Path;
+import java.util.concurrent.Callable;
 
 @Command(
         name = "mvnw",
         description = "Add Maven Wrapper to the project",
         mixinStandardHelpOptions = true
 )
-public class AddMavenWrapperCommand implements Runnable {
+public class AddMavenWrapperCommand implements Callable<Integer> {
 
     @Parameters(index = "0", arity = "0..1", description = "Target project directory (default: current directory)")
     String projectDir;
@@ -28,28 +29,28 @@ public class AddMavenWrapperCommand implements Runnable {
     MavenWrapperService mavenWrapperService;
 
     @Override
-    public void run() {
+    public Integer call() {
         Path dir = projectDir != null ? Path.of(projectDir) : Path.of(".");
 
         // Check if wrapper already exists
         if (mavenWrapperService.hasWrapper(dir) && !force) {
             System.out.println("Maven Wrapper already exists in " + dir.toAbsolutePath());
             System.out.println("Use --force to overwrite.");
-            return;
+            return 0;
         }
 
         System.out.println("Adding Maven Wrapper to " + dir.toAbsolutePath() + "...");
 
         if (!mavenWrapperService.addWrapper(dir)) {
             System.err.println("Failed to add Maven Wrapper.");
-            return;
+            return 1;
         }
 
         // Update Maven version if specified
         if (mavenVersion != null && !mavenVersion.isBlank()) {
             if (!mavenWrapperService.updateMavenVersion(dir, mavenVersion)) {
                 System.err.println("Failed to set Maven version.");
-                return;
+                return 1;
             }
             System.out.println("Maven version set to: " + mavenVersion);
         }
@@ -62,5 +63,6 @@ public class AddMavenWrapperCommand implements Runnable {
         System.out.println("  .mvn/wrapper/     - Wrapper configuration");
         System.out.println();
         System.out.println("Usage: ./mvnw verify (or mvnw.cmd on Windows)");
+        return 0;
     }
 }

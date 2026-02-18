@@ -18,6 +18,7 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFilePermission;
 import java.time.Duration;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -46,7 +47,7 @@ import java.util.regex.Pattern;
         description = "Upgrade idempiere-cli to the latest version",
         mixinStandardHelpOptions = true
 )
-public class UpgradeCommand implements Runnable {
+public class UpgradeCommand implements Callable<Integer> {
 
     private static final String GITHUB_API = "https://api.github.com/repos/devcoffee/idempiere-cli/releases/latest";
     private static final String GITHUB_RELEASES = "https://github.com/devcoffee/idempiere-cli/releases/download";
@@ -64,7 +65,7 @@ public class UpgradeCommand implements Runnable {
     ProcessRunner processRunner;
 
     @Override
-    public void run() {
+    public Integer call() {
         System.out.println();
         System.out.println("iDempiere CLI Upgrade");
         System.out.println("=====================");
@@ -75,7 +76,7 @@ public class UpgradeCommand implements Runnable {
             String latestVersion = targetVersion != null ? targetVersion : fetchLatestVersion();
             if (latestVersion == null) {
                 System.err.println("  Could not determine latest version.");
-                return;
+                return 0;
             }
 
             System.out.println("  Latest version:  " + latestVersion);
@@ -83,20 +84,20 @@ public class UpgradeCommand implements Runnable {
 
             if (!force && isUpToDate(VersionProvider.getApplicationVersion(), latestVersion)) {
                 System.out.println("  Already up to date!");
-                return;
+                return 0;
             }
 
             if (checkOnly) {
                 System.out.println("  Update available: " + VersionProvider.getApplicationVersion() + " -> " + latestVersion);
                 System.out.println("  Run 'idempiere-cli upgrade' to install.");
-                return;
+                return 0;
             }
 
             // Detect platform and architecture
             String binaryName = detectBinaryName();
             if (binaryName == null) {
                 System.err.println("  Unsupported platform.");
-                return;
+                return 1;
             }
 
             System.out.println("  Downloading " + binaryName + "...");
@@ -105,7 +106,7 @@ public class UpgradeCommand implements Runnable {
             Path tempFile = downloadBinary(downloadUrl);
             if (tempFile == null) {
                 System.err.println("  Download failed.");
-                return;
+                return 1;
             }
 
             // Find current binary location
@@ -113,7 +114,7 @@ public class UpgradeCommand implements Runnable {
             if (currentBinary == null) {
                 System.err.println("  Could not determine current binary location.");
                 System.err.println("  Downloaded file is at: " + tempFile);
-                return;
+                return 1;
             }
 
             // Backup and replace
@@ -143,6 +144,7 @@ public class UpgradeCommand implements Runnable {
                 System.out.println();
                 System.out.println("  Upgrade successful!");
                 System.out.println("  Run 'idempiere-cli --version' to verify.");
+                return 0;
 
             } catch (IOException e) {
                 // Restore from backup if the move failed mid-way
@@ -152,10 +154,12 @@ public class UpgradeCommand implements Runnable {
                 System.err.println("  Failed to replace binary: " + e.getMessage());
                 System.err.println("  You may need to run with sudo/administrator privileges.");
                 System.err.println("  Or manually copy from: " + tempFile);
+                return 1;
             }
 
         } catch (Exception e) {
             System.err.println("  Error during upgrade: " + e.getMessage());
+            return 1;
         }
     }
 

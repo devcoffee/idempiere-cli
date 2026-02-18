@@ -9,13 +9,14 @@ import picocli.CommandLine.Option;
 
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 
 @Command(
         name = "model",
         description = "Generate model classes (X_, I_, M_) from a database table",
         mixinStandardHelpOptions = true
 )
-public class AddModelCommand implements Runnable {
+public class AddModelCommand implements Callable<Integer> {
 
     @Option(names = {"--table"}, required = true, description = "Database table name (e.g., C_Order)")
     String tableName;
@@ -48,17 +49,17 @@ public class AddModelCommand implements Runnable {
     ProjectDetector projectDetector;
 
     @Override
-    public void run() {
+    public Integer call() {
         Path dir = Path.of(pluginDir);
         if (!projectDetector.isIdempierePlugin(dir)) {
             System.err.println("Error: Not an iDempiere plugin in " + dir.toAbsolutePath());
-            return;
+            return 1;
         }
 
         Optional<String> pluginId = projectDetector.detectPluginId(dir);
         if (pluginId.isEmpty()) {
             System.err.println("Error: Could not detect plugin ID.");
-            return;
+            return 1;
         }
 
         Path srcDir = dir.resolve("src").resolve(pluginId.get().replace('.', '/'));
@@ -75,8 +76,9 @@ public class AddModelCommand implements Runnable {
         System.out.println();
         if (success) {
             System.out.println("Model classes generated successfully.");
+            return 0;
         } else {
-            System.exit(1);
+            return 1;
         }
     }
 }

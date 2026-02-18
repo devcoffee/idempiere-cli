@@ -8,13 +8,14 @@ import picocli.CommandLine.Option;
 
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 
 @Command(
         name = "test",
         description = "Generate test stubs for plugin components",
         mixinStandardHelpOptions = true
 )
-public class AddTestCommand implements Runnable {
+public class AddTestCommand implements Callable<Integer> {
 
     @Option(names = {"--for"}, description = "Specific class name to generate test for")
     String forClass;
@@ -29,17 +30,17 @@ public class AddTestCommand implements Runnable {
     ProjectDetector projectDetector;
 
     @Override
-    public void run() {
+    public Integer call() {
         Path pluginDir = Path.of(dir);
         if (!projectDetector.isIdempierePlugin(pluginDir)) {
             System.err.println("Error: Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
-            return;
+            return 1;
         }
 
         Optional<String> pluginId = projectDetector.detectPluginId(pluginDir);
         if (pluginId.isEmpty()) {
             System.err.println("Error: Could not detect plugin ID.");
-            return;
+            return 1;
         }
 
         System.out.println();
@@ -56,5 +57,6 @@ public class AddTestCommand implements Runnable {
         System.out.println();
         System.out.println("Test stubs generated successfully.");
         System.out.println();
+        return 0;
     }
 }

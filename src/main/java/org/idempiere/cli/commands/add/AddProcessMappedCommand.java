@@ -7,13 +7,14 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 @Command(
         name = "process-mapped",
         description = "Add a process using MappedProcessFactory (recommended for 2Pack support)",
         mixinStandardHelpOptions = true
 )
-public class AddProcessMappedCommand implements Runnable {
+public class AddProcessMappedCommand implements Callable<Integer> {
 
     @Option(names = {"--name"}, required = true, description = "Process class name")
     String name;
@@ -31,14 +32,15 @@ public class AddProcessMappedCommand implements Runnable {
     ProjectDetector projectDetector;
 
     @Override
-    public void run() {
+    public Integer call() {
         Path dir = pluginDir != null ? Path.of(pluginDir) : Path.of(".");
         String pluginId = projectDetector.detectPluginId(dir).orElse(null);
         if (pluginId == null) {
             projectDetector.printPluginNotFoundError(dir);
-            return;
+            return 1;
         }
         scaffoldService.addComponent("process-mapped", name, dir, pluginId,
                 prompt != null ? Map.of("prompt", prompt) : null);
+        return 0;
     }
 }

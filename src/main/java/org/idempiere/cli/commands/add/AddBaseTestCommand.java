@@ -7,13 +7,14 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 @Command(
         name = "base-test",
         description = "Add a base test class using AbstractTestCase (official iDempiere test infrastructure)",
         mixinStandardHelpOptions = true
 )
-public class AddBaseTestCommand implements Runnable {
+public class AddBaseTestCommand implements Callable<Integer> {
 
     @Option(names = {"--name"}, description = "Test class name (default: PluginTest)", defaultValue = "PluginTest")
     String name;
@@ -31,14 +32,15 @@ public class AddBaseTestCommand implements Runnable {
     ProjectDetector projectDetector;
 
     @Override
-    public void run() {
+    public Integer call() {
         Path dir = pluginDir != null ? Path.of(pluginDir) : Path.of(".");
         String pluginId = projectDetector.detectPluginId(dir).orElse(null);
         if (pluginId == null) {
             projectDetector.printPluginNotFoundError(dir);
-            return;
+            return 1;
         }
         scaffoldService.addComponent("base-test", name, dir, pluginId,
                 prompt != null ? Map.of("prompt", prompt) : null);
+        return 0;
     }
 }

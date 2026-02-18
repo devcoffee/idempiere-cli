@@ -7,6 +7,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 
 /**
  * Deploys a built plugin to an iDempiere instance.
@@ -39,7 +40,7 @@ import java.util.Optional;
         description = "Deploy a built plugin to an iDempiere instance",
         mixinStandardHelpOptions = true
 )
-public class DeployCommand implements Runnable {
+public class DeployCommand implements Callable<Integer> {
 
     @Option(names = {"--dir"}, description = "Plugin directory (default: current directory)", defaultValue = ".")
     String dir;
@@ -63,18 +64,18 @@ public class DeployCommand implements Runnable {
     ProjectDetector projectDetector;
 
     @Override
-    public void run() {
+    public Integer call() {
         Path pluginDir = Path.of(dir);
         if (!projectDetector.isIdempierePlugin(pluginDir)) {
             System.err.println("Error: Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
-            return;
+            return 1;
         }
 
         Optional<Path> jar = deployService.findBuiltJar(pluginDir);
         if (jar.isEmpty()) {
             System.err.println("Error: No built .jar found in target/");
             System.err.println("Run 'idempiere-cli build' first.");
-            return;
+            return 1;
         }
 
         String pluginId = projectDetector.detectPluginId(pluginDir).orElse("unknown");
@@ -90,8 +91,6 @@ public class DeployCommand implements Runnable {
             success = deployService.copyDeploy(jar.get(), Path.of(target));
         }
 
-        if (!success) {
-            System.exit(1);
-        }
+        return success ? 0 : 1;
     }
 }

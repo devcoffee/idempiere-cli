@@ -10,6 +10,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
 import java.nio.file.Path;
+import java.util.concurrent.Callable;
 
 /**
  * Displays plugin metadata and detected components.
@@ -40,7 +41,7 @@ import java.nio.file.Path;
         description = "Show plugin metadata and components",
         mixinStandardHelpOptions = true
 )
-public class InfoCommand implements Runnable {
+public class InfoCommand implements Callable<Integer> {
 
     @Option(names = {"--dir"}, description = "Plugin directory (default: current directory)", defaultValue = ".")
     String dir;
@@ -55,7 +56,7 @@ public class InfoCommand implements Runnable {
     ProjectDetector projectDetector;
 
     @Override
-    public void run() {
+    public Integer call() {
         Path pluginDir = Path.of(dir);
         if (!projectDetector.isIdempierePlugin(pluginDir)) {
             if (json) {
@@ -64,20 +65,21 @@ public class InfoCommand implements Runnable {
                 System.err.println("Error: Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
                 System.err.println("Make sure you are inside a plugin directory or use --dir to specify one.");
             }
-            return;
+            return 1;
         }
 
         if (json) {
-            printJson(pluginInfoService.getInfo(pluginDir));
+            return printJson(pluginInfoService.getInfo(pluginDir));
         } else {
             pluginInfoService.printInfo(pluginDir);
+            return 0;
         }
     }
 
-    private void printJson(PluginInfo info) {
+    private Integer printJson(PluginInfo info) {
         if (info == null) {
             System.out.println("{\"error\": \"Failed to read plugin info\"}");
-            return;
+            return 1;
         }
 
         try {
@@ -97,8 +99,10 @@ public class InfoCommand implements Runnable {
             info.components().forEach(components::add);
 
             System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root));
+            return 0;
         } catch (Exception e) {
             System.err.println("{\"error\": \"Failed to serialize JSON\"}");
+            return 1;
         }
     }
 }

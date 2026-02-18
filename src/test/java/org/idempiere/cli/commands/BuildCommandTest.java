@@ -26,10 +26,11 @@ class BuildCommandTest {
     }
 
     @Test
-    @Launch({"build"})
+    @Launch(value = {"build"}, exitCode = 1)
     void testBuildWithoutPlugin(LaunchResult result) {
         // Should fail/warn because we're not in a plugin directory
         // Maven not found is also acceptable
+        assertEquals(1, result.exitCode());
         String output = result.getOutput();
         assertTrue(output.contains("Error") || output.contains("not") ||
                    output.contains("found") || output.contains("Maven") ||

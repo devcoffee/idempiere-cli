@@ -10,6 +10,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
 import java.nio.file.Path;
+import java.util.concurrent.Callable;
 
 /**
  * Analyzes plugin dependencies by scanning Java imports.
@@ -43,7 +44,7 @@ import java.nio.file.Path;
         description = "Analyze plugin dependencies",
         mixinStandardHelpOptions = true
 )
-public class DepsCommand implements Runnable {
+public class DepsCommand implements Callable<Integer> {
 
     @Option(names = {"--dir"}, description = "Plugin directory (default: current directory)", defaultValue = ".")
     String dir;
@@ -58,7 +59,7 @@ public class DepsCommand implements Runnable {
     ProjectDetector projectDetector;
 
     @Override
-    public void run() {
+    public Integer call() {
         Path pluginDir = Path.of(dir);
         if (!projectDetector.isIdempierePlugin(pluginDir)) {
             if (json) {
@@ -66,17 +67,18 @@ public class DepsCommand implements Runnable {
             } else {
                 System.err.println("Error: Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
             }
-            return;
+            return 1;
         }
 
         if (json) {
-            printJson(depsService.analyzeData(pluginDir));
+            return printJson(depsService.analyzeData(pluginDir));
         } else {
             depsService.analyze(pluginDir);
+            return 0;
         }
     }
 
-    private void printJson(DepsResult result) {
+    private Integer printJson(DepsResult result) {
         try {
             ObjectMapper mapper = new ObjectMapper();
             ObjectNode root = mapper.createObjectNode();
@@ -95,8 +97,10 @@ public class DepsCommand implements Runnable {
             result.unusedBundles().forEach(unused::add);
 
             System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root));
+            return 0;
         } catch (Exception e) {
             System.err.println("{\"error\": \"Failed to serialize JSON\"}");
+            return 1;
         }
     }
 }

@@ -11,6 +11,7 @@ import picocli.CommandLine.Parameters;
 
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 
 /**
  * Adds a new plugin module to an existing multi-module project.
@@ -39,7 +40,7 @@ import java.util.Optional;
         description = "Add a new plugin module to a multi-module project",
         mixinStandardHelpOptions = true
 )
-public class AddPluginModuleCommand implements Runnable {
+public class AddPluginModuleCommand implements Callable<Integer> {
 
     @Parameters(index = "0", description = "Plugin ID (e.g., org.example.myproject.newplugin)")
     String pluginId;
@@ -60,7 +61,7 @@ public class AddPluginModuleCommand implements Runnable {
     ProjectDetector projectDetector;
 
     @Override
-    public void run() {
+    public Integer call() {
         Path dir = projectDir != null ? Path.of(projectDir) : Path.of(".");
 
         // Find multi-module root
@@ -68,7 +69,7 @@ public class AddPluginModuleCommand implements Runnable {
         if (rootOpt.isEmpty()) {
             System.err.println("Error: Not inside a multi-module project.");
             System.err.println("Use 'idempiere-cli init' to create a new project first.");
-            return;
+            return 1;
         }
 
         Path rootDir = rootOpt.get();
@@ -93,5 +94,6 @@ public class AddPluginModuleCommand implements Runnable {
         descriptor.setBasePluginId(pluginId);
 
         scaffoldService.addPluginModuleToProject(rootDir, pluginId, descriptor);
+        return 0;
     }
 }

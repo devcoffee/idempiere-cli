@@ -9,13 +9,14 @@ import picocli.CommandLine.Option;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 @Command(
         name = "rest-extension",
         description = "Add a REST API resource extension to the plugin",
         mixinStandardHelpOptions = true
 )
-public class AddRestExtensionCommand implements Runnable {
+public class AddRestExtensionCommand implements Callable<Integer> {
 
     @Option(names = {"--name"}, required = true, description = "REST resource class name")
     String name;
@@ -36,16 +37,17 @@ public class AddRestExtensionCommand implements Runnable {
     ProjectDetector projectDetector;
 
     @Override
-    public void run() {
+    public Integer call() {
         Path dir = pluginDir != null ? Path.of(pluginDir) : Path.of(".");
         String pluginId = projectDetector.detectPluginId(dir).orElse(null);
         if (pluginId == null) {
             projectDetector.printPluginNotFoundError(dir);
-            return;
+            return 1;
         }
         Map<String, Object> extraData = new HashMap<>();
         extraData.put("resourcePath", resourcePath);
         if (prompt != null) extraData.put("prompt", prompt);
         scaffoldService.addComponent("rest-extension", name, dir, pluginId, extraData);
+        return 0;
     }
 }

@@ -26,6 +26,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Scanner;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 
 /**
@@ -59,7 +60,7 @@ import java.util.stream.Collectors;
         description = "Check required tools and environment prerequisites",
         mixinStandardHelpOptions = true
 )
-public class DoctorCommand implements Runnable {
+public class DoctorCommand implements Callable<Integer> {
 
     @Option(names = {"--fix"}, description = "Attempt to auto-fix missing dependencies")
     boolean fix;
@@ -89,19 +90,20 @@ public class DoctorCommand implements Runnable {
     AiClientFactory aiClientFactory;
 
     @Override
-    public void run() {
+    public Integer call() {
         if (dir != null) {
             if (json) {
-                printPluginJson(doctorService.checkPluginData(Path.of(dir)));
+                return printPluginJson(doctorService.checkPluginData(Path.of(dir)));
             } else {
-                runPluginCheck(Path.of(dir));
+                return runPluginCheck(Path.of(dir));
             }
         } else if (json) {
-            printEnvironmentJson(doctorService.checkEnvironmentData());
+            return printEnvironmentJson(doctorService.checkEnvironmentData());
         } else {
             // --fix-optional implies --fix
             if (fixOptional != null) fix = true;
             runEnvironmentCheck();
+            return 0;
         }
     }
 
@@ -151,7 +153,7 @@ public class DoctorCommand implements Runnable {
         System.out.println();
     }
 
-    private void runPluginCheck(Path pluginDir) {
+    private Integer runPluginCheck(Path pluginDir) {
         System.out.println();
         System.out.println("iDempiere CLI - Plugin Validation");
         System.out.println("==================================");
@@ -159,7 +161,7 @@ public class DoctorCommand implements Runnable {
 
         if (!Files.exists(pluginDir)) {
             System.err.println("  Error: Directory '" + pluginDir + "' does not exist.");
-            return;
+            return 1;
         }
 
         PluginCheckResult result = doctorService.checkPluginData(pluginDir);
@@ -173,6 +175,7 @@ public class DoctorCommand implements Runnable {
         System.out.printf("Results: %d passed, %d warnings, %d failed%n",
                 result.passed(), result.warnings(), result.failed());
         System.out.println();
+        return 0;
     }
 
     private void printResult(CheckResult result) {
@@ -479,7 +482,7 @@ public class DoctorCommand implements Runnable {
                 pkg.contains("temurin"));
     }
 
-    private void printEnvironmentJson(EnvironmentResult result) {
+    private Integer printEnvironmentJson(EnvironmentResult result) {
         try {
             ObjectMapper mapper = new ObjectMapper();
             ObjectNode root = mapper.createObjectNode();
@@ -505,12 +508,14 @@ public class DoctorCommand implements Runnable {
             configNode.put("aiProvider", config.getAi().getProvider());
 
             System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root));
+            return 0;
         } catch (Exception e) {
             System.err.println("{\"error\": \"Failed to serialize JSON\"}");
+            return 1;
         }
     }
 
-    private void printPluginJson(PluginCheckResult result) {
+    private Integer printPluginJson(PluginCheckResult result) {
         try {
             ObjectMapper mapper = new ObjectMapper();
             ObjectNode root = mapper.createObjectNode();
@@ -528,8 +533,10 @@ public class DoctorCommand implements Runnable {
             }
 
             System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root));
+            return 0;
         } catch (Exception e) {
             System.err.println("{\"error\": \"Failed to serialize JSON\"}");
+            return 1;
         }
     }
 }

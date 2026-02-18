@@ -10,6 +10,7 @@ import picocli.CommandLine.Parameters;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 /**
  * Manages CLI configuration (AI provider, skills, defaults).
@@ -28,13 +29,13 @@ import java.util.Map;
 public class ConfigCommand {
 
     @Command(name = "show", description = "Show current configuration (without API keys)")
-    static class ShowCmd implements Runnable {
+    static class ShowCmd implements Callable<Integer> {
 
         @Inject
         CliConfigService configService;
 
         @Override
-        public void run() {
+        public Integer call() {
             CliConfig config = configService.loadConfig();
 
             System.out.println("Configuration:");
@@ -82,11 +83,12 @@ public class ConfigCommand {
             }
             System.out.println("  cacheDir: " + config.getSkills().getCacheDir());
             System.out.println("  updateInterval: " + config.getSkills().getUpdateInterval());
+            return 0;
         }
     }
 
     @Command(name = "get", description = "Get a configuration value")
-    static class GetCmd implements Runnable {
+    static class GetCmd implements Callable<Integer> {
 
         @Parameters(index = "0", description = "Config key (e.g., ai.provider, defaults.vendor)")
         String key;
@@ -95,21 +97,23 @@ public class ConfigCommand {
         CliConfigService configService;
 
         @Override
-        public void run() {
+        public Integer call() {
             CliConfig config = configService.loadConfig();
             String value = getConfigValue(config, key);
             if (value != null) {
                 System.out.println(value);
+                return 0;
             } else {
                 System.err.println("Unknown config key: " + key);
                 System.err.println("Available keys: ai.provider, ai.apiKey, ai.apiKeyEnv, ai.model, ai.fallback, "
                         + "defaults.vendor, defaults.idempiereVersion, skills.cacheDir, skills.updateInterval");
+                return 1;
             }
         }
     }
 
     @Command(name = "set", description = "Set a configuration value in global config")
-    static class SetCmd implements Runnable {
+    static class SetCmd implements Callable<Integer> {
 
         @Parameters(index = "0", description = "Config key (e.g., ai.provider)")
         String key;
@@ -121,28 +125,30 @@ public class ConfigCommand {
         CliConfigService configService;
 
         @Override
-        public void run() {
+        public Integer call() {
             CliConfig config = configService.loadConfig();
 
             if (!setConfigValue(config, key, value)) {
                 System.err.println("Unknown config key: " + key);
                 System.err.println("Available keys: ai.provider, ai.apiKey, ai.apiKeyEnv, ai.model, ai.fallback, "
                         + "defaults.vendor, defaults.idempiereVersion, skills.cacheDir, skills.updateInterval");
-                return;
+                return 1;
             }
 
             try {
                 configService.saveGlobalConfig(config);
                 System.out.println("Set " + key + " = " + value);
+                return 0;
             } catch (IOException e) {
                 System.err.println("Failed to save config: " + e.getMessage());
+                return 1;
             }
         }
     }
 
     @Command(name = "init", description = "Initialize configuration interactively",
             mixinStandardHelpOptions = true)
-    static class InitCmd implements Runnable {
+    static class InitCmd implements Callable<Integer> {
 
         private static final Map<String, String> DEFAULT_API_KEY_ENV = Map.of(
                 "anthropic", "ANTHROPIC_API_KEY",
@@ -163,7 +169,7 @@ public class ConfigCommand {
         InteractivePromptService promptService;
 
         @Override
-        public void run() {
+        public Integer call() {
             CliConfig config = configService.loadConfig();
 
             System.out.println();
@@ -235,8 +241,10 @@ public class ConfigCommand {
                 System.out.println();
                 System.out.println("Config saved to " + configService.getGlobalConfigPath());
                 System.out.println();
+                return 0;
             } catch (IOException e) {
                 System.err.println("Failed to save config: " + e.getMessage());
+                return 1;
             }
         }
 

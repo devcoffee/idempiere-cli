@@ -10,6 +10,7 @@ import picocli.CommandLine.Option;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 
 /**
  * Packages a built plugin for distribution.
@@ -47,7 +48,7 @@ import java.util.Optional;
         description = "Package plugin for distribution",
         mixinStandardHelpOptions = true
 )
-public class PackageCommand implements Runnable {
+public class PackageCommand implements Callable<Integer> {
 
     @Option(names = {"--dir"}, description = "Project directory (default: current directory)", defaultValue = ".")
     String dir;
@@ -68,22 +69,23 @@ public class PackageCommand implements Runnable {
     BuildService buildService;
 
     @Override
-    public void run() {
+    public Integer call() {
         Path projectDir = Path.of(dir).toAbsolutePath();
 
         // Check if we're in a multi-module project
         Optional<Path> multiModuleRoot = projectDetector.findMultiModuleRoot(projectDir);
 
         if ("p2".equals(format)) {
-            handleP2Package(projectDir, multiModuleRoot);
+            return handleP2Package(projectDir, multiModuleRoot);
         } else if ("zip".equals(format)) {
-            handleZipPackage(projectDir, multiModuleRoot);
+            return handleZipPackage(projectDir, multiModuleRoot);
         } else {
             System.err.println("Error: Unknown format '" + format + "'. Use 'zip' or 'p2'.");
+            return 1;
         }
     }
 
-    private void handleP2Package(Path projectDir, Optional<Path> multiModuleRoot) {
+    private Integer handleP2Package(Path projectDir, Optional<Path> multiModuleRoot) {
         if (multiModuleRoot.isEmpty()) {
             // Standalone plugin - p2 not supported
             System.err.println("Error: p2 format requires a multi-module project structure.");
@@ -95,7 +97,7 @@ public class PackageCommand implements Runnable {
             System.err.println("generates proper Eclipse update site metadata.");
             System.err.println();
             System.err.println("For standalone plugins, use --format=zip instead.");
-            return;
+            return 1;
         }
 
         Path rootDir = multiModuleRoot.get();
@@ -105,7 +107,7 @@ public class PackageCommand implements Runnable {
         if (p2Module.isEmpty()) {
             System.err.println("Error: No .p2 module found in multi-module project.");
             System.err.println("The project may have been created without p2 support.");
-            return;
+            return 1;
         }
 
         Path p2Repository = p2Module.get().resolve("target/repository");
@@ -115,7 +117,7 @@ public class PackageCommand implements Runnable {
             System.err.println("Build the project first:");
             System.err.println("  cd " + rootDir);
             System.err.println("  idempiere-cli build");
-            return;
+            return 1;
         }
 
         String projectId = projectDetector.detectProjectBaseId(rootDir).orElse("plugin");
@@ -128,9 +130,10 @@ public class PackageCommand implements Runnable {
 
         packageService.packageP2MultiModule(p2Repository, outputDir);
         System.out.println();
+        return 0;
     }
 
-    private void handleZipPackage(Path projectDir, Optional<Path> multiModuleRoot) {
+    private Integer handleZipPackage(Path projectDir, Optional<Path> multiModuleRoot) {
         Path pluginDir;
 
         if (multiModuleRoot.isPresent()) {
@@ -139,7 +142,7 @@ public class PackageCommand implements Runnable {
             Optional<Path> basePlugin = findBasePluginModule(rootDir);
             if (basePlugin.isEmpty()) {
                 System.err.println("Error: Could not find base plugin module in " + rootDir);
-                return;
+                return 1;
             }
             pluginDir = basePlugin.get();
         } else {
@@ -149,14 +152,14 @@ public class PackageCommand implements Runnable {
 
         if (!projectDetector.isIdempierePlugin(pluginDir)) {
             System.err.println("Error: Not an iDempiere plugin in " + pluginDir);
-            return;
+            return 1;
         }
 
         Optional<Path> jar = buildService.findBuiltJar(pluginDir);
         if (jar.isEmpty()) {
             System.err.println("Error: No built .jar found in target/");
             System.err.println("Run 'idempiere-cli build' first.");
-            return;
+            return 1;
         }
 
         String pluginId = projectDetector.detectPluginId(pluginDir).orElse("unknown");
@@ -170,6 +173,7 @@ public class PackageCommand implements Runnable {
 
         packageService.packageZip(jar.get(), pluginId, pluginVersion, pluginDir, outputDir);
         System.out.println();
+        return 0;
     }
 
     private Optional<Path> findP2Module(Path rootDir) {

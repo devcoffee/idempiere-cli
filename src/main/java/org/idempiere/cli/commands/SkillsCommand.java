@@ -6,6 +6,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
 
 import java.util.List;
+import java.util.concurrent.Callable;
 
 /**
  * Manages AI skill sources for code generation.
@@ -23,13 +24,13 @@ import java.util.List;
 public class SkillsCommand {
 
     @Command(name = "list", description = "List configured skill sources and available skills")
-    static class ListCmd implements Runnable {
+    static class ListCmd implements Callable<Integer> {
 
         @Inject
         SkillManager skillManager;
 
         @Override
-        public void run() {
+        public Integer call() {
             List<SkillManager.SkillSourceInfo> sources = skillManager.listSources();
 
             if (sources.isEmpty()) {
@@ -43,7 +44,7 @@ public class SkillsCommand {
                 System.out.println("        priority: 1");
                 System.out.println();
                 System.out.println("Then run: idempiere-cli skills sync");
-                return;
+                return 0;
             }
 
             System.out.println("Skill Sources:");
@@ -59,17 +60,18 @@ public class SkillsCommand {
                 }
                 System.out.println();
             }
+            return 0;
         }
     }
 
     @Command(name = "sync", description = "Synchronize remote skill sources")
-    static class SyncCmd implements Runnable {
+    static class SyncCmd implements Callable<Integer> {
 
         @Inject
         SkillManager skillManager;
 
         @Override
-        public void run() {
+        public Integer call() {
             System.out.println("Synchronizing skill sources...");
             System.out.println();
 
@@ -83,11 +85,12 @@ public class SkillsCommand {
                 System.err.println("Errors:");
                 result.errors().forEach(e -> System.err.println("  - " + e));
             }
+            return result.failed() > 0 ? 1 : 0;
         }
     }
 
     @Command(name = "which", description = "Show which source provides a skill for a component type")
-    static class WhichCmd implements Runnable {
+    static class WhichCmd implements Callable<Integer> {
 
         @Parameters(index = "0", description = "Component type (e.g., callout, process, event-handler)")
         String componentType;
@@ -96,7 +99,7 @@ public class SkillsCommand {
         SkillManager skillManager;
 
         @Override
-        public void run() {
+        public Integer call() {
             var resolution = skillManager.resolveSkill(componentType);
 
             if (resolution.isEmpty()) {
@@ -116,7 +119,7 @@ public class SkillsCommand {
                         System.out.println("  No skills available. Run 'skills sync' to fetch skills.");
                     }
                 }
-                return;
+                return 0;
             }
 
             var res = resolution.get();
@@ -124,6 +127,7 @@ public class SkillsCommand {
             System.out.println("Source: " + res.sourceName());
             System.out.println("Skill: " + res.skillDir());
             System.out.println("Path: " + res.skillMdPath());
+            return 0;
         }
     }
 }

@@ -13,18 +13,18 @@ A command-line tool for iDempiere plugin development, built with [Quarkus](https
 `idempiere-cli` streamlines the entire iDempiere plugin development lifecycle: environment setup, project scaffolding, component generation, dependency analysis, migration, packaging, and more.
 
 ```
-doctor ──> setup-dev-env ──> init ──> add components ──> build ──> deploy
-                                          │
-                              deps / migrate / doctor --dir
-                                          │
-                                 package / diff-schema
+doctor ──> config init ──> setup-dev-env ──> init ──> add components ──> build ──> deploy
+                                                          │
+                                              deps / migrate / doctor --dir
+                                                          │
+                                                 package / diff-schema
 ```
 
 ---
 
 ## Quick Start
 
-From zero to first plugin in 4 commands:
+From zero to first plugin in 5 commands:
 
 ```bash
 # 1. Install CLI
@@ -33,10 +33,13 @@ curl -fsSL https://raw.githubusercontent.com/devcoffee/idempiere-cli/main/instal
 # 2. Check environment & get fix suggestions
 idempiere-cli doctor --fix
 
-# 3. Setup complete dev environment (Eclipse + PostgreSQL + iDempiere source)
+# 3. Configure defaults and AI provider (optional)
+idempiere-cli config init
+
+# 4. Setup complete dev environment (Eclipse + PostgreSQL + iDempiere source)
 idempiere-cli setup-dev-env --with-docker
 
-# 4. Create your first plugin
+# 5. Create your first plugin
 idempiere-cli init org.mycompany.myplugin --with-process --with-event-handler
 ```
 
@@ -121,6 +124,10 @@ Checking optional tools:
   [✓] PostgreSQL client (psql) 16.1
 
 All checks passed!
+
+Configuration:
+  [✓] Global config:  ~/.idempiere-cli.yaml
+  [✓] AI provider:    anthropic
 ```
 
 **Fix suggestions (`--fix`):**
@@ -451,33 +458,32 @@ workspace/
 **Quick setup:**
 
 ```bash
-# 1. Configure your AI provider
-idempiere-cli config set ai.provider anthropic
-idempiere-cli config set ai.apiKeyEnv ANTHROPIC_API_KEY
-export ANTHROPIC_API_KEY=sk-ant-...
+# 1. Interactive configuration (recommended)
+idempiere-cli config init
 
-# 2. Add skill sources (iDempiere-specific generation instructions)
-# Edit ~/.idempiere-cli.yaml and add:
-#   skills:
-#     sources:
-#       - name: official
-#         url: https://github.com/hengsin/idempiere-skills.git
-#         priority: 1
-
-# 3. Sync skills
-idempiere-cli skills sync
-
-# 4. Use normally — AI generates code adapted to your project
+# 2. Use normally — AI generates code adapted to your project
 idempiere-cli add callout --name=OrderTotalCalculator --to=./my-plugin
+```
+
+Or configure manually:
+
+```bash
+idempiere-cli config set ai.provider anthropic
+idempiere-cli config set ai.apiKey sk-ant-...
+idempiere-cli config set ai.model claude-sonnet-4-20250514
 ```
 
 **Supported providers:**
 
-| Provider | Config Value | Default API Key Env | Default Model |
-|----------|-------------|---------------------|---------------|
-| Anthropic | `anthropic` | `ANTHROPIC_API_KEY` | `claude-sonnet-4-20250514` |
-| Google | `google` | `GOOGLE_API_KEY` | `gemini-2.5-flash` |
-| OpenAI | `openai` | `OPENAI_API_KEY` | `gpt-4o` |
+| Provider | Config Value | Default Model |
+|----------|-------------|---------------|
+| Anthropic | `anthropic` | `claude-sonnet-4-20250514` |
+| Google | `google` | `gemini-2.5-flash` |
+| OpenAI | `openai` | `gpt-4o` |
+
+**API key resolution:** The CLI resolves API keys with the following precedence:
+1. Environment variable (e.g., `$ANTHROPIC_API_KEY`) — ideal for CI/CD
+2. Config file (`ai.apiKey` in `.idempiere-cli.yaml`) — convenient for development
 
 **Skills management:**
 
@@ -490,7 +496,8 @@ idempiere-cli skills which callout     # Show which source provides a skill
 **Configuration management:**
 
 ```bash
-idempiere-cli config show              # Show current config (no API keys)
+idempiere-cli config init              # Interactive configuration wizard
+idempiere-cli config show              # Show current config (API keys masked)
 idempiere-cli config get ai.provider   # Get a specific value
 idempiere-cli config set ai.model claude-opus-4-20250514  # Set a value
 ```
@@ -505,7 +512,8 @@ defaults:
 
 ai:
   provider: anthropic
-  apiKeyEnv: ANTHROPIC_API_KEY
+  apiKey: sk-ant-...            # stored directly (masked in 'config show')
+  apiKeyEnv: ANTHROPIC_API_KEY  # env var override (takes precedence over apiKey)
   model: claude-sonnet-4-20250514
   fallback: templates           # "templates" (default) or "error"
 
@@ -630,7 +638,8 @@ The MCP server gives AI agents **semantic understanding** of the iDempiere platf
 - [x] AI-powered scaffolding (optional, multi-provider: Anthropic, Google, OpenAI)
 - [x] Skill management (`skills list/sync/which`) with multi-source priority resolution
 - [x] Project context analysis for AI-aware code generation
-- [x] `config` command for managing CLI settings (`config show/get/set`)
+- [x] `config` command for managing CLI settings (`config show/get/set/init`)
+- [x] `config init` interactive wizard with direct API key storage
 
 ### Short-term
 - [ ] Expand bundle-to-package mapping in `deps` command

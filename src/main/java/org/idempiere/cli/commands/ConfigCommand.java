@@ -47,12 +47,19 @@ public class ConfigCommand {
 
             System.out.println("ai:");
             System.out.println("  provider: " + config.getAi().getProvider());
-            System.out.println("  apiKeyEnv: " + (config.getAi().getApiKeyEnv() != null ? config.getAi().getApiKeyEnv() : "(not set)"));
+            // Show API key status (masked)
             String apiKeyEnv = config.getAi().getApiKeyEnv();
-            if (apiKeyEnv != null && System.getenv(apiKeyEnv) != null) {
-                System.out.println("  apiKey: (set via " + apiKeyEnv + ")");
-            } else if (apiKeyEnv != null) {
-                System.out.println("  apiKey: (NOT set - export " + apiKeyEnv + "=...)");
+            String envValue = apiKeyEnv != null ? System.getenv(apiKeyEnv) : null;
+            if (envValue != null && !envValue.isEmpty()) {
+                System.out.println("  apiKey: (set via $" + apiKeyEnv + ")");
+            } else if (config.getAi().hasApiKey()) {
+                String key = config.getAi().getApiKey();
+                String masked = key.length() > 8
+                        ? key.substring(0, 4) + "***" + key.substring(key.length() - 4)
+                        : "***";
+                System.out.println("  apiKey: " + masked);
+            } else {
+                System.out.println("  apiKey: (not set)");
             }
             System.out.println("  model: " + (config.getAi().getModel() != null ? config.getAi().getModel() : "(default)"));
             System.out.println("  fallback: " + config.getAi().getFallback());
@@ -95,7 +102,7 @@ public class ConfigCommand {
                 System.out.println(value);
             } else {
                 System.err.println("Unknown config key: " + key);
-                System.err.println("Available keys: ai.provider, ai.apiKeyEnv, ai.model, ai.fallback, "
+                System.err.println("Available keys: ai.provider, ai.apiKey, ai.apiKeyEnv, ai.model, ai.fallback, "
                         + "defaults.vendor, defaults.idempiereVersion, skills.cacheDir, skills.updateInterval");
             }
         }
@@ -119,7 +126,7 @@ public class ConfigCommand {
 
             if (!setConfigValue(config, key, value)) {
                 System.err.println("Unknown config key: " + key);
-                System.err.println("Available keys: ai.provider, ai.apiKeyEnv, ai.model, ai.fallback, "
+                System.err.println("Available keys: ai.provider, ai.apiKey, ai.apiKeyEnv, ai.model, ai.fallback, "
                         + "defaults.vendor, defaults.idempiereVersion, skills.cacheDir, skills.updateInterval");
                 return;
             }
@@ -188,26 +195,35 @@ public class ConfigCommand {
                         config.getAi().isEnabled() ? config.getAi().getProvider() : "anthropic");
                 config.getAi().setProvider(provider);
 
-                String defaultKeyEnv = DEFAULT_API_KEY_ENV.getOrDefault(provider,
-                        config.getAi().getApiKeyEnv());
-                String currentKeyEnv = config.getAi().hasApiKeyEnv() ? config.getAi().getApiKeyEnv() : defaultKeyEnv;
-                String apiKeyEnv = promptService.prompt("  API key env variable", currentKeyEnv);
-                config.getAi().setApiKeyEnv(apiKeyEnv);
+                String apiKey = promptService.prompt("  API key",
+                        config.getAi().hasApiKey() ? maskKey(config.getAi().getApiKey()) : null);
+                // If user kept the masked value, don't overwrite
+                if (apiKey != null && !apiKey.contains("***")) {
+                    config.getAi().setApiKey(apiKey);
+                }
 
                 String defaultModel = DEFAULT_MODEL.getOrDefault(provider, config.getAi().getModel());
                 String currentModel = config.getAi().hasModel() ? config.getAi().getModel() : defaultModel;
                 String model = promptService.prompt("  Model", currentModel);
                 config.getAi().setModel(model);
 
-                // Verify API key
+                // Also set apiKeyEnv for env var override support
+                String defaultKeyEnv = DEFAULT_API_KEY_ENV.getOrDefault(provider, "");
+                if (!config.getAi().hasApiKeyEnv() && !defaultKeyEnv.isEmpty()) {
+                    config.getAi().setApiKeyEnv(defaultKeyEnv);
+                }
+
+                // Verify
                 System.out.println();
-                String keyValue = System.getenv(apiKeyEnv);
-                if (keyValue != null && !keyValue.isEmpty()) {
-                    System.out.println("  " + CliOutput.ok("$" + apiKeyEnv + " is set"));
+                if (config.getAi().hasApiKey()) {
+                    System.out.println("  " + CliOutput.ok("API key configured"));
                 } else {
-                    System.out.println("  " + CliOutput.warn("$" + apiKeyEnv + " is not set"));
-                    System.out.println("    Export it before using AI features:");
-                    System.out.println("    export " + apiKeyEnv + "=your-api-key");
+                    System.out.println("  " + CliOutput.warn("No API key provided"));
+                    System.out.println("    AI features won't work without an API key.");
+                    String envVar = config.getAi().hasApiKeyEnv() ? config.getAi().getApiKeyEnv() : defaultKeyEnv;
+                    if (!envVar.isEmpty()) {
+                        System.out.println("    You can also set it later via: export " + envVar + "=your-key");
+                    }
                 }
             } else {
                 config.getAi().setProvider("none");
@@ -223,11 +239,17 @@ public class ConfigCommand {
                 System.err.println("Failed to save config: " + e.getMessage());
             }
         }
+
+        private static String maskKey(String key) {
+            if (key == null || key.length() <= 8) return "***";
+            return key.substring(0, 4) + "***" + key.substring(key.length() - 4);
+        }
     }
 
     static String getConfigValue(CliConfig config, String key) {
         return switch (key) {
             case "ai.provider" -> config.getAi().getProvider();
+            case "ai.apiKey" -> config.getAi().hasApiKey() ? "(set)" : "(not set)";
             case "ai.apiKeyEnv" -> config.getAi().getApiKeyEnv();
             case "ai.model" -> config.getAi().getModel();
             case "ai.fallback" -> config.getAi().getFallback();
@@ -242,6 +264,7 @@ public class ConfigCommand {
     static boolean setConfigValue(CliConfig config, String key, String value) {
         switch (key) {
             case "ai.provider" -> config.getAi().setProvider(value);
+            case "ai.apiKey" -> config.getAi().setApiKey(value);
             case "ai.apiKeyEnv" -> config.getAi().setApiKeyEnv(value);
             case "ai.model" -> config.getAi().setModel(value);
             case "ai.fallback" -> config.getAi().setFallback(value);

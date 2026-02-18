@@ -121,9 +121,12 @@ When you run `idempiere-cli add <type> <ClassName>`:
 For richer code generation, `idempiere-cli add` supports AI-powered scaffolding when an AI provider is configured:
 
 ```bash
-# Configure AI provider
+# Interactive configuration (recommended)
+idempiere-cli config init
+
+# Or configure manually
 idempiere-cli config set ai.provider anthropic
-idempiere-cli config set ai.api-key sk-ant-...
+idempiere-cli config set ai.apiKey sk-ant-...
 
 # AI generates contextual code based on skill files
 idempiere-cli add callout OrderDateCallout

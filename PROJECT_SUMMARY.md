@@ -180,6 +180,8 @@ src/test/java/                     # 31 test files
 | `info` | Display plugin metadata | ✅ Complete |
 | `validate` | Validate plugin structure | ✅ Complete |
 | `upgrade` | Self-update from GitHub | ✅ Complete |
+| `config show/get/set` | Configuration management | ✅ Complete |
+| `config init` | Interactive configuration wizard | ✅ Complete |
 | `generate-completion` | Shell completion scripts | ✅ Complete |
 
 ### Infrastructure
@@ -189,7 +191,8 @@ src/test/java/                     # 31 test files
 | Native image (GraalVM) | ✅ Linux x64/ARM64, macOS Intel/Apple Silicon, Windows x64 |
 | Cross-platform install script | ✅ curl \| bash |
 | GitHub Actions CI/CD | ✅ Build + Release on tag |
-| YAML configuration | ✅ ~/.idempiere-cli.yaml |
+| YAML configuration | ✅ ~/.idempiere-cli.yaml (with `config init` wizard) |
+| AI integration | ✅ Anthropic, Google, OpenAI (direct API key + env var) |
 | Custom templates | ✅ ~/.idempiere-cli/templates/ |
 | Session logging | ✅ ~/.idempiere-cli/logs/ |
 | PostgreSQL 16 default | ✅ Docker + client |
@@ -263,7 +266,16 @@ defaults:
 
 templates:
   path: ~/.idempiere-cli/templates
+
+ai:
+  provider: anthropic
+  apiKey: sk-ant-...              # direct storage (masked in 'config show')
+  apiKeyEnv: ANTHROPIC_API_KEY    # env var override (takes precedence)
+  model: claude-sonnet-4-20250514
+  fallback: templates
 ```
+
+Use `idempiere-cli config init` for interactive setup.
 
 ---
 

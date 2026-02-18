@@ -19,7 +19,8 @@ curl -fsSL https://raw.githubusercontent.com/devcoffee/idempiere-cli/main/instal
 
 1. **Check environment**: Run `idempiere-cli doctor` to validate that all required tools are installed.
 2. **Fix missing tools**: If tools are missing, run `idempiere-cli doctor --fix` to auto-install them.
-3. **Bootstrap environment**: Run `idempiere-cli setup-dev-env` to clone source, create database, and configure Eclipse.
+3. **Configure CLI**: Run `idempiere-cli config init` to set up defaults and AI provider (optional).
+4. **Bootstrap environment**: Run `idempiere-cli setup-dev-env` to clone source, create database, and configure Eclipse.
 
 ## Step 1: Doctor - Environment Validation
 
@@ -143,7 +144,10 @@ idempiere-cli doctor
 # 2. Fix any missing tools
 idempiere-cli doctor --fix
 
-# 3. Bootstrap everything with Docker (easiest path)
+# 3. Configure defaults and AI (optional)
+idempiere-cli config init
+
+# 4. Bootstrap everything with Docker (easiest path)
 idempiere-cli setup-dev-env --with-docker
 ```
 

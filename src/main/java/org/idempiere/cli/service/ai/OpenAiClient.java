@@ -126,11 +126,7 @@ public class OpenAiClient implements AiClient {
 
     private String getApiKey() {
         CliConfig config = configService.loadConfig();
-        String envVar = config.getAi().getApiKeyEnv();
-        if (envVar == null || envVar.isEmpty()) {
-            envVar = "OPENAI_API_KEY";
-        }
-        return System.getenv(envVar);
+        return config.getAi().resolveApiKey("OPENAI_API_KEY");
     }
 
     private String getModel() {

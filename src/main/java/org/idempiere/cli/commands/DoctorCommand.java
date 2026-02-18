@@ -202,13 +202,16 @@ public class DoctorCommand implements Runnable {
 
         CliConfig config = configService.loadConfig();
         if (config.getAi().isEnabled()) {
+            String provider = config.getAi().getProvider();
+            // Check if API key is available (env var or config file)
             String apiKeyEnv = config.getAi().getApiKeyEnv();
-            boolean hasKey = apiKeyEnv != null && System.getenv(apiKeyEnv) != null;
-            if (hasKey) {
-                System.out.println("  " + CliOutput.ok("AI provider:    " + config.getAi().getProvider()));
+            boolean hasEnvKey = apiKeyEnv != null && System.getenv(apiKeyEnv) != null;
+            boolean hasConfigKey = config.getAi().hasApiKey();
+            if (hasEnvKey || hasConfigKey) {
+                System.out.println("  " + CliOutput.ok("AI provider:    " + provider));
             } else {
-                System.out.println("  " + CliOutput.warn("AI provider:    " + config.getAi().getProvider()
-                        + " ($" + apiKeyEnv + " not set)"));
+                System.out.println("  " + CliOutput.warn("AI provider:    " + provider + " (no API key)"));
+                System.out.println("    Run: idempiere-cli config init");
             }
         } else {
             System.out.println("  " + CliOutput.warn("AI provider:    not configured"));

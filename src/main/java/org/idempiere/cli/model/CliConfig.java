@@ -26,6 +26,7 @@ import java.util.List;
  *
  * ai:
  *   provider: anthropic
+ *   apiKey: sk-ant-...
  *   apiKeyEnv: ANTHROPIC_API_KEY
  *   model: claude-sonnet-4-20250514
  *   fallback: templates
@@ -178,6 +179,7 @@ public class CliConfig {
     public static class AiConfig {
         private String provider;
         private String apiKeyEnv;
+        private String apiKey;
         private String model;
         private String fallback;
 
@@ -195,6 +197,14 @@ public class CliConfig {
 
         public void setApiKeyEnv(String apiKeyEnv) {
             this.apiKeyEnv = apiKeyEnv;
+        }
+
+        public String getApiKey() {
+            return apiKey;
+        }
+
+        public void setApiKey(String apiKey) {
+            this.apiKey = apiKey;
         }
 
         public String getModel() {
@@ -221,6 +231,10 @@ public class CliConfig {
             return apiKeyEnv != null && !apiKeyEnv.isEmpty();
         }
 
+        public boolean hasApiKey() {
+            return apiKey != null && !apiKey.isEmpty();
+        }
+
         public boolean hasModel() {
             return model != null && !model.isEmpty();
         }
@@ -236,12 +250,34 @@ public class CliConfig {
             return hasProvider();
         }
 
+        /**
+         * Resolves the effective API key: env var takes precedence over config file.
+         *
+         * @param defaultEnvVar fallback env var name if apiKeyEnv is not set
+         * @return the API key, or null if not available
+         */
+        public String resolveApiKey(String defaultEnvVar) {
+            // 1. Environment variable takes precedence
+            String envVar = hasApiKeyEnv() ? apiKeyEnv : defaultEnvVar;
+            if (envVar != null) {
+                String envValue = System.getenv(envVar);
+                if (envValue != null && !envValue.isEmpty()) {
+                    return envValue;
+                }
+            }
+            // 2. Fall back to stored apiKey
+            return hasApiKey() ? apiKey : null;
+        }
+
         public void mergeFrom(AiConfig other) {
             if (other.hasProvider()) {
                 this.provider = other.provider;
             }
             if (other.hasApiKeyEnv()) {
                 this.apiKeyEnv = other.apiKeyEnv;
+            }
+            if (other.hasApiKey()) {
+                this.apiKey = other.apiKey;
             }
             if (other.hasModel()) {
                 this.model = other.model;

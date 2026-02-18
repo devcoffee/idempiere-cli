@@ -129,11 +129,7 @@ public class GoogleAiClient implements AiClient {
 
     private String getApiKey() {
         CliConfig config = configService.loadConfig();
-        String envVar = config.getAi().getApiKeyEnv();
-        if (envVar == null || envVar.isEmpty()) {
-            envVar = "GOOGLE_API_KEY";
-        }
-        return System.getenv(envVar);
+        return config.getAi().resolveApiKey("GOOGLE_API_KEY");
     }
 
     private String getModel() {

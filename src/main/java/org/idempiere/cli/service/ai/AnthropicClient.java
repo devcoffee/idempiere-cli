@@ -134,11 +134,7 @@ public class AnthropicClient implements AiClient {
 
     private String getApiKey() {
         CliConfig config = configService.loadConfig();
-        String envVar = config.getAi().getApiKeyEnv();
-        if (envVar == null || envVar.isEmpty()) {
-            envVar = "ANTHROPIC_API_KEY";
-        }
-        return System.getenv(envVar);
+        return config.getAi().resolveApiKey("ANTHROPIC_API_KEY");
     }
 
     private String getModel() {

@@ -412,26 +412,16 @@ public class ScaffoldService {
         // Generate components for each feature in the descriptor
         for (String feature : descriptor.getFeatures()) {
             findGenerator(feature).ifPresent(generator -> {
-                try {
-                    generator.generate(srcDir, baseDir, data);
-                } catch (IOException e) {
-                    System.err.println("Error generating " + feature + ": " + e.getMessage());
-                    generationFailed.set(true);
-                    firstError.compareAndSet(null, "Error generating " + feature + ": " + e.getMessage());
-                }
+                generateWithErrorCapture(generator, srcDir, baseDir, data,
+                        feature, generationFailed, firstError);
             });
         }
 
         // For standalone plugins with test feature (special case - uses base-test generator)
         if (!descriptor.isMultiModule() && descriptor.hasFeature("test")) {
             findGenerator("base-test").ifPresent(generator -> {
-                try {
-                    generator.generate(srcDir, baseDir, data);
-                } catch (IOException e) {
-                    System.err.println("Error generating test: " + e.getMessage());
-                    generationFailed.set(true);
-                    firstError.compareAndSet(null, "Error generating test: " + e.getMessage());
-                }
+                generateWithErrorCapture(generator, srcDir, baseDir, data,
+                        "test", generationFailed, firstError);
             });
         }
 
@@ -452,6 +442,20 @@ public class ScaffoldService {
         return generators.stream()
                 .filter(g -> g.type().equals(type))
                 .findFirst();
+    }
+
+    private void generateWithErrorCapture(ComponentGenerator generator, Path srcDir, Path baseDir,
+                                          Map<String, Object> data, String label,
+                                          AtomicBoolean generationFailed,
+                                          AtomicReference<String> firstError) {
+        try {
+            generator.generate(srcDir, baseDir, data);
+        } catch (IOException e) {
+            String message = "Error generating " + label + ": " + e.getMessage();
+            System.err.println(message);
+            generationFailed.set(true);
+            firstError.compareAndSet(null, message);
+        }
     }
 
     /**

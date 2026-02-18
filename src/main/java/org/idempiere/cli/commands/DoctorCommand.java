@@ -219,11 +219,12 @@ public class DoctorCommand implements Runnable {
                 java.util.Optional<AiClient> client = aiClientFactory.getClient();
                 if (client.isPresent()) {
                     String modelInfo = model != null && !model.isEmpty() ? " (" + model + ")" : "";
-                    System.out.print("  [ ] AI provider:    " + provider + modelInfo + " - validating...");
+                    String progressMsg = "  [ ] AI provider:    " + provider + modelInfo + " - validating...";
+                    System.out.print(progressMsg);
                     System.out.flush();
                     AiResponse validation = client.get().validate();
-                    // Clear the line and print result
-                    System.out.print("\r");
+                    // Clear entire line: \r + overwrite with spaces + \r
+                    System.out.print("\r" + " ".repeat(progressMsg.length()) + "\r");
                     if (validation.success()) {
                         System.out.println("  " + CliOutput.ok("AI provider:    " + provider + modelInfo));
                     } else {

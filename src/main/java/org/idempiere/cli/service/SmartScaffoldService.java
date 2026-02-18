@@ -187,12 +187,36 @@ public class SmartScaffoldService {
     }
 
     GeneratedCode parseAiResponse(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+
+        // 1. Try raw as-is
+        GeneratedCode result = tryParseJson(raw.strip());
+        if (result != null) return result;
+
+        // 2. Try extracting from markdown code fences (```json ... ``` or ``` ... ```)
+        java.util.regex.Matcher fenceMatcher = java.util.regex.Pattern
+                .compile("```(?:json)?\\s*\\n?(\\{.*?\\})\\s*```", java.util.regex.Pattern.DOTALL)
+                .matcher(raw);
+        if (fenceMatcher.find()) {
+            result = tryParseJson(fenceMatcher.group(1).strip());
+            if (result != null) return result;
+        }
+
+        // 3. Try extracting the outermost { ... } block
+        int start = raw.indexOf('{');
+        int end = raw.lastIndexOf('}');
+        if (start >= 0 && end > start) {
+            result = tryParseJson(raw.substring(start, end + 1).strip());
+            if (result != null) return result;
+        }
+
+        return null;
+    }
+
+    private GeneratedCode tryParseJson(String json) {
         try {
-            String json = raw.strip();
-            if (json.startsWith("```")) {
-                json = json.replaceFirst("```json?\\n?", "").replaceFirst("```\\s*$", "").strip();
-            }
-            return objectMapper.readValue(json, GeneratedCode.class);
+            GeneratedCode code = objectMapper.readValue(json, GeneratedCode.class);
+            return (code != null && code.getFiles() != null && !code.getFiles().isEmpty()) ? code : null;
         } catch (Exception e) {
             return null;
         }

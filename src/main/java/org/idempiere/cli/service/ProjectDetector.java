@@ -209,6 +209,40 @@ public class ProjectDetector {
     }
 
     /**
+     * Finds subdirectories that are iDempiere plugins (have META-INF/MANIFEST.MF).
+     * Useful for suggesting directories when user runs 'add' from a multi-module root.
+     */
+    public List<String> findPluginSubdirectories(Path directory) {
+        List<String> plugins = new ArrayList<>();
+        if (!isMultiModuleRoot(directory)) {
+            return plugins;
+        }
+        for (String module : getModules(directory)) {
+            Path moduleDir = directory.resolve(module);
+            if (isIdempierePlugin(moduleDir)) {
+                plugins.add(module);
+            }
+        }
+        return plugins;
+    }
+
+    /**
+     * Prints plugin detection error with hints about available plugin subdirectories.
+     */
+    public void printPluginNotFoundError(Path dir) {
+        System.err.println("Error: Could not detect iDempiere plugin in " + dir.toAbsolutePath());
+        List<String> plugins = findPluginSubdirectories(dir);
+        if (!plugins.isEmpty()) {
+            System.err.println("Found plugin modules in this project:");
+            for (String p : plugins) {
+                System.err.println("  idempiere-cli add <component> --to " + p);
+            }
+        } else {
+            System.err.println("Make sure you are inside a plugin directory or use --to to specify one.");
+        }
+    }
+
+    /**
      * Gets the platform version from the parent pom.
      */
     public Optional<Integer> detectIdempiereVersion(Path rootDir) {

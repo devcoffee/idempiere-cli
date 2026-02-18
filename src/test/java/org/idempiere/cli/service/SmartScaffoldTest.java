@@ -55,6 +55,57 @@ class SmartScaffoldTest {
     }
 
     @Test
+    void testParseAiResponseWithTextAroundJson() {
+        String response = """
+                Here is the generated code:
+
+                ```json
+                {
+                  "files": [
+                    {"path": "src/Test.java", "content": "class Test {}"}
+                  ]
+                }
+                ```
+
+                Let me know if you need changes.
+                """;
+
+        GeneratedCode code = smartScaffoldService.parseAiResponse(response);
+        assertNotNull(code);
+        assertEquals(1, code.getFiles().size());
+    }
+
+    @Test
+    void testParseAiResponseWithBareJsonInText() {
+        String response = """
+                Here is the result:
+                {
+                  "files": [
+                    {"path": "src/Test.java", "content": "class Test {}"}
+                  ]
+                }
+                """;
+
+        GeneratedCode code = smartScaffoldService.parseAiResponse(response);
+        assertNotNull(code);
+        assertEquals(1, code.getFiles().size());
+    }
+
+    @Test
+    void testParseAiResponseNull() {
+        assertNull(smartScaffoldService.parseAiResponse(null));
+    }
+
+    @Test
+    void testParseAiResponseEmptyFiles() {
+        String json = """
+                {"files": []}
+                """;
+        GeneratedCode code = smartScaffoldService.parseAiResponse(json);
+        assertNull(code, "Should return null when files array is empty");
+    }
+
+    @Test
     void testParseAiResponseInvalidJson() {
         GeneratedCode code = smartScaffoldService.parseAiResponse("this is not json");
         assertNull(code);

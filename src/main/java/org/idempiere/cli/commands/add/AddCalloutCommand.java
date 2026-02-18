@@ -35,8 +35,7 @@ public class AddCalloutCommand implements Runnable {
         Path dir = pluginDir != null ? Path.of(pluginDir) : Path.of(".");
         String pluginId = projectDetector.detectPluginId(dir).orElse(null);
         if (pluginId == null) {
-            System.err.println("Error: Could not detect iDempiere plugin in " + dir.toAbsolutePath());
-            System.err.println("Make sure you are inside a plugin directory or use --to to specify one.");
+            projectDetector.printPluginNotFoundError(dir);
             return;
         }
         scaffoldService.addComponent("callout", name, dir, pluginId,

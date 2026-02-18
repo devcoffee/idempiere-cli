@@ -12,6 +12,7 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 import java.nio.file.Path;
+import java.util.concurrent.Callable;
 
 /**
  * Scaffolds a new iDempiere plugin project with selected components.
@@ -50,7 +51,7 @@ import java.nio.file.Path;
         description = "Scaffold a new iDempiere plugin with selected features",
         mixinStandardHelpOptions = true
 )
-public class InitCommand implements Runnable {
+public class InitCommand implements Callable<Integer> {
 
     @Parameters(index = "0", description = "Plugin ID (e.g., org.mycompany.myplugin)")
     String pluginId;
@@ -148,7 +149,7 @@ public class InitCommand implements Runnable {
     CliConfigService configService;
 
     @Override
-    public void run() {
+    public Integer call() {
         // Load config file defaults
         applyConfigDefaults();
         boolean hasExplicitFlags = withCallout || withEventHandler || withProcess || withZkForm
@@ -167,14 +168,10 @@ public class InitCommand implements Runnable {
             useInteractive = !hasExplicitFlags && System.console() != null;
         }
 
-        if (useInteractive) {
-            runInteractive();
-        } else {
-            runWithFlags();
-        }
+        return useInteractive ? runInteractive() : runWithFlags();
     }
 
-    private void runInteractive() {
+    private Integer runInteractive() {
         System.out.println();
         System.out.println("iDempiere Plugin Setup");
         System.out.println("==========================================");
@@ -230,7 +227,7 @@ public class InitCommand implements Runnable {
         if (standalone && promptService.confirm("  Include unit tests?")) withTest = true;
 
         System.out.println();
-        runWithFlags();
+        return runWithFlags();
     }
 
     /**
@@ -254,7 +251,7 @@ public class InitCommand implements Runnable {
         }
     }
 
-    private void runWithFlags() {
+    private Integer runWithFlags() {
         PluginDescriptor descriptor = new PluginDescriptor(pluginId);
         descriptor.setVersion(version);
         descriptor.setVendor(vendor);
@@ -285,6 +282,6 @@ public class InitCommand implements Runnable {
         if (withFactsValidator) descriptor.addFeature("facts-validator");
         if (withTest) descriptor.addFeature("test");
 
-        scaffoldService.createPlugin(descriptor);
+        return scaffoldService.createPlugin(descriptor).success() ? 0 : 1;
     }
 }

@@ -103,7 +103,6 @@ public class AddFeatureModuleCommand implements Callable<Integer> {
         descriptor.setWithFeature(true);
         descriptor.setWithFragment(hasFragment);
 
-        scaffoldService.addFeatureModuleToProject(rootDir, descriptor);
-        return 0;
+        return scaffoldService.addFeatureModuleToProject(rootDir, descriptor).success() ? 0 : 1;
     }
 }

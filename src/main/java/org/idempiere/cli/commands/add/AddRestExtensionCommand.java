@@ -47,7 +47,6 @@ public class AddRestExtensionCommand implements Callable<Integer> {
         Map<String, Object> extraData = new HashMap<>();
         extraData.put("resourcePath", resourcePath);
         if (prompt != null) extraData.put("prompt", prompt);
-        scaffoldService.addComponent("rest-extension", name, dir, pluginId, extraData);
-        return 0;
+        return scaffoldService.addComponent("rest-extension", name, dir, pluginId, extraData).success() ? 0 : 1;
     }
 }

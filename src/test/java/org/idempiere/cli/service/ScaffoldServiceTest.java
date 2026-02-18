@@ -440,4 +440,83 @@ class ScaffoldServiceTest {
         assertTrue(Files.exists(srcDir.resolve("BaseCalloutFactory.java")),
                 "CalloutFactory should be in base package");
     }
+
+    @Test
+    void testCreatePluginReturnsFalseWhenDirectoryExists() throws IOException {
+        // Given
+        PluginDescriptor descriptor = new PluginDescriptor("org.test.existing");
+        descriptor.setPlatformVersion(PlatformVersion.of(12));
+        descriptor.setOutputDir(tempDir);
+        descriptor.setMultiModule(false);
+        Files.createDirectories(tempDir.resolve("existing"));
+
+        // When / Then
+        ScaffoldResult result = scaffoldService.createPlugin(descriptor);
+        assertFalse(result.success(), "Should return false when target directory already exists");
+        assertEquals("DIRECTORY_EXISTS", result.errorCode());
+        assertTrue(result.errorMessage().contains("already exists"));
+    }
+
+    @Test
+    void testAddComponentReturnsFalseForUnknownType() throws IOException {
+        // Given
+        Path pluginDir = tempDir.resolve("org.test.plugin");
+        Files.createDirectories(pluginDir.resolve("src/org/test/plugin"));
+
+        // When / Then
+        ScaffoldResult result = scaffoldService.addComponent("unknown-type", "MyComponent", pluginDir, "org.test.plugin");
+        assertFalse(result.success(), "Should return false for unsupported component types");
+        assertEquals("UNKNOWN_COMPONENT_TYPE", result.errorCode());
+        assertTrue(result.errorMessage().contains("Unknown component type"));
+    }
+
+    @Test
+    void testAddPluginModuleReturnsFalseWhenDirectoryExists() throws IOException {
+        // Given
+        Path rootDir = tempDir.resolve("multi-project");
+        String pluginId = "org.test.multi.extra";
+        Files.createDirectories(rootDir.resolve(pluginId));
+
+        PluginDescriptor descriptor = new PluginDescriptor("org.test.multi");
+        descriptor.setPlatformVersion(PlatformVersion.of(13));
+        descriptor.setMultiModule(true);
+
+        // When / Then
+        ScaffoldResult result = scaffoldService.addPluginModuleToProject(rootDir, pluginId, descriptor);
+        assertFalse(result.success(), "Should return false when plugin module directory already exists");
+        assertEquals("DIRECTORY_EXISTS", result.errorCode());
+        assertTrue(result.errorMessage().contains("already exists"));
+    }
+
+    @Test
+    void testAddFragmentModuleReturnsFalseWhenDirectoryExists() throws IOException {
+        // Given
+        Path rootDir = tempDir.resolve("multi-project");
+        PluginDescriptor descriptor = new PluginDescriptor("org.test.multi");
+        descriptor.setPlatformVersion(PlatformVersion.of(13));
+        descriptor.setMultiModule(true);
+        Files.createDirectories(rootDir.resolve("org.test.multi.fragment"));
+
+        // When / Then
+        ScaffoldResult result = scaffoldService.addFragmentModuleToProject(rootDir, "org.adempiere.ui.zk", descriptor);
+        assertFalse(result.success(), "Should return false when fragment module directory already exists");
+        assertEquals("DIRECTORY_EXISTS", result.errorCode());
+        assertTrue(result.errorMessage().contains("already exists"));
+    }
+
+    @Test
+    void testAddFeatureModuleReturnsFalseWhenDirectoryExists() throws IOException {
+        // Given
+        Path rootDir = tempDir.resolve("multi-project");
+        PluginDescriptor descriptor = new PluginDescriptor("org.test.multi");
+        descriptor.setPlatformVersion(PlatformVersion.of(13));
+        descriptor.setMultiModule(true);
+        Files.createDirectories(rootDir.resolve("org.test.multi.feature"));
+
+        // When / Then
+        ScaffoldResult result = scaffoldService.addFeatureModuleToProject(rootDir, descriptor);
+        assertFalse(result.success(), "Should return false when feature module directory already exists");
+        assertEquals("DIRECTORY_EXISTS", result.errorCode());
+        assertTrue(result.errorMessage().contains("already exists"));
+    }
 }

@@ -39,8 +39,7 @@ public class AddJasperReportCommand implements Callable<Integer> {
             projectDetector.printPluginNotFoundError(dir);
             return 1;
         }
-        scaffoldService.addComponent("jasper-report", name, dir, pluginId,
-                prompt != null ? Map.of("prompt", prompt) : null);
-        return 0;
+        return scaffoldService.addComponent("jasper-report", name, dir, pluginId,
+                prompt != null ? Map.of("prompt", prompt) : null).success() ? 0 : 1;
     }
 }

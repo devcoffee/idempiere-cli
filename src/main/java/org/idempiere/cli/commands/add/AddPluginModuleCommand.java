@@ -93,7 +93,6 @@ public class AddPluginModuleCommand implements Callable<Integer> {
         // Override basePluginId to the new plugin ID
         descriptor.setBasePluginId(pluginId);
 
-        scaffoldService.addPluginModuleToProject(rootDir, pluginId, descriptor);
-        return 0;
+        return scaffoldService.addPluginModuleToProject(rootDir, pluginId, descriptor).success() ? 0 : 1;
     }
 }

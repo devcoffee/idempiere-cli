@@ -102,7 +102,6 @@ public class AddFragmentModuleCommand implements Callable<Integer> {
         descriptor.setWithFragment(true);
         descriptor.setFragmentHost(fragmentHost);
 
-        scaffoldService.addFragmentModuleToProject(rootDir, fragmentHost, descriptor);
-        return 0;
+        return scaffoldService.addFragmentModuleToProject(rootDir, fragmentHost, descriptor).success() ? 0 : 1;
     }
 }

@@ -18,6 +18,8 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Creates new iDempiere plugin projects and adds components to existing plugins.
@@ -56,11 +58,11 @@ public class ScaffoldService {
     @Inject
     SmartScaffoldService smartScaffoldService;
 
-    public void createPlugin(PluginDescriptor descriptor) {
+    public ScaffoldResult createPlugin(PluginDescriptor descriptor) {
         if (descriptor.isMultiModule()) {
-            createMultiModulePlugin(descriptor);
+            return createMultiModulePlugin(descriptor);
         } else {
-            createStandalonePlugin(descriptor);
+            return createStandalonePlugin(descriptor);
         }
     }
 
@@ -74,7 +76,7 @@ public class ScaffoldService {
      * - fragment module (optional)
      * - feature module (optional)
      */
-    private void createMultiModulePlugin(PluginDescriptor descriptor) {
+    private ScaffoldResult createMultiModulePlugin(PluginDescriptor descriptor) {
         Path rootDir;
         if (descriptor.getOutputDir() != null) {
             rootDir = descriptor.getOutputDir().resolve(descriptor.getProjectName());
@@ -84,7 +86,7 @@ public class ScaffoldService {
 
         if (Files.exists(rootDir)) {
             System.err.println("Error: Directory '" + rootDir + "' already exists.");
-            return;
+            return ScaffoldResult.error("DIRECTORY_EXISTS", "Directory '" + rootDir + "' already exists.");
         }
 
         System.out.println();
@@ -198,16 +200,18 @@ public class ScaffoldService {
             System.out.println();
             System.out.println("Tip: Use 'idempiere-cli add <component>' for AI-powered code generation.");
             System.out.println();
+            return ScaffoldResult.ok(rootDir);
         } catch (IOException e) {
             System.err.println("Error creating project: " + e.getMessage());
             e.printStackTrace();
+            return ScaffoldResult.error("IO_ERROR", "Error creating project: " + e.getMessage());
         }
     }
 
     /**
      * Creates a standalone single plugin (original behavior).
      */
-    private void createStandalonePlugin(PluginDescriptor descriptor) {
+    private ScaffoldResult createStandalonePlugin(PluginDescriptor descriptor) {
         Path baseDir;
         if (descriptor.getOutputDir() != null) {
             baseDir = descriptor.getOutputDir().resolve(descriptor.getProjectName());
@@ -217,7 +221,7 @@ public class ScaffoldService {
 
         if (Files.exists(baseDir)) {
             System.err.println("Error: Directory '" + baseDir + "' already exists.");
-            return;
+            return ScaffoldResult.error("DIRECTORY_EXISTS", "Directory '" + baseDir + "' already exists.");
         }
 
         System.out.println();
@@ -261,8 +265,10 @@ public class ScaffoldService {
             System.out.println();
             System.out.println("Tip: Use 'idempiere-cli add <component>' for AI-powered code generation.");
             System.out.println();
+            return ScaffoldResult.ok(baseDir);
         } catch (IOException e) {
             System.err.println("Error creating plugin: " + e.getMessage());
+            return ScaffoldResult.error("IO_ERROR", "Error creating plugin: " + e.getMessage());
         }
     }
 
@@ -294,7 +300,10 @@ public class ScaffoldService {
         System.out.println("  Created: " + pluginDir.resolve("build.properties"));
 
         // Generate component files (callout, process, etc.) in the plugin
-        generateComponentFiles(pluginDir, descriptor);
+        ScaffoldResult componentResult = generateComponentFiles(pluginDir, descriptor);
+        if (!componentResult.success()) {
+            throw new IOException(componentResult.errorMessage());
+        }
     }
 
     /**
@@ -390,7 +399,7 @@ public class ScaffoldService {
     /**
      * Generate component files using registered ComponentGenerators.
      */
-    private void generateComponentFiles(Path baseDir, PluginDescriptor descriptor) throws IOException {
+    private ScaffoldResult generateComponentFiles(Path baseDir, PluginDescriptor descriptor) throws IOException {
         Path srcDir;
         String pluginIdForPackage;
         if (descriptor.isMultiModule()) {
@@ -407,6 +416,8 @@ public class ScaffoldService {
         // Track features for cross-generator dependencies
         data.put("hasEventHandler", descriptor.hasFeature("event-handler"));
         data.put("hasProcessMapped", descriptor.hasFeature("process-mapped"));
+        AtomicBoolean generationFailed = new AtomicBoolean(false);
+        AtomicReference<String> firstError = new AtomicReference<>();
 
         // Generate components for each feature in the descriptor
         for (String feature : descriptor.getFeatures()) {
@@ -415,6 +426,8 @@ public class ScaffoldService {
                     generator.generate(srcDir, baseDir, data);
                 } catch (IOException e) {
                     System.err.println("Error generating " + feature + ": " + e.getMessage());
+                    generationFailed.set(true);
+                    firstError.compareAndSet(null, "Error generating " + feature + ": " + e.getMessage());
                 }
             });
         }
@@ -426,9 +439,20 @@ public class ScaffoldService {
                     generator.generate(srcDir, baseDir, data);
                 } catch (IOException e) {
                     System.err.println("Error generating test: " + e.getMessage());
+                    generationFailed.set(true);
+                    firstError.compareAndSet(null, "Error generating test: " + e.getMessage());
                 }
             });
         }
+
+        if (generationFailed.get()) {
+            String message = firstError.get() != null
+                    ? firstError.get()
+                    : "Failed to generate one or more selected components.";
+            return ScaffoldResult.error("GENERATION_FAILED", message);
+        }
+
+        return ScaffoldResult.ok(baseDir);
     }
 
     /**
@@ -443,8 +467,8 @@ public class ScaffoldService {
     /**
      * Add a component to an existing plugin using the registered generator.
      */
-    public void addComponent(String type, String name, Path pluginDir, String pluginId) {
-        addComponent(type, name, pluginDir, pluginId, null);
+    public ScaffoldResult addComponent(String type, String name, Path pluginDir, String pluginId) {
+        return addComponent(type, name, pluginDir, pluginId, null);
     }
 
     /**
@@ -457,7 +481,7 @@ public class ScaffoldService {
      * @param pluginId  the plugin bundle ID
      * @param extraData additional data for the generator (e.g., resourcePath for REST)
      */
-    public void addComponent(String type, String name, Path pluginDir, String pluginId, Map<String, Object> extraData) {
+    public ScaffoldResult addComponent(String type, String name, Path pluginDir, String pluginId, Map<String, Object> extraData) {
         System.out.println();
         System.out.println("Adding " + type + ": " + name);
         System.out.println();
@@ -470,26 +494,31 @@ public class ScaffoldService {
                 // AI generation succeeded (files already written by SmartScaffoldService)
             } else {
                 // 2. Fallback to template
-                templateGeneration(type, name, pluginDir, pluginId, extraData);
+                ScaffoldResult templateResult = templateGeneration(type, name, pluginDir, pluginId, extraData);
+                if (!templateResult.success()) {
+                    return templateResult;
+                }
             }
 
             System.out.println();
             System.out.println("Component added successfully!");
             System.out.println();
+            return ScaffoldResult.ok(pluginDir);
         } catch (IOException e) {
             System.err.println("Error adding component: " + e.getMessage());
+            return ScaffoldResult.error("IO_ERROR", "Error adding component: " + e.getMessage());
         }
     }
 
     /**
      * Falls back to template-based generation (the original behavior).
      */
-    private void templateGeneration(String type, String name, Path pluginDir,
+    private ScaffoldResult templateGeneration(String type, String name, Path pluginDir,
                                      String pluginId, Map<String, Object> extraData) throws IOException {
         Optional<ComponentGenerator> generator = findGenerator(type);
         if (generator.isEmpty()) {
             System.err.println("Unknown component type: " + type);
-            return;
+            return ScaffoldResult.error("UNKNOWN_COMPONENT_TYPE", "Unknown component type: " + type);
         }
 
         Map<String, Object> data = new HashMap<>();
@@ -501,6 +530,7 @@ public class ScaffoldService {
 
         Path srcDir = pluginDir.resolve("src").resolve(pluginId.replace('.', '/'));
         generator.get().addToExisting(srcDir, pluginDir, data);
+        return ScaffoldResult.ok(pluginDir);
     }
 
     private void createDirectoryStructure(Path baseDir, PluginDescriptor descriptor) throws IOException {
@@ -665,7 +695,7 @@ public class ScaffoldService {
      * @param pluginId the full plugin ID (e.g., org.example.myplugin.newplugin)
      * @param descriptor optional descriptor with settings (version, vendor, etc.)
      */
-    public void addPluginModuleToProject(Path rootDir, String pluginId, PluginDescriptor descriptor) {
+    public ScaffoldResult addPluginModuleToProject(Path rootDir, String pluginId, PluginDescriptor descriptor) {
         System.out.println();
         System.out.println("Adding plugin module: " + pluginId);
         System.out.println();
@@ -674,7 +704,7 @@ public class ScaffoldService {
             Path pluginDir = rootDir.resolve(pluginId);
             if (Files.exists(pluginDir)) {
                 System.err.println("Error: Directory '" + pluginDir + "' already exists.");
-                return;
+                return ScaffoldResult.error("DIRECTORY_EXISTS", "Directory '" + pluginDir + "' already exists.");
             }
 
             // Build template data
@@ -696,9 +726,11 @@ public class ScaffoldService {
             System.out.println("  1. Refresh Maven project in Eclipse");
             System.out.println("  2. The module will be included in the build automatically");
             System.out.println();
+            return ScaffoldResult.ok(pluginDir);
         } catch (IOException e) {
             System.err.println("Error adding plugin module: " + e.getMessage());
             e.printStackTrace();
+            return ScaffoldResult.error("IO_ERROR", "Error adding plugin module: " + e.getMessage());
         }
     }
 
@@ -709,7 +741,7 @@ public class ScaffoldService {
      * @param fragmentHost the fragment host bundle (e.g., org.adempiere.ui.zk)
      * @param descriptor optional descriptor with settings
      */
-    public void addFragmentModuleToProject(Path rootDir, String fragmentHost, PluginDescriptor descriptor) {
+    public ScaffoldResult addFragmentModuleToProject(Path rootDir, String fragmentHost, PluginDescriptor descriptor) {
         String fragmentId = descriptor.getPluginId() + ".fragment";
         System.out.println();
         System.out.println("Adding fragment module: " + fragmentId);
@@ -720,7 +752,7 @@ public class ScaffoldService {
             Path fragmentDir = rootDir.resolve(fragmentId);
             if (Files.exists(fragmentDir)) {
                 System.err.println("Error: Directory '" + fragmentDir + "' already exists.");
-                return;
+                return ScaffoldResult.error("DIRECTORY_EXISTS", "Directory '" + fragmentDir + "' already exists.");
             }
 
             // Build template data
@@ -742,9 +774,11 @@ public class ScaffoldService {
             System.out.println();
             System.out.println("Fragment module added successfully!");
             System.out.println();
+            return ScaffoldResult.ok(fragmentDir);
         } catch (IOException e) {
             System.err.println("Error adding fragment module: " + e.getMessage());
             e.printStackTrace();
+            return ScaffoldResult.error("IO_ERROR", "Error adding fragment module: " + e.getMessage());
         }
     }
 
@@ -754,7 +788,7 @@ public class ScaffoldService {
      * @param rootDir the multi-module project root directory
      * @param descriptor optional descriptor with settings
      */
-    public void addFeatureModuleToProject(Path rootDir, PluginDescriptor descriptor) {
+    public ScaffoldResult addFeatureModuleToProject(Path rootDir, PluginDescriptor descriptor) {
         String featureId = descriptor.getPluginId() + ".feature";
         System.out.println();
         System.out.println("Adding feature module: " + featureId);
@@ -764,7 +798,7 @@ public class ScaffoldService {
             Path featureDir = rootDir.resolve(featureId);
             if (Files.exists(featureDir)) {
                 System.err.println("Error: Directory '" + featureDir + "' already exists.");
-                return;
+                return ScaffoldResult.error("DIRECTORY_EXISTS", "Directory '" + featureDir + "' already exists.");
             }
 
             // Build template data
@@ -791,9 +825,11 @@ public class ScaffoldService {
             System.out.println();
             System.out.println("The feature groups your plugins for easier installation.");
             System.out.println();
+            return ScaffoldResult.ok(featureDir);
         } catch (IOException e) {
             System.err.println("Error adding feature module: " + e.getMessage());
             e.printStackTrace();
+            return ScaffoldResult.error("IO_ERROR", "Error adding feature module: " + e.getMessage());
         }
     }
 

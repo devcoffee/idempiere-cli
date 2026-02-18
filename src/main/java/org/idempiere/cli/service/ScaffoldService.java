@@ -85,8 +85,7 @@ public class ScaffoldService {
         }
 
         if (Files.exists(rootDir)) {
-            System.err.println("Error: Directory '" + rootDir + "' already exists.");
-            return ScaffoldResult.error("DIRECTORY_EXISTS", "Directory '" + rootDir + "' already exists.");
+            return directoryExistsError(rootDir);
         }
 
         System.out.println();
@@ -202,9 +201,7 @@ public class ScaffoldService {
             System.out.println();
             return ScaffoldResult.ok(rootDir);
         } catch (IOException e) {
-            System.err.println("Error creating project: " + e.getMessage());
-            e.printStackTrace();
-            return ScaffoldResult.error("IO_ERROR", "Error creating project: " + e.getMessage());
+            return ioError("Error creating project", e, true);
         }
     }
 
@@ -220,8 +217,7 @@ public class ScaffoldService {
         }
 
         if (Files.exists(baseDir)) {
-            System.err.println("Error: Directory '" + baseDir + "' already exists.");
-            return ScaffoldResult.error("DIRECTORY_EXISTS", "Directory '" + baseDir + "' already exists.");
+            return directoryExistsError(baseDir);
         }
 
         System.out.println();
@@ -267,8 +263,7 @@ public class ScaffoldService {
             System.out.println();
             return ScaffoldResult.ok(baseDir);
         } catch (IOException e) {
-            System.err.println("Error creating plugin: " + e.getMessage());
-            return ScaffoldResult.error("IO_ERROR", "Error creating plugin: " + e.getMessage());
+            return ioError("Error creating plugin", e, false);
         }
     }
 
@@ -505,8 +500,7 @@ public class ScaffoldService {
             System.out.println();
             return ScaffoldResult.ok(pluginDir);
         } catch (IOException e) {
-            System.err.println("Error adding component: " + e.getMessage());
-            return ScaffoldResult.error("IO_ERROR", "Error adding component: " + e.getMessage());
+            return ioError("Error adding component", e, false);
         }
     }
 
@@ -517,8 +511,7 @@ public class ScaffoldService {
                                      String pluginId, Map<String, Object> extraData) throws IOException {
         Optional<ComponentGenerator> generator = findGenerator(type);
         if (generator.isEmpty()) {
-            System.err.println("Unknown component type: " + type);
-            return ScaffoldResult.error("UNKNOWN_COMPONENT_TYPE", "Unknown component type: " + type);
+            return unknownComponentTypeError(type);
         }
 
         Map<String, Object> data = new HashMap<>();
@@ -703,8 +696,7 @@ public class ScaffoldService {
         try {
             Path pluginDir = rootDir.resolve(pluginId);
             if (Files.exists(pluginDir)) {
-                System.err.println("Error: Directory '" + pluginDir + "' already exists.");
-                return ScaffoldResult.error("DIRECTORY_EXISTS", "Directory '" + pluginDir + "' already exists.");
+                return directoryExistsError(pluginDir);
             }
 
             // Build template data
@@ -728,9 +720,7 @@ public class ScaffoldService {
             System.out.println();
             return ScaffoldResult.ok(pluginDir);
         } catch (IOException e) {
-            System.err.println("Error adding plugin module: " + e.getMessage());
-            e.printStackTrace();
-            return ScaffoldResult.error("IO_ERROR", "Error adding plugin module: " + e.getMessage());
+            return ioError("Error adding plugin module", e, true);
         }
     }
 
@@ -751,8 +741,7 @@ public class ScaffoldService {
         try {
             Path fragmentDir = rootDir.resolve(fragmentId);
             if (Files.exists(fragmentDir)) {
-                System.err.println("Error: Directory '" + fragmentDir + "' already exists.");
-                return ScaffoldResult.error("DIRECTORY_EXISTS", "Directory '" + fragmentDir + "' already exists.");
+                return directoryExistsError(fragmentDir);
             }
 
             // Build template data
@@ -776,9 +765,7 @@ public class ScaffoldService {
             System.out.println();
             return ScaffoldResult.ok(fragmentDir);
         } catch (IOException e) {
-            System.err.println("Error adding fragment module: " + e.getMessage());
-            e.printStackTrace();
-            return ScaffoldResult.error("IO_ERROR", "Error adding fragment module: " + e.getMessage());
+            return ioError("Error adding fragment module", e, true);
         }
     }
 
@@ -797,8 +784,7 @@ public class ScaffoldService {
         try {
             Path featureDir = rootDir.resolve(featureId);
             if (Files.exists(featureDir)) {
-                System.err.println("Error: Directory '" + featureDir + "' already exists.");
-                return ScaffoldResult.error("DIRECTORY_EXISTS", "Directory '" + featureDir + "' already exists.");
+                return directoryExistsError(featureDir);
             }
 
             // Build template data
@@ -827,9 +813,7 @@ public class ScaffoldService {
             System.out.println();
             return ScaffoldResult.ok(featureDir);
         } catch (IOException e) {
-            System.err.println("Error adding feature module: " + e.getMessage());
-            e.printStackTrace();
-            return ScaffoldResult.error("IO_ERROR", "Error adding feature module: " + e.getMessage());
+            return ioError("Error adding feature module", e, true);
         }
     }
 
@@ -993,5 +977,26 @@ public class ScaffoldService {
      */
     private String extractBaseProjectId(Path rootDir) {
         return rootDir.getFileName().toString();
+    }
+
+    private ScaffoldResult directoryExistsError(Path dir) {
+        String message = "Directory '" + dir + "' already exists.";
+        System.err.println("Error: " + message);
+        return ScaffoldResult.error("DIRECTORY_EXISTS", message);
+    }
+
+    private ScaffoldResult ioError(String context, IOException e, boolean withStackTrace) {
+        String message = context + ": " + e.getMessage();
+        System.err.println(message);
+        if (withStackTrace) {
+            e.printStackTrace();
+        }
+        return ScaffoldResult.error("IO_ERROR", message);
+    }
+
+    private ScaffoldResult unknownComponentTypeError(String type) {
+        String message = "Unknown component type: " + type;
+        System.err.println(message);
+        return ScaffoldResult.error("UNKNOWN_COMPONENT_TYPE", message);
     }
 }

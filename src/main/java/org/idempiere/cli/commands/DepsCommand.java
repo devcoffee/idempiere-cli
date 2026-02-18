@@ -6,6 +6,7 @@ import jakarta.inject.Inject;
 import org.idempiere.cli.service.DepsService;
 import org.idempiere.cli.service.DepsService.DepsResult;
 import org.idempiere.cli.service.ProjectDetector;
+import org.idempiere.cli.util.ExitCodes;
 import org.idempiere.cli.util.JsonOutput;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -65,11 +66,12 @@ public class DepsCommand implements Callable<Integer> {
         if (!projectDetector.isIdempierePlugin(pluginDir)) {
             if (json) {
                 return JsonOutput.printError("NOT_PLUGIN",
-                        "Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
+                        "Not an iDempiere plugin in " + pluginDir.toAbsolutePath(),
+                        ExitCodes.STATE_ERROR);
             } else {
                 System.err.println("Error: Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
             }
-            return 1;
+            return ExitCodes.STATE_ERROR;
         }
 
         if (json) {
@@ -104,7 +106,7 @@ public class DepsCommand implements Callable<Integer> {
             System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root));
             return 0;
         } catch (Exception e) {
-            return JsonOutput.printError("JSON_SERIALIZATION", "Failed to serialize JSON");
+            return JsonOutput.printError("JSON_SERIALIZATION", "Failed to serialize JSON", ExitCodes.IO_ERROR);
         }
     }
 }

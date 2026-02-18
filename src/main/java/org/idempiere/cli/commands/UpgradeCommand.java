@@ -3,6 +3,7 @@ package org.idempiere.cli.commands;
 import jakarta.inject.Inject;
 import org.idempiere.cli.VersionProvider;
 import org.idempiere.cli.service.ProcessRunner;
+import org.idempiere.cli.util.ExitCodes;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -76,7 +77,7 @@ public class UpgradeCommand implements Callable<Integer> {
             String latestVersion = targetVersion != null ? targetVersion : fetchLatestVersion();
             if (latestVersion == null) {
                 System.err.println("  Could not determine latest version.");
-                return 0;
+                return ExitCodes.SUCCESS;
             }
 
             System.out.println("  Latest version:  " + latestVersion);
@@ -84,20 +85,20 @@ public class UpgradeCommand implements Callable<Integer> {
 
             if (!force && isUpToDate(VersionProvider.getApplicationVersion(), latestVersion)) {
                 System.out.println("  Already up to date!");
-                return 0;
+                return ExitCodes.SUCCESS;
             }
 
             if (checkOnly) {
                 System.out.println("  Update available: " + VersionProvider.getApplicationVersion() + " -> " + latestVersion);
                 System.out.println("  Run 'idempiere-cli upgrade' to install.");
-                return 0;
+                return ExitCodes.SUCCESS;
             }
 
             // Detect platform and architecture
             String binaryName = detectBinaryName();
             if (binaryName == null) {
                 System.err.println("  Unsupported platform.");
-                return 1;
+                return ExitCodes.STATE_ERROR;
             }
 
             System.out.println("  Downloading " + binaryName + "...");
@@ -106,7 +107,7 @@ public class UpgradeCommand implements Callable<Integer> {
             Path tempFile = downloadBinary(downloadUrl);
             if (tempFile == null) {
                 System.err.println("  Download failed.");
-                return 1;
+                return ExitCodes.IO_ERROR;
             }
 
             // Find current binary location
@@ -114,7 +115,7 @@ public class UpgradeCommand implements Callable<Integer> {
             if (currentBinary == null) {
                 System.err.println("  Could not determine current binary location.");
                 System.err.println("  Downloaded file is at: " + tempFile);
-                return 1;
+                return ExitCodes.STATE_ERROR;
             }
 
             // Backup and replace
@@ -144,7 +145,7 @@ public class UpgradeCommand implements Callable<Integer> {
                 System.out.println();
                 System.out.println("  Upgrade successful!");
                 System.out.println("  Run 'idempiere-cli --version' to verify.");
-                return 0;
+                return ExitCodes.SUCCESS;
 
             } catch (IOException e) {
                 // Restore from backup if the move failed mid-way
@@ -154,12 +155,12 @@ public class UpgradeCommand implements Callable<Integer> {
                 System.err.println("  Failed to replace binary: " + e.getMessage());
                 System.err.println("  You may need to run with sudo/administrator privileges.");
                 System.err.println("  Or manually copy from: " + tempFile);
-                return 1;
+                return ExitCodes.IO_ERROR;
             }
 
         } catch (Exception e) {
             System.err.println("  Error during upgrade: " + e.getMessage());
-            return 1;
+            return ExitCodes.IO_ERROR;
         }
     }
 

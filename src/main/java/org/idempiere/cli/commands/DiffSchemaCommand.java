@@ -5,6 +5,7 @@ import org.idempiere.cli.model.DbConfig;
 import org.idempiere.cli.service.DiffSchemaService;
 import org.idempiere.cli.service.ModelGeneratorService;
 import org.idempiere.cli.service.ProjectDetector;
+import org.idempiere.cli.util.ExitCodes;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -86,19 +87,19 @@ public class DiffSchemaCommand implements Callable<Integer> {
         Path pluginDir = Path.of(dir);
         if (!projectDetector.isIdempierePlugin(pluginDir)) {
             System.err.println("Error: Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
-            return 1;
+            return ExitCodes.STATE_ERROR;
         }
 
         Optional<String> pluginId = projectDetector.detectPluginId(pluginDir);
         if (pluginId.isEmpty()) {
             System.err.println("Error: Could not detect plugin ID.");
-            return 1;
+            return ExitCodes.STATE_ERROR;
         }
 
         DbConfig dbConfig = modelGeneratorService.resolveDbConfig(dbHost, dbPort, dbName, dbUser, dbPass, configPath);
         Path srcDir = pluginDir.resolve("src").resolve(pluginId.get().replace('.', '/'));
 
         diffSchemaService.diff(tableName, srcDir, pluginId.get(), dbConfig);
-        return 0;
+        return ExitCodes.SUCCESS;
     }
 }

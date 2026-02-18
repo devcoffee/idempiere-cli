@@ -160,7 +160,7 @@ public class DistService {
         return true;
     }
 
-    boolean isIdempiereSource(Path dir) {
+    public boolean isIdempiereSource(Path dir) {
         return Files.exists(dir.resolve("pom.xml"))
                 && Files.isDirectory(dir.resolve("org.idempiere.p2"));
     }

@@ -3,6 +3,7 @@ package org.idempiere.cli.commands;
 import jakarta.inject.Inject;
 import org.idempiere.cli.model.SetupConfig;
 import org.idempiere.cli.service.SetupDevEnvService;
+import org.idempiere.cli.util.ExitCodes;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import java.nio.file.Path;
@@ -152,13 +153,13 @@ public class SetupDevEnvCommand implements Callable<Integer> {
 
         // Validate parameter combinations
         if (!validateParameters(normalizedDbType)) {
-            return 1;
+            return ExitCodes.VALIDATION_ERROR;
         }
 
         // Dry run: validate only, don't execute
         if (dryRun) {
             System.out.println("Dry run: parameter validation complete.");
-            return 0;
+            return ExitCodes.SUCCESS;
         }
 
         // Check for headless environment BEFORE doing any work
@@ -175,7 +176,7 @@ public class SetupDevEnvCommand implements Callable<Integer> {
             System.err.println();
             System.err.println("For testing CLI commands that don't require Eclipse, use Docker:");
             System.err.println("  ./test-cli.sh");
-            return 1;
+            return ExitCodes.STATE_ERROR;
         }
 
         SetupConfig config = new SetupConfig();
@@ -212,7 +213,7 @@ public class SetupDevEnvCommand implements Callable<Integer> {
         config.setContinueOnError(continueOnError);
 
         setupDevEnvService.setup(config);
-        return 0;
+        return ExitCodes.SUCCESS;
     }
 
     /**

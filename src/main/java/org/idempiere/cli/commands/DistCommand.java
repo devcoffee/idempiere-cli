@@ -2,6 +2,7 @@ package org.idempiere.cli.commands;
 
 import jakarta.inject.Inject;
 import org.idempiere.cli.service.DistService;
+import org.idempiere.cli.util.ExitCodes;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -59,7 +60,14 @@ public class DistCommand implements Callable<Integer> {
 
     @Override
     public Integer call() {
-        boolean success = distService.createDistribution(Path.of(sourceDir), Path.of(outputDir), version, skipBuild, clean);
-        return success ? 0 : 1;
+        Path sourcePath = Path.of(sourceDir);
+        if (!distService.isIdempiereSource(sourcePath)) {
+            System.err.println("Error: Not an iDempiere source directory: " + sourcePath.toAbsolutePath());
+            System.err.println("Expected to find pom.xml and org.idempiere.p2/ in the directory.");
+            return ExitCodes.STATE_ERROR;
+        }
+
+        boolean success = distService.createDistribution(sourcePath, Path.of(outputDir), version, skipBuild, clean);
+        return success ? ExitCodes.SUCCESS : ExitCodes.IO_ERROR;
     }
 }

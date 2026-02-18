@@ -29,13 +29,22 @@ class DepsCommandTest {
     }
 
     @Test
-    @Launch(value = {"deps", "--json"}, exitCode = 1)
+    @Launch(value = {"deps"}, exitCode = 3)
+    void testDepsTextErrorOnStderr(LaunchResult result) {
+        assertEquals(3, result.exitCode());
+        assertTrue(result.getErrorOutput().contains("Not an iDempiere plugin"));
+    }
+
+    @Test
+    @Launch(value = {"deps", "--json"}, exitCode = 3)
     void testDepsJsonErrorContract(LaunchResult result) {
-        assertEquals(1, result.exitCode());
+        assertEquals(3, result.exitCode());
         String output = result.getOutput();
+        String errorOutput = result.getErrorOutput();
         assertTrue(output.contains("\"error\""));
         assertTrue(output.contains("\"code\""));
         assertTrue(output.contains("\"message\""));
         assertTrue(output.contains("NOT_PLUGIN"));
+        assertTrue(errorOutput.isBlank());
     }
 }

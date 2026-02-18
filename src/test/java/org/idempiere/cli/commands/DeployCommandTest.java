@@ -27,8 +27,9 @@ class DeployCommandTest {
     }
 
     @Test
-    @Launch(value = {"deploy", "--target=/tmp"}, exitCode = 1)
+    @Launch(value = {"deploy", "--target=/tmp"}, exitCode = 3)
     void testDeployWithMissingPlugin(LaunchResult result) {
-        assertEquals(1, result.exitCode());
+        assertEquals(3, result.exitCode());
+        assertTrue(result.getErrorOutput().contains("Not an iDempiere plugin"));
     }
 }

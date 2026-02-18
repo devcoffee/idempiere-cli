@@ -147,7 +147,7 @@ public class ValidateCommand implements Callable<Integer> {
 
             System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root));
         } catch (Exception e) {
-            return JsonOutput.printError("JSON_SERIALIZATION", "Failed to serialize JSON");
+            return JsonOutput.printError("JSON_SERIALIZATION", "Failed to serialize JSON", 1);
         }
 
         if (result.errors() > 0) {

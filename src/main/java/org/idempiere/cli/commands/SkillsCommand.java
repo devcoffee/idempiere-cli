@@ -2,6 +2,7 @@ package org.idempiere.cli.commands;
 
 import jakarta.inject.Inject;
 import org.idempiere.cli.service.SkillManager;
+import org.idempiere.cli.util.ExitCodes;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
 
@@ -44,7 +45,7 @@ public class SkillsCommand {
                 System.out.println("        priority: 1");
                 System.out.println();
                 System.out.println("Then run: idempiere-cli skills sync");
-                return 0;
+                return ExitCodes.SUCCESS;
             }
 
             System.out.println("Skill Sources:");
@@ -60,7 +61,7 @@ public class SkillsCommand {
                 }
                 System.out.println();
             }
-            return 0;
+            return ExitCodes.SUCCESS;
         }
     }
 
@@ -85,7 +86,7 @@ public class SkillsCommand {
                 System.err.println("Errors:");
                 result.errors().forEach(e -> System.err.println("  - " + e));
             }
-            return result.failed() > 0 ? 1 : 0;
+            return result.failed() > 0 ? ExitCodes.IO_ERROR : ExitCodes.SUCCESS;
         }
     }
 
@@ -119,7 +120,7 @@ public class SkillsCommand {
                         System.out.println("  No skills available. Run 'skills sync' to fetch skills.");
                     }
                 }
-                return 0;
+                return ExitCodes.SUCCESS;
             }
 
             var res = resolution.get();
@@ -127,7 +128,7 @@ public class SkillsCommand {
             System.out.println("Source: " + res.sourceName());
             System.out.println("Skill: " + res.skillDir());
             System.out.println("Path: " + res.skillMdPath());
-            return 0;
+            return ExitCodes.SUCCESS;
         }
     }
 }

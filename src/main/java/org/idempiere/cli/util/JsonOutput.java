@@ -14,9 +14,9 @@ public final class JsonOutput {
     }
 
     /**
-     * Prints a standard JSON error object to stdout and returns exit code 1.
+     * Prints a standard JSON error object to stdout and returns the provided exit code.
      */
-    public static Integer printError(String code, String message) {
+    public static Integer printError(String code, String message, int exitCode) {
         try {
             ObjectNode root = MAPPER.createObjectNode();
             ObjectNode error = root.putObject("error");
@@ -27,6 +27,6 @@ public final class JsonOutput {
             // Last-resort fallback to keep JSON contract for scripts.
             System.out.println("{\"error\":{\"code\":\"INTERNAL_ERROR\",\"message\":\"Failed to serialize JSON error\"}}");
         }
-        return 1;
+        return exitCode;
     }
 }

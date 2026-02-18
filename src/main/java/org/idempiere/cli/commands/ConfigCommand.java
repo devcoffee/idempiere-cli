@@ -5,6 +5,7 @@ import org.idempiere.cli.model.CliConfig;
 import org.idempiere.cli.service.CliConfigService;
 import org.idempiere.cli.service.InteractivePromptService;
 import org.idempiere.cli.util.CliOutput;
+import org.idempiere.cli.util.ExitCodes;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
 
@@ -83,7 +84,7 @@ public class ConfigCommand {
             }
             System.out.println("  cacheDir: " + config.getSkills().getCacheDir());
             System.out.println("  updateInterval: " + config.getSkills().getUpdateInterval());
-            return 0;
+            return ExitCodes.SUCCESS;
         }
     }
 
@@ -102,12 +103,12 @@ public class ConfigCommand {
             String value = getConfigValue(config, key);
             if (value != null) {
                 System.out.println(value);
-                return 0;
+                return ExitCodes.SUCCESS;
             } else {
                 System.err.println("Unknown config key: " + key);
                 System.err.println("Available keys: ai.provider, ai.apiKey, ai.apiKeyEnv, ai.model, ai.fallback, "
                         + "defaults.vendor, defaults.idempiereVersion, skills.cacheDir, skills.updateInterval");
-                return 1;
+                return ExitCodes.VALIDATION_ERROR;
             }
         }
     }
@@ -132,16 +133,16 @@ public class ConfigCommand {
                 System.err.println("Unknown config key: " + key);
                 System.err.println("Available keys: ai.provider, ai.apiKey, ai.apiKeyEnv, ai.model, ai.fallback, "
                         + "defaults.vendor, defaults.idempiereVersion, skills.cacheDir, skills.updateInterval");
-                return 1;
+                return ExitCodes.VALIDATION_ERROR;
             }
 
             try {
                 configService.saveGlobalConfig(config);
                 System.out.println("Set " + key + " = " + value);
-                return 0;
+                return ExitCodes.SUCCESS;
             } catch (IOException e) {
                 System.err.println("Failed to save config: " + e.getMessage());
-                return 1;
+                return ExitCodes.IO_ERROR;
             }
         }
     }
@@ -241,10 +242,10 @@ public class ConfigCommand {
                 System.out.println();
                 System.out.println("Config saved to " + configService.getGlobalConfigPath());
                 System.out.println();
-                return 0;
+                return ExitCodes.SUCCESS;
             } catch (IOException e) {
                 System.err.println("Failed to save config: " + e.getMessage());
-                return 1;
+                return ExitCodes.IO_ERROR;
             }
         }
 

@@ -4,6 +4,7 @@ import jakarta.inject.Inject;
 import org.idempiere.cli.service.BuildService;
 import org.idempiere.cli.service.PackageService;
 import org.idempiere.cli.service.ProjectDetector;
+import org.idempiere.cli.util.ExitCodes;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -81,7 +82,7 @@ public class PackageCommand implements Callable<Integer> {
             return handleZipPackage(projectDir, multiModuleRoot);
         } else {
             System.err.println("Error: Unknown format '" + format + "'. Use 'zip' or 'p2'.");
-            return 1;
+            return ExitCodes.VALIDATION_ERROR;
         }
     }
 
@@ -97,7 +98,7 @@ public class PackageCommand implements Callable<Integer> {
             System.err.println("generates proper Eclipse update site metadata.");
             System.err.println();
             System.err.println("For standalone plugins, use --format=zip instead.");
-            return 1;
+            return ExitCodes.STATE_ERROR;
         }
 
         Path rootDir = multiModuleRoot.get();
@@ -107,7 +108,7 @@ public class PackageCommand implements Callable<Integer> {
         if (p2Module.isEmpty()) {
             System.err.println("Error: No .p2 module found in multi-module project.");
             System.err.println("The project may have been created without p2 support.");
-            return 1;
+            return ExitCodes.STATE_ERROR;
         }
 
         Path p2Repository = p2Module.get().resolve("target/repository");
@@ -117,7 +118,7 @@ public class PackageCommand implements Callable<Integer> {
             System.err.println("Build the project first:");
             System.err.println("  cd " + rootDir);
             System.err.println("  idempiere-cli build");
-            return 1;
+            return ExitCodes.STATE_ERROR;
         }
 
         String projectId = projectDetector.detectProjectBaseId(rootDir).orElse("plugin");
@@ -130,7 +131,7 @@ public class PackageCommand implements Callable<Integer> {
 
         packageService.packageP2MultiModule(p2Repository, outputDir);
         System.out.println();
-        return 0;
+        return ExitCodes.SUCCESS;
     }
 
     private Integer handleZipPackage(Path projectDir, Optional<Path> multiModuleRoot) {
@@ -142,7 +143,7 @@ public class PackageCommand implements Callable<Integer> {
             Optional<Path> basePlugin = findBasePluginModule(rootDir);
             if (basePlugin.isEmpty()) {
                 System.err.println("Error: Could not find base plugin module in " + rootDir);
-                return 1;
+                return ExitCodes.STATE_ERROR;
             }
             pluginDir = basePlugin.get();
         } else {
@@ -152,14 +153,14 @@ public class PackageCommand implements Callable<Integer> {
 
         if (!projectDetector.isIdempierePlugin(pluginDir)) {
             System.err.println("Error: Not an iDempiere plugin in " + pluginDir);
-            return 1;
+            return ExitCodes.STATE_ERROR;
         }
 
         Optional<Path> jar = buildService.findBuiltJar(pluginDir);
         if (jar.isEmpty()) {
             System.err.println("Error: No built .jar found in target/");
             System.err.println("Run 'idempiere-cli build' first.");
-            return 1;
+            return ExitCodes.STATE_ERROR;
         }
 
         String pluginId = projectDetector.detectPluginId(pluginDir).orElse("unknown");
@@ -173,7 +174,7 @@ public class PackageCommand implements Callable<Integer> {
 
         packageService.packageZip(jar.get(), pluginId, pluginVersion, pluginDir, outputDir);
         System.out.println();
-        return 0;
+        return ExitCodes.SUCCESS;
     }
 
     private Optional<Path> findP2Module(Path rootDir) {

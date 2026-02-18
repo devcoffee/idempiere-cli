@@ -4,6 +4,7 @@ import jakarta.inject.Inject;
 import org.idempiere.cli.model.PlatformVersion;
 import org.idempiere.cli.service.MigrateService;
 import org.idempiere.cli.service.ProjectDetector;
+import org.idempiere.cli.util.ExitCodes;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -64,11 +65,11 @@ public class MigrateCommand implements Callable<Integer> {
         Path pluginDir = Path.of(dir);
         if (!projectDetector.isIdempierePlugin(pluginDir)) {
             System.err.println("Error: Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
-            return 1;
+            return ExitCodes.STATE_ERROR;
         }
         PlatformVersion from = PlatformVersion.of(fromVersion);
         PlatformVersion to = PlatformVersion.of(toVersion);
         migrateService.migrate(pluginDir, from, to);
-        return 0;
+        return ExitCodes.SUCCESS;
     }
 }

@@ -26,14 +26,11 @@ class BuildCommandTest {
     }
 
     @Test
-    @Launch(value = {"build"}, exitCode = 1)
+    @Launch(value = {"build"}, exitCode = 3)
     void testBuildWithoutPlugin(LaunchResult result) {
-        // Should fail/warn because we're not in a plugin directory
-        // Maven not found is also acceptable
-        assertEquals(1, result.exitCode());
-        String output = result.getOutput();
-        assertTrue(output.contains("Error") || output.contains("not") ||
-                   output.contains("found") || output.contains("Maven") ||
-                   output.isEmpty());
+        assertEquals(3, result.exitCode());
+        String errorOutput = result.getErrorOutput();
+        assertTrue(errorOutput.contains("Error"));
+        assertTrue(errorOutput.contains("Not an iDempiere plugin"));
     }
 }

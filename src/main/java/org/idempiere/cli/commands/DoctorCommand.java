@@ -16,6 +16,7 @@ import org.idempiere.cli.service.ai.AiResponse;
 import org.idempiere.cli.service.check.CheckResult;
 import org.idempiere.cli.service.check.EnvironmentCheck;
 import org.idempiere.cli.util.CliOutput;
+import org.idempiere.cli.util.ExitCodes;
 import org.idempiere.cli.util.JsonOutput;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -104,7 +105,7 @@ public class DoctorCommand implements Callable<Integer> {
             // --fix-optional implies --fix
             if (fixOptional != null) fix = true;
             runEnvironmentCheck();
-            return 0;
+            return ExitCodes.SUCCESS;
         }
     }
 
@@ -162,7 +163,7 @@ public class DoctorCommand implements Callable<Integer> {
 
         if (!Files.exists(pluginDir)) {
             System.err.println("  Error: Directory '" + pluginDir + "' does not exist.");
-            return 1;
+            return ExitCodes.STATE_ERROR;
         }
 
         PluginCheckResult result = doctorService.checkPluginData(pluginDir);
@@ -176,7 +177,7 @@ public class DoctorCommand implements Callable<Integer> {
         System.out.printf("Results: %d passed, %d warnings, %d failed%n",
                 result.passed(), result.warnings(), result.failed());
         System.out.println();
-        return 0;
+        return ExitCodes.SUCCESS;
     }
 
     private void printResult(CheckResult result) {
@@ -509,9 +510,9 @@ public class DoctorCommand implements Callable<Integer> {
             configNode.put("aiProvider", config.getAi().getProvider());
 
             System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root));
-            return 0;
+            return ExitCodes.SUCCESS;
         } catch (Exception e) {
-            return JsonOutput.printError("JSON_SERIALIZATION", "Failed to serialize JSON");
+            return JsonOutput.printError("JSON_SERIALIZATION", "Failed to serialize JSON", ExitCodes.IO_ERROR);
         }
     }
 
@@ -533,9 +534,9 @@ public class DoctorCommand implements Callable<Integer> {
             }
 
             System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root));
-            return 0;
+            return ExitCodes.SUCCESS;
         } catch (Exception e) {
-            return JsonOutput.printError("JSON_SERIALIZATION", "Failed to serialize JSON");
+            return JsonOutput.printError("JSON_SERIALIZATION", "Failed to serialize JSON", ExitCodes.IO_ERROR);
         }
     }
 }

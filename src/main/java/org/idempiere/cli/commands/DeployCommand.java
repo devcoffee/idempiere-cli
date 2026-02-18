@@ -3,6 +3,7 @@ package org.idempiere.cli.commands;
 import jakarta.inject.Inject;
 import org.idempiere.cli.service.DeployService;
 import org.idempiere.cli.service.ProjectDetector;
+import org.idempiere.cli.util.ExitCodes;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import java.nio.file.Path;
@@ -68,14 +69,14 @@ public class DeployCommand implements Callable<Integer> {
         Path pluginDir = Path.of(dir);
         if (!projectDetector.isIdempierePlugin(pluginDir)) {
             System.err.println("Error: Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
-            return 1;
+            return ExitCodes.STATE_ERROR;
         }
 
         Optional<Path> jar = deployService.findBuiltJar(pluginDir);
         if (jar.isEmpty()) {
             System.err.println("Error: No built .jar found in target/");
             System.err.println("Run 'idempiere-cli build' first.");
-            return 1;
+            return ExitCodes.STATE_ERROR;
         }
 
         String pluginId = projectDetector.detectPluginId(pluginDir).orElse("unknown");
@@ -91,6 +92,6 @@ public class DeployCommand implements Callable<Integer> {
             success = deployService.copyDeploy(jar.get(), Path.of(target));
         }
 
-        return success ? 0 : 1;
+        return success ? ExitCodes.SUCCESS : ExitCodes.IO_ERROR;
     }
 }

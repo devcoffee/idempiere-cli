@@ -24,24 +24,24 @@ class InfoCommandTest {
     }
 
     @Test
-    @Launch(value = {"info"}, exitCode = 1)
+    @Launch(value = {"info"}, exitCode = 3)
     void testInfoWithoutPlugin(LaunchResult result) {
-        // Should report error because we're not in a plugin directory
-        assertEquals(1, result.exitCode());
-        // The output could be on stdout or stderr
-        String output = result.getOutput();
-        assertTrue(output.contains("Error") || output.contains("not") ||
-                   output.contains("MANIFEST") || output.isEmpty());
+        assertEquals(3, result.exitCode());
+        String errorOutput = result.getErrorOutput();
+        assertTrue(errorOutput.contains("Error"));
+        assertTrue(errorOutput.contains("Not an iDempiere plugin"));
     }
 
     @Test
-    @Launch(value = {"info", "--json"}, exitCode = 1)
+    @Launch(value = {"info", "--json"}, exitCode = 3)
     void testInfoJsonErrorContract(LaunchResult result) {
-        assertEquals(1, result.exitCode());
+        assertEquals(3, result.exitCode());
         String output = result.getOutput();
+        String errorOutput = result.getErrorOutput();
         assertTrue(output.contains("\"error\""));
         assertTrue(output.contains("\"code\""));
         assertTrue(output.contains("\"message\""));
         assertTrue(output.contains("NOT_PLUGIN"));
+        assertTrue(errorOutput.isBlank());
     }
 }

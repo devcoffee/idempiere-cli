@@ -3,6 +3,7 @@ package org.idempiere.cli.commands;
 import jakarta.inject.Inject;
 import org.idempiere.cli.service.BuildService;
 import org.idempiere.cli.service.ProjectDetector;
+import org.idempiere.cli.util.ExitCodes;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import java.nio.file.Files;
@@ -74,13 +75,13 @@ public class BuildCommand implements Callable<Integer> {
         if (!projectDetector.isIdempierePlugin(pluginDir)) {
             System.err.println("Error: Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
             System.err.println("Make sure you are inside a plugin directory or use --dir to specify one.");
-            return 1;
+            return ExitCodes.STATE_ERROR;
         }
 
         Path idHome = resolveIdempiereHome();
         if (idHome != null && !Files.exists(idHome)) {
             System.err.println("Error: iDempiere home directory not found: " + idHome.toAbsolutePath());
-            return 1;
+            return ExitCodes.STATE_ERROR;
         }
 
         System.out.println();
@@ -89,7 +90,7 @@ public class BuildCommand implements Callable<Integer> {
         System.out.println();
 
         boolean success = buildService.build(pluginDir, idHome, clean, skipTests, update, disableP2Mirrors, mavenArgs);
-        return success ? 0 : 1;
+        return success ? ExitCodes.SUCCESS : ExitCodes.IO_ERROR;
     }
 
     private Path resolveIdempiereHome() {

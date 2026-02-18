@@ -3,6 +3,7 @@ package org.idempiere.cli.commands;
 import jakarta.inject.Inject;
 import org.idempiere.cli.service.EclipseManager;
 import org.idempiere.cli.service.SessionLogger;
+import org.idempiere.cli.util.ExitCodes;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -57,7 +58,7 @@ public class ImportWorkspaceCommand implements Callable<Integer> {
         // Validate plugin directory
         if (!Files.isDirectory(pluginDir)) {
             System.err.println("Error: Plugin directory does not exist: " + pluginDir);
-            return 1;
+            return ExitCodes.STATE_ERROR;
         }
 
         // Check for .project files
@@ -74,13 +75,13 @@ public class ImportWorkspaceCommand implements Callable<Integer> {
         if (!hasProject) {
             System.err.println("Error: No .project files found in: " + pluginDir);
             System.err.println("Hint: Use 'idempiere-cli init' with --eclipse-project to generate .project files.");
-            return 1;
+            return ExitCodes.STATE_ERROR;
         }
 
         // Validate Eclipse directory
         if (!Files.isDirectory(eclipseDir)) {
             System.err.println("Error: Eclipse directory does not exist: " + eclipseDir);
-            return 1;
+            return ExitCodes.STATE_ERROR;
         }
 
         // Check workspace lock
@@ -106,8 +107,8 @@ public class ImportWorkspaceCommand implements Callable<Integer> {
         if (success) {
             System.out.println();
             System.out.println("Done! Open Eclipse with workspace: " + workspaceDir);
-            return 0;
+            return ExitCodes.SUCCESS;
         }
-        return 1;
+        return ExitCodes.IO_ERROR;
     }
 }

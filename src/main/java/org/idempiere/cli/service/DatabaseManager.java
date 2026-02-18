@@ -29,6 +29,12 @@ public class DatabaseManager {
         PERMISSION_DENIED
     }
 
+    private enum ExistingContainerResult {
+        READY,
+        NOT_FOUND,
+        FAILED
+    }
+
     @Inject
     ProcessRunner processRunner;
 
@@ -102,45 +108,25 @@ public class DatabaseManager {
     }
 
     public boolean createDockerPostgres(SetupConfig config) {
-        // First, check if Docker daemon is running
-        DockerStatus status = getDockerStatus();
-        if (status != DockerStatus.RUNNING) {
-            printDockerError(status);
+        if (!ensureDockerReady()) {
             return false;
         }
 
+        String containerName = config.getDockerContainerName();
         System.out.println("  Creating Docker PostgreSQL container...");
 
-        // Check if container already exists
-        ProcessRunner.RunResult result = processRunner.run(
-                "docker", "inspect", config.getDockerContainerName()
-        );
-
-        if (result.isSuccess()) {
-            System.out.println("  Container '" + config.getDockerContainerName() + "' already exists.");
-
-            // Check if it's running
-            ProcessRunner.RunResult statusResult = processRunner.run(
-                    "docker", "inspect", "-f", "{{.State.Running}}", config.getDockerContainerName()
-            );
-
-            if (statusResult.isSuccess() && statusResult.output().trim().equals("true")) {
-                System.out.println("  Container is already running.");
-                return true;
-            }
-
-            // Start existing container
-            System.out.println("  Starting existing container...");
-            int exitCode = processRunner.runLive(
-                    "docker", "start", config.getDockerContainerName()
-            );
-            return exitCode == 0;
+        ExistingContainerResult existingContainer = ensureExistingContainerReady(containerName);
+        if (existingContainer == ExistingContainerResult.READY) {
+            return true;
+        }
+        if (existingContainer == ExistingContainerResult.FAILED) {
+            return false;
         }
 
         // Create new container
         int exitCode = processRunner.runLive(
                 "docker", "run", "-d",
-                "--name", config.getDockerContainerName(),
+                "--name", containerName,
                 "-p", config.getDbPort() + ":5432",
                 "-e", "POSTGRES_PASSWORD=" + config.getDbAdminPass(),
                 "postgres:" + config.getDockerPostgresVersion()
@@ -152,45 +138,24 @@ public class DatabaseManager {
             return false;
         }
 
-        System.out.println("  Container '" + config.getDockerContainerName() + "' created successfully.");
+        System.out.println("  Container '" + containerName + "' created successfully.");
         return true;
     }
 
     public boolean createDockerOracle(SetupConfig config) {
-        // First, check if Docker daemon is running
-        DockerStatus status = getDockerStatus();
-        if (status != DockerStatus.RUNNING) {
-            printDockerError(status);
+        if (!ensureDockerReady()) {
             return false;
         }
 
         String containerName = config.getOracleDockerContainer();
         System.out.println("  Creating Docker Oracle XE container...");
 
-        // Check if container already exists
-        ProcessRunner.RunResult result = processRunner.run(
-                "docker", "inspect", containerName
-        );
-
-        if (result.isSuccess()) {
-            System.out.println("  Container '" + containerName + "' already exists.");
-
-            // Check if it's running
-            ProcessRunner.RunResult statusResult = processRunner.run(
-                    "docker", "inspect", "-f", "{{.State.Running}}", containerName
-            );
-
-            if (statusResult.isSuccess() && statusResult.output().trim().equals("true")) {
-                System.out.println("  Container is already running.");
-                return true;
-            }
-
-            // Start existing container
-            System.out.println("  Starting existing container...");
-            int exitCode = processRunner.runLive(
-                    "docker", "start", containerName
-            );
-            return exitCode == 0;
+        ExistingContainerResult existingContainer = ensureExistingContainerReady(containerName);
+        if (existingContainer == ExistingContainerResult.READY) {
+            return true;
+        }
+        if (existingContainer == ExistingContainerResult.FAILED) {
+            return false;
         }
 
         // Create new container using gvenzl/oracle-xe image
@@ -216,6 +181,35 @@ public class DatabaseManager {
         System.out.println("  Container '" + containerName + "' created successfully.");
         System.out.println("  Oracle XE takes 1-2 minutes to initialize. Please wait...");
         return true;
+    }
+
+    private boolean ensureDockerReady() {
+        DockerStatus status = getDockerStatus();
+        if (status == DockerStatus.RUNNING) {
+            return true;
+        }
+        printDockerError(status);
+        return false;
+    }
+
+    private ExistingContainerResult ensureExistingContainerReady(String containerName) {
+        ProcessRunner.RunResult inspectResult = processRunner.run("docker", "inspect", containerName);
+        if (!inspectResult.isSuccess()) {
+            return ExistingContainerResult.NOT_FOUND;
+        }
+
+        System.out.println("  Container '" + containerName + "' already exists.");
+        ProcessRunner.RunResult runningState = processRunner.run(
+                "docker", "inspect", "-f", "{{.State.Running}}", containerName
+        );
+        if (runningState.isSuccess() && "true".equals(runningState.output().trim())) {
+            System.out.println("  Container is already running.");
+            return ExistingContainerResult.READY;
+        }
+
+        System.out.println("  Starting existing container...");
+        int startExit = processRunner.runLive("docker", "start", containerName);
+        return startExit == 0 ? ExistingContainerResult.READY : ExistingContainerResult.FAILED;
     }
 
     private boolean waitForOracleReady(SetupConfig config, int maxRetries) {
@@ -458,12 +452,7 @@ public class DatabaseManager {
 
         if (!result.isSuccess()) {
             System.err.println("  Console setup output:");
-            // Show last 20 lines
-            String[] lines = result.output().split("\n");
-            int start = Math.max(0, lines.length - 20);
-            for (int i = start; i < lines.length; i++) {
-                System.err.println("    " + lines[i]);
-            }
+            printLastLines(result.output(), 20);
             return false;
         }
 
@@ -473,11 +462,7 @@ public class DatabaseManager {
             System.err.println("  Console setup completed but myEnvironment.sh was not created.");
             System.err.println("  This usually indicates a database connection validation failure.");
             System.err.println("  Console setup output (last 30 lines):");
-            String[] lines = result.output().split("\n");
-            int start = Math.max(0, lines.length - 30);
-            for (int i = start; i < lines.length; i++) {
-                System.err.println("    " + lines[i]);
-            }
+            printLastLines(result.output(), 30);
             return false;
         }
 

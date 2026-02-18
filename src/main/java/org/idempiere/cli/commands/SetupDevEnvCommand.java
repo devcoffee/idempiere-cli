@@ -6,6 +6,7 @@ import org.idempiere.cli.service.SetupDevEnvService;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import java.nio.file.Path;
+import java.util.Locale;
 import java.util.concurrent.Callable;
 
 /**
@@ -147,8 +148,10 @@ public class SetupDevEnvCommand implements Callable<Integer> {
 
     @Override
     public Integer call() {
+        String normalizedDbType = dbType.toLowerCase(Locale.ROOT);
+
         // Validate parameter combinations
-        if (!validateParameters()) {
+        if (!validateParameters(normalizedDbType)) {
             return 1;
         }
 
@@ -159,7 +162,7 @@ public class SetupDevEnvCommand implements Callable<Integer> {
         }
 
         // Check for headless environment BEFORE doing any work
-        if (isHeadlessEnvironment()) {
+        if (!skipWorkspace && isHeadlessEnvironment()) {
             System.err.println("Error: setup-dev-env requires a graphical environment (display).");
             System.err.println();
             System.err.println("This command installs Eclipse plugins and configures the workspace,");
@@ -185,7 +188,7 @@ public class SetupDevEnvCommand implements Callable<Integer> {
         config.setEclipseDir(resolvedEclipseDir);
         config.setBranch(branch);
         config.setRepositoryUrl(repositoryUrl);
-        config.setDbType(dbType);
+        config.setDbType(normalizedDbType);
         config.setDbHost(dbHost);
         config.setDbPort(dbPort);
         config.setDbName(dbName);
@@ -216,8 +219,46 @@ public class SetupDevEnvCommand implements Callable<Integer> {
      * Validate parameter combinations for consistency.
      * Returns true if validation passes, false if there are errors.
      */
-    private boolean validateParameters() {
+    private boolean validateParameters(String normalizedDbType) {
         boolean hasErrors = false;
+
+        // Validate IDE selection
+        if (!"eclipse".equalsIgnoreCase(ide)) {
+            if (skipWorkspace) {
+                System.err.println("Warning: --ide is ignored when --skip-workspace is set.");
+            } else {
+                System.err.println("Error: Unsupported IDE '" + ide + "'. Only 'eclipse' is currently supported.");
+                hasErrors = true;
+            }
+        }
+
+        // Validate database type
+        if (!"postgresql".equals(normalizedDbType) && !"oracle".equals(normalizedDbType)) {
+            if (skipDb) {
+                System.err.println("Warning: --db is ignored when --skip-db is set.");
+            } else {
+                System.err.println("Error: Unsupported database type '" + dbType + "'. Use 'postgresql' or 'oracle'.");
+                hasErrors = true;
+            }
+        }
+
+        // Validate port ranges
+        if (!skipDb && (dbPort < 1 || dbPort > 65535)) {
+            System.err.println("Error: --db-port must be between 1 and 65535.");
+            hasErrors = true;
+        }
+        if (!skipDb && (httpPort < 1 || httpPort > 65535)) {
+            System.err.println("Error: --http-port must be between 1 and 65535.");
+            hasErrors = true;
+        }
+        if (!skipDb && (httpsPort < 1 || httpsPort > 65535)) {
+            System.err.println("Error: --https-port must be between 1 and 65535.");
+            hasErrors = true;
+        }
+        if (!skipDb && httpPort == httpsPort) {
+            System.err.println("Error: --http-port and --https-port must be different.");
+            hasErrors = true;
+        }
 
         // Warning: --skip-db makes database options redundant
         if (skipDb) {
@@ -285,7 +326,7 @@ public class SetupDevEnvCommand implements Callable<Integer> {
         }
 
         // Warning: PostgreSQL Docker options used with Oracle
-        if (withDocker && "oracle".equalsIgnoreCase(dbType)) {
+        if (withDocker && "oracle".equalsIgnoreCase(normalizedDbType)) {
             if (!"idempiere-postgres".equals(dockerContainerName)) {
                 System.err.println("Warning: --docker-postgres-name is ignored with --db=oracle.");
             }
@@ -295,7 +336,7 @@ public class SetupDevEnvCommand implements Callable<Integer> {
         }
 
         // Warning: Oracle Docker options used with PostgreSQL
-        if (withDocker && "postgresql".equalsIgnoreCase(dbType)) {
+        if (withDocker && "postgresql".equalsIgnoreCase(normalizedDbType)) {
             if (!"idempiere-oracle".equals(oracleDockerContainer)) {
                 System.err.println("Warning: --oracle-docker-container is ignored with --db=postgresql.");
             }

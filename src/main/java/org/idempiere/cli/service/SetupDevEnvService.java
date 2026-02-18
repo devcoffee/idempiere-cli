@@ -79,9 +79,10 @@ public class SetupDevEnvService {
                 // Without Docker, verify PostgreSQL/Oracle is reachable now
                 // to avoid wasting time on clone/build only to fail at the DB step
                 if (!databaseManager.validateConnection(config)) {
+                    String checkUser = "oracle".equals(config.getDbType()) ? config.getDbUser() : "postgres";
                     System.err.println("Error: Cannot connect to database at "
                             + config.getDbHost() + ":" + config.getDbPort()
-                            + " (user: postgres).");
+                            + " (user: " + checkUser + ").");
                     System.err.println();
                     printDbFixSuggestion(config);
                     System.err.println("  After fixing the database, run this command again.");

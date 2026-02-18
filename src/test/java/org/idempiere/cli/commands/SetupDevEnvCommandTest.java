@@ -74,4 +74,25 @@ class SetupDevEnvCommandTest {
         String output = result.getErrorOutput();
         assertTrue(output.contains("--install-copilot is ignored when --skip-workspace is set"));
     }
+
+    @Test
+    @Launch(value = {"setup-dev-env", "--db=mysql", "--dry-run"}, exitCode = 1)
+    void testInvalidDbTypeFailsValidation(LaunchResult result) {
+        assertEquals(1, result.exitCode());
+        assertTrue(result.getErrorOutput().contains("Unsupported database type"));
+    }
+
+    @Test
+    @Launch(value = {"setup-dev-env", "--db-port=70000", "--dry-run"}, exitCode = 1)
+    void testInvalidDbPortFailsValidation(LaunchResult result) {
+        assertEquals(1, result.exitCode());
+        assertTrue(result.getErrorOutput().contains("--db-port must be between 1 and 65535"));
+    }
+
+    @Test
+    @Launch(value = {"setup-dev-env", "--ide=vscode", "--dry-run"}, exitCode = 1)
+    void testUnsupportedIdeFailsValidation(LaunchResult result) {
+        assertEquals(1, result.exitCode());
+        assertTrue(result.getErrorOutput().contains("Unsupported IDE"));
+    }
 }

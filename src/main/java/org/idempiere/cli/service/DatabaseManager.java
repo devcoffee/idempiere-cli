@@ -221,16 +221,13 @@ public class DatabaseManager {
     private boolean waitForOracleReady(SetupConfig config, int maxRetries) {
         System.out.println("  Waiting for Oracle database to be ready...");
         for (int i = 0; i < maxRetries; i++) {
-            // Use docker exec to check if Oracle is ready
-            // The gvenzl/oracle-xe image has sqlplus available
-            ProcessRunner.RunResult result = processRunner.run(
-                    "docker", "exec", config.getOracleDockerContainer(),
-                    "sqlplus", "-S", "-L",
+            ProcessRunner.RunResult result = runOracleQueryInDocker(
+                    config.getOracleDockerContainer(),
                     "system/" + config.getDbAdminPass() + "@//localhost:1521/XEPDB1",
-                    "<<EOF", "SELECT 1 FROM DUAL;", "EXIT;", "EOF"
+                    "SELECT 1 FROM DUAL;"
             );
 
-            if (result.isSuccess() && result.output().contains("1")) {
+            if (isOracleSelectOneSuccess(result)) {
                 System.out.println();
                 System.out.println("  Oracle database is ready.");
                 return true;
@@ -282,28 +279,25 @@ public class DatabaseManager {
 
     private boolean validateOracleConnection(SetupConfig config) {
         if (config.isUseDocker()) {
-            // Use docker exec to run sqlplus inside the container
-            ProcessRunner.RunResult result = processRunner.run(
-                    "docker", "exec", config.getOracleDockerContainer(),
-                    "sqlplus", "-S", "-L",
+            ProcessRunner.RunResult result = runOracleQueryInDocker(
+                    config.getOracleDockerContainer(),
                     config.getDbUser() + "/" + config.getDbPass() + "@//localhost:1521/XEPDB1",
-                    "<<EOF", "SELECT 1 FROM DUAL;", "EXIT;", "EOF"
+                    "SELECT 1 FROM DUAL;"
             );
-            return result.isSuccess() && result.output().contains("1");
+            return isOracleSelectOneSuccess(result);
         }
 
-        // Otherwise, use local sqlplus client
         String connStr = config.getDbUser() + "/" + config.getDbPass() + "@"
                 + config.getDbHost() + ":" + config.getDbPort() + "/" + config.getDbName();
-        ProcessRunner.RunResult result = processRunner.run("sqlplus", "-S", connStr, "<<EOF\nSELECT 1 FROM DUAL;\nEOF");
-        return result.isSuccess();
+        ProcessRunner.RunResult result = runOracleQueryLocal(connStr, "SELECT 1 FROM DUAL;");
+        return isOracleSelectOneSuccess(result);
     }
 
     public boolean importSeedData(SetupConfig config) {
         Path sourceDir = config.getSourceDir();
 
         // Check prerequisites before running
-        if (!checkImportPrerequisites()) {
+        if (!checkImportPrerequisites(config)) {
             return false;
         }
 
@@ -764,7 +758,7 @@ public class DatabaseManager {
         }
     }
 
-    private boolean checkImportPrerequisites() {
+    private boolean checkImportPrerequisites(SetupConfig config) {
         String os = System.getProperty("os.name", "").toLowerCase();
         java.util.List<String> missing = new java.util.ArrayList<>();
 
@@ -773,8 +767,14 @@ public class DatabaseManager {
             missing.add("greadlink (brew install coreutils)");
         }
 
-        if (!processRunner.isAvailable("psql")) {
-            missing.add("psql (PostgreSQL client)");
+        if ("oracle".equals(config.getDbType())) {
+            if (!processRunner.isAvailable("sqlplus")) {
+                missing.add("sqlplus (Oracle client)");
+            }
+        } else {
+            if (!processRunner.isAvailable("psql")) {
+                missing.add("psql (PostgreSQL client)");
+            }
         }
 
         if (!processRunner.isAvailable("jar")) {
@@ -789,6 +789,37 @@ public class DatabaseManager {
         }
 
         return true;
+    }
+
+    private ProcessRunner.RunResult runOracleQueryInDocker(String containerName, String connStr, String sql) {
+        String command = "echo \"" + escapeForShell(sql) + "\" | sqlplus -S -L " + connStr;
+        return processRunner.run("docker", "exec", containerName, "sh", "-lc", command);
+    }
+
+    private ProcessRunner.RunResult runOracleQueryLocal(String connStr, String sql) {
+        Path script = null;
+        try {
+            script = Files.createTempFile("idempiere-cli-oracle-check-", ".sql");
+            Files.writeString(script, sql + "\nEXIT;\n");
+            return processRunner.run("sqlplus", "-S", "-L", connStr, "@" + script.toAbsolutePath());
+        } catch (IOException e) {
+            return new ProcessRunner.RunResult(-1, e.getMessage());
+        } finally {
+            if (script != null) {
+                try {
+                    Files.deleteIfExists(script);
+                } catch (IOException ignored) {
+                }
+            }
+        }
+    }
+
+    private boolean isOracleSelectOneSuccess(ProcessRunner.RunResult result) {
+        return result.isSuccess() && result.output() != null && result.output().contains("1");
+    }
+
+    private String escapeForShell(String value) {
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     /**

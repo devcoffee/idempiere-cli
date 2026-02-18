@@ -79,7 +79,7 @@ public class BuildCommand implements Callable<Integer> {
             Troubleshooting.printHowToResolve(
                     "Run this command inside a plugin project (with META-INF/MANIFEST.MF and pom.xml).",
                     "Or pass the plugin path explicitly: idempiere-cli build --dir /path/to/plugin",
-                    "Validate plugin structure: idempiere-cli doctor --plugin --dir /path/to/plugin"
+                    "Validate plugin structure: idempiere-cli doctor --dir /path/to/plugin"
             );
             return ExitCodes.STATE_ERROR;
         }

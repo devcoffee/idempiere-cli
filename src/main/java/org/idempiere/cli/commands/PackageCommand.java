@@ -176,7 +176,7 @@ public class PackageCommand implements Callable<Integer> {
             System.err.println("Error: Not an iDempiere plugin in " + pluginDir);
             Troubleshooting.printHowToResolve(
                     "Run package from a plugin directory or provide --dir with plugin path.",
-                    "Validate plugin structure: idempiere-cli doctor --plugin --dir " + pluginDir
+                    "Validate plugin structure: idempiere-cli doctor --dir " + pluginDir
             );
             return ExitCodes.STATE_ERROR;
         }

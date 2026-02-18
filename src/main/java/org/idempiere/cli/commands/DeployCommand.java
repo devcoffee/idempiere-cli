@@ -72,7 +72,7 @@ public class DeployCommand implements Callable<Integer> {
             System.err.println("Error: Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
             Troubleshooting.printHowToResolve(
                     "Run deploy from a plugin directory or provide --dir with plugin path.",
-                    "Validate plugin structure: idempiere-cli doctor --plugin --dir /path/to/plugin"
+                    "Validate plugin structure: idempiere-cli doctor --dir /path/to/plugin"
             );
             return ExitCodes.STATE_ERROR;
         }

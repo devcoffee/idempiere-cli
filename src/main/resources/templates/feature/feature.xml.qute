@@ -3,14 +3,14 @@
       id="{pluginId}.feature"
       label="{pluginName}"
       version="{version}"
-      provider-name="{vendor}">
+      provider-name="{vendorXml}">
 
    <description>
       {pluginName} feature for iDempiere.
    </description>
 
    <copyright>
-      Copyright (c) {vendor}
+      Copyright (c) {vendorXml}
    </copyright>
 
    <license url="">

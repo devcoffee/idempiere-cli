@@ -542,6 +542,7 @@ public class ScaffoldService {
         // Maven version: convert OSGi .qualifier to Maven -SNAPSHOT
         data.put("mavenVersion", toMavenVersion(descriptor.getVersion()));
         data.put("vendor", descriptor.getVendor());
+        data.put("vendorXml", escapeXml(descriptor.getVendor()));
         data.put("withCallout", descriptor.hasFeature("callout"));
         data.put("withEventHandler", descriptor.hasFeature("event-handler"));
         data.put("withProcess", descriptor.hasFeature("process"));
@@ -579,6 +580,15 @@ public class ScaffoldService {
      * Convert OSGi version to Maven version.
      * OSGi uses ".qualifier" for snapshot builds, Maven uses "-SNAPSHOT".
      */
+    private String escapeXml(String value) {
+        if (value == null || value.isEmpty()) return value;
+        return value.replace("&", "&amp;")
+                     .replace("<", "&lt;")
+                     .replace(">", "&gt;")
+                     .replace("\"", "&quot;")
+                     .replace("'", "&apos;");
+    }
+
     private String toMavenVersion(String osgiVersion) {
         if (osgiVersion == null) return null;
         if (osgiVersion.endsWith(".qualifier")) {

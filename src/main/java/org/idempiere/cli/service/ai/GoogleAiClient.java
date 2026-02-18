@@ -52,6 +52,48 @@ public class GoogleAiClient implements AiClient {
     }
 
     @Override
+    public AiResponse validate() {
+        String apiKey = getApiKey();
+        if (apiKey == null) {
+            return AiResponse.fail("API key not configured");
+        }
+        try {
+            ObjectNode root = objectMapper.createObjectNode();
+            ArrayNode contents = root.putArray("contents");
+            ObjectNode content = contents.addObject();
+            ArrayNode parts = content.putArray("parts");
+            ObjectNode part = parts.addObject();
+            part.put("text", "hi");
+            // Set maxOutputTokens to 1 for minimal cost
+            ObjectNode genConfig = root.putObject("generationConfig");
+            genConfig.put("maxOutputTokens", 1);
+            String body = objectMapper.writeValueAsString(root);
+
+            String model = getModel();
+            String url = API_BASE + model + ":generateContent?key=" + apiKey;
+            HttpResponse<String> response = sendRequest(url, body);
+            if (response.statusCode() == 200) {
+                return AiResponse.ok("OK");
+            }
+            try {
+                JsonNode errorNode = objectMapper.readTree(response.body());
+                String errorMsg = errorNode.path("error").path("message").asText(null);
+                if (errorMsg != null) {
+                    return AiResponse.fail(errorMsg);
+                }
+            } catch (Exception ignored) {}
+            return AiResponse.fail("HTTP " + response.statusCode());
+        } catch (IOException e) {
+            return AiResponse.fail("Network error: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return AiResponse.fail("Request interrupted");
+        } catch (Exception e) {
+            return AiResponse.fail(e.getMessage());
+        }
+    }
+
+    @Override
     public AiResponse generate(String prompt) {
         String apiKey = getApiKey();
         if (apiKey == null) {

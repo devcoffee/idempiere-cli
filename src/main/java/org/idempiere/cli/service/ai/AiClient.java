@@ -33,6 +33,16 @@ public interface AiClient {
     AiResponse generate(String prompt);
 
     /**
+     * Validates the AI connection by sending a minimal request.
+     * Uses max_tokens=1 to minimize cost.
+     *
+     * @return the validation result
+     */
+    default AiResponse validate() {
+        return generate("Reply with OK");
+    }
+
+    /**
      * Returns the provider name for logging and identification.
      */
     String providerName();

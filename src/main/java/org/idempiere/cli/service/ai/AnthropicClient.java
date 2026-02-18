@@ -53,6 +53,44 @@ public class AnthropicClient implements AiClient {
     }
 
     @Override
+    public AiResponse validate() {
+        String apiKey = getApiKey();
+        if (apiKey == null) {
+            return AiResponse.fail("API key not configured");
+        }
+        try {
+            ObjectNode root = objectMapper.createObjectNode();
+            root.put("model", getModel());
+            root.put("max_tokens", 1);
+            ArrayNode messages = root.putArray("messages");
+            ObjectNode msg = messages.addObject();
+            msg.put("role", "user");
+            msg.put("content", "hi");
+            String body = objectMapper.writeValueAsString(root);
+
+            HttpResponse<String> response = sendRequest(apiKey, body);
+            if (response.statusCode() == 200) {
+                return AiResponse.ok("OK");
+            }
+            try {
+                JsonNode errorNode = objectMapper.readTree(response.body());
+                String errorMsg = errorNode.path("error").path("message").asText(null);
+                if (errorMsg != null) {
+                    return AiResponse.fail(errorMsg);
+                }
+            } catch (Exception ignored) {}
+            return AiResponse.fail("HTTP " + response.statusCode());
+        } catch (IOException e) {
+            return AiResponse.fail("Network error: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return AiResponse.fail("Request interrupted");
+        } catch (Exception e) {
+            return AiResponse.fail(e.getMessage());
+        }
+    }
+
+    @Override
     public AiResponse generate(String prompt) {
         String apiKey = getApiKey();
         if (apiKey == null) {

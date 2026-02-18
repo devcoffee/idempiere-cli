@@ -148,4 +148,56 @@ class SmartScaffoldTest {
         assertTrue(prompt.contains("tableName"));
         assertTrue(prompt.contains("JSON"));
     }
+
+    @Test
+    void testBuildAiPromptWithNullSkillUsesComponentDescription() {
+        ProjectContext ctx = ProjectContext.builder()
+                .pluginId("org.example.myplugin")
+                .basePackage("org.example.myplugin")
+                .version("1.0.0")
+                .build();
+
+        String prompt = smartScaffoldService.buildAiPrompt(
+                null, ctx, "callout", "MyCallout",
+                Map.of("prompt", "Fill description from Name field")
+        );
+
+        assertFalse(prompt.contains("Skill Instructions"), "Should not have Skill Instructions section");
+        assertTrue(prompt.contains("Component Type"), "Should have Component Type section");
+        assertTrue(prompt.contains("IColumnCallout"), "Should contain built-in callout description");
+        assertTrue(prompt.contains("User Instructions"), "Should contain user prompt");
+        assertTrue(prompt.contains("Fill description from Name field"));
+    }
+
+    @Test
+    void testBuildAiPromptWithSkillIncludesSkillSection() {
+        ProjectContext ctx = ProjectContext.builder()
+                .pluginId("org.example.myplugin")
+                .basePackage("org.example.myplugin")
+                .version("1.0.0")
+                .build();
+
+        String prompt = smartScaffoldService.buildAiPrompt(
+                "# Callout Skill\nDetailed instructions here",
+                ctx, "callout", "MyCallout", null
+        );
+
+        assertTrue(prompt.contains("Skill Instructions"));
+        assertTrue(prompt.contains("Detailed instructions here"));
+        assertFalse(prompt.contains("Component Type"));
+    }
+
+    @Test
+    void testComponentDescriptionsCoversAllTypes() {
+        // All component types that support --prompt should have a description
+        List<String> types = List.of("callout", "process", "process-mapped",
+                "event-handler", "zk-form", "zk-form-zul", "listbox-group",
+                "wlistbox-editor", "report", "jasper-report", "window-validator",
+                "rest-extension", "facts-validator", "base-test");
+
+        for (String type : types) {
+            assertTrue(SmartScaffoldService.COMPONENT_DESCRIPTIONS.containsKey(type),
+                    "Missing component description for: " + type);
+        }
+    }
 }

@@ -10,6 +10,9 @@ import org.idempiere.cli.service.DoctorService;
 import org.idempiere.cli.service.DoctorService.CheckEntry;
 import org.idempiere.cli.service.DoctorService.EnvironmentResult;
 import org.idempiere.cli.service.DoctorService.PluginCheckResult;
+import org.idempiere.cli.service.ai.AiClient;
+import org.idempiere.cli.service.ai.AiClientFactory;
+import org.idempiere.cli.service.ai.AiResponse;
 import org.idempiere.cli.service.check.CheckResult;
 import org.idempiere.cli.service.check.EnvironmentCheck;
 import org.idempiere.cli.util.CliOutput;
@@ -81,6 +84,9 @@ public class DoctorCommand implements Runnable {
 
     @Inject
     CliConfigService configService;
+
+    @Inject
+    AiClientFactory aiClientFactory;
 
     @Override
     public void run() {
@@ -203,12 +209,29 @@ public class DoctorCommand implements Runnable {
         CliConfig config = configService.loadConfig();
         if (config.getAi().isEnabled()) {
             String provider = config.getAi().getProvider();
+            String model = config.getAi().getModel();
             // Check if API key is available (env var or config file)
             String apiKeyEnv = config.getAi().getApiKeyEnv();
             boolean hasEnvKey = apiKeyEnv != null && System.getenv(apiKeyEnv) != null;
             boolean hasConfigKey = config.getAi().hasApiKey();
             if (hasEnvKey || hasConfigKey) {
-                System.out.println("  " + CliOutput.ok("AI provider:    " + provider));
+                // Validate AI connection by sending a minimal request
+                java.util.Optional<AiClient> client = aiClientFactory.getClient();
+                if (client.isPresent()) {
+                    String modelInfo = model != null && !model.isEmpty() ? " (" + model + ")" : "";
+                    System.out.print("  [ ] AI provider:    " + provider + modelInfo + " - validating...");
+                    System.out.flush();
+                    AiResponse validation = client.get().validate();
+                    // Clear the line and print result
+                    System.out.print("\r");
+                    if (validation.success()) {
+                        System.out.println("  " + CliOutput.ok("AI provider:    " + provider + modelInfo));
+                    } else {
+                        System.out.println("  " + CliOutput.fail("AI provider:    " + provider + modelInfo + " - " + validation.error()));
+                    }
+                } else {
+                    System.out.println("  " + CliOutput.warn("AI provider:    " + provider + " (client not found)"));
+                }
             } else {
                 System.out.println("  " + CliOutput.warn("AI provider:    " + provider + " (no API key)"));
                 System.out.println("    Run: idempiere-cli config init");

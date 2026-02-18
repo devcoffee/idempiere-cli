@@ -27,4 +27,15 @@ class DepsCommandTest {
         assertEquals(0, result.exitCode());
         assertTrue(result.getOutput().contains("deps"));
     }
+
+    @Test
+    @Launch(value = {"deps", "--json"}, exitCode = 1)
+    void testDepsJsonErrorContract(LaunchResult result) {
+        assertEquals(1, result.exitCode());
+        String output = result.getOutput();
+        assertTrue(output.contains("\"error\""));
+        assertTrue(output.contains("\"code\""));
+        assertTrue(output.contains("\"message\""));
+        assertTrue(output.contains("NOT_PLUGIN"));
+    }
 }

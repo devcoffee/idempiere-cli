@@ -33,4 +33,15 @@ class InfoCommandTest {
         assertTrue(output.contains("Error") || output.contains("not") ||
                    output.contains("MANIFEST") || output.isEmpty());
     }
+
+    @Test
+    @Launch(value = {"info", "--json"}, exitCode = 1)
+    void testInfoJsonErrorContract(LaunchResult result) {
+        assertEquals(1, result.exitCode());
+        String output = result.getOutput();
+        assertTrue(output.contains("\"error\""));
+        assertTrue(output.contains("\"code\""));
+        assertTrue(output.contains("\"message\""));
+        assertTrue(output.contains("NOT_PLUGIN"));
+    }
 }

@@ -16,6 +16,7 @@ import org.idempiere.cli.service.ai.AiResponse;
 import org.idempiere.cli.service.check.CheckResult;
 import org.idempiere.cli.service.check.EnvironmentCheck;
 import org.idempiere.cli.util.CliOutput;
+import org.idempiere.cli.util.JsonOutput;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -510,8 +511,7 @@ public class DoctorCommand implements Callable<Integer> {
             System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root));
             return 0;
         } catch (Exception e) {
-            System.err.println("{\"error\": \"Failed to serialize JSON\"}");
-            return 1;
+            return JsonOutput.printError("JSON_SERIALIZATION", "Failed to serialize JSON");
         }
     }
 
@@ -535,8 +535,7 @@ public class DoctorCommand implements Callable<Integer> {
             System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root));
             return 0;
         } catch (Exception e) {
-            System.err.println("{\"error\": \"Failed to serialize JSON\"}");
-            return 1;
+            return JsonOutput.printError("JSON_SERIALIZATION", "Failed to serialize JSON");
         }
     }
 }

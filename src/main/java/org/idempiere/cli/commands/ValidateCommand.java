@@ -5,6 +5,7 @@ import org.idempiere.cli.service.ValidateService;
 import org.idempiere.cli.service.ValidateService.Severity;
 import org.idempiere.cli.service.ValidateService.ValidationIssue;
 import org.idempiere.cli.service.ValidateService.ValidationResult;
+import org.idempiere.cli.util.JsonOutput;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
@@ -146,7 +147,7 @@ public class ValidateCommand implements Callable<Integer> {
 
             System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root));
         } catch (Exception e) {
-            System.err.println("{\"error\": \"Failed to serialize JSON\"}");
+            return JsonOutput.printError("JSON_SERIALIZATION", "Failed to serialize JSON");
         }
 
         if (result.errors() > 0) {

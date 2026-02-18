@@ -6,6 +6,7 @@ import jakarta.inject.Inject;
 import org.idempiere.cli.service.PluginInfoService;
 import org.idempiere.cli.service.PluginInfoService.PluginInfo;
 import org.idempiere.cli.service.ProjectDetector;
+import org.idempiere.cli.util.JsonOutput;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -60,7 +61,8 @@ public class InfoCommand implements Callable<Integer> {
         Path pluginDir = Path.of(dir);
         if (!projectDetector.isIdempierePlugin(pluginDir)) {
             if (json) {
-                System.out.println("{\"error\": \"Not an iDempiere plugin in " + pluginDir.toAbsolutePath() + "\"}");
+                return JsonOutput.printError("NOT_PLUGIN",
+                        "Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
             } else {
                 System.err.println("Error: Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
                 System.err.println("Make sure you are inside a plugin directory or use --dir to specify one.");
@@ -78,8 +80,7 @@ public class InfoCommand implements Callable<Integer> {
 
     private Integer printJson(PluginInfo info) {
         if (info == null) {
-            System.out.println("{\"error\": \"Failed to read plugin info\"}");
-            return 1;
+            return JsonOutput.printError("INFO_READ_FAILED", "Failed to read plugin info");
         }
 
         try {
@@ -101,8 +102,7 @@ public class InfoCommand implements Callable<Integer> {
             System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root));
             return 0;
         } catch (Exception e) {
-            System.err.println("{\"error\": \"Failed to serialize JSON\"}");
-            return 1;
+            return JsonOutput.printError("JSON_SERIALIZATION", "Failed to serialize JSON");
         }
     }
 }

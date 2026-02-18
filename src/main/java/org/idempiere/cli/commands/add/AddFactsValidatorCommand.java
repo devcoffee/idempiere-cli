@@ -6,6 +6,7 @@ import org.idempiere.cli.service.ScaffoldService;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import java.nio.file.Path;
+import java.util.Map;
 
 @Command(
         name = "facts-validator",
@@ -19,6 +20,9 @@ public class AddFactsValidatorCommand implements Runnable {
 
     @Option(names = {"--to"}, description = "Target plugin directory")
     String pluginDir;
+
+    @Option(names = {"--prompt"}, description = "Describe what this component should do (used for AI generation)")
+    String prompt;
 
     @Inject
     ScaffoldService scaffoldService;
@@ -35,6 +39,7 @@ public class AddFactsValidatorCommand implements Runnable {
             System.err.println("Make sure you are inside a plugin directory or use --to to specify one.");
             return;
         }
-        scaffoldService.addComponent("facts-validator", name, dir, pluginId);
+        scaffoldService.addComponent("facts-validator", name, dir, pluginId,
+                prompt != null ? Map.of("prompt", prompt) : null);
     }
 }

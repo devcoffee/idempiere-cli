@@ -105,6 +105,9 @@ idempiere-cli add maven-wrapper
 |------------------|----------------------------------------------|
 | `--to=<path>`    | Target plugin directory (if not current dir)  |
 | `--dir=<path>`   | Project directory (for module commands)       |
+| `--prompt=<text>` | Describe what the component should do (used for AI generation) |
+
+The `--prompt` option is available on all component commands (callout, process, event-handler, zk-form, zk-form-zul, listbox-group, wlistbox-editor, report, jasper-report, window-validator, rest-extension, facts-validator, base-test, process-mapped). When an AI provider is configured, the prompt is sent as `## User Instructions` to the AI model, which generates context-aware code. Without AI, the standard template is used as fallback.
 
 ## How It Works
 
@@ -130,9 +133,13 @@ idempiere-cli config set ai.apiKey sk-ant-...
 
 # AI generates contextual code based on skill files
 idempiere-cli add callout OrderDateCallout
+
+# Use --prompt to describe what the component should do
+idempiere-cli add callout OrderDateCallout \
+  --prompt="Validate that DateOrdered is not in the future, show warning if weekend"
 ```
 
-AI scaffolding uses SKILL.md files from configured skill sources to generate more complete, context-aware code.
+AI scaffolding uses SKILL.md files from configured skill sources and the `--prompt` user instructions to generate more complete, context-aware code. Without AI configured, the `--prompt` option is silently ignored and standard templates are used.
 
 ## Example Usage
 

@@ -7,6 +7,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.Map;
 
 @Command(
@@ -25,6 +26,9 @@ public class AddRestExtensionCommand implements Runnable {
     @Option(names = {"--to"}, description = "Target plugin directory")
     String pluginDir;
 
+    @Option(names = {"--prompt"}, description = "Describe what this component should do (used for AI generation)")
+    String prompt;
+
     @Inject
     ScaffoldService scaffoldService;
 
@@ -40,7 +44,9 @@ public class AddRestExtensionCommand implements Runnable {
             System.err.println("Make sure you are inside a plugin directory or use --to to specify one.");
             return;
         }
-        scaffoldService.addComponent("rest-extension", name, dir, pluginId,
-                Map.of("resourcePath", resourcePath));
+        Map<String, Object> extraData = new HashMap<>();
+        extraData.put("resourcePath", resourcePath);
+        if (prompt != null) extraData.put("prompt", prompt);
+        scaffoldService.addComponent("rest-extension", name, dir, pluginId, extraData);
     }
 }

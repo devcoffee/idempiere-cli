@@ -118,8 +118,18 @@ public class SmartScaffoldService {
         prompt.append("\n## Task\n");
         prompt.append("Generate a ").append(type).append(" named ").append(name).append(".\n");
 
-        if (extraData != null && !extraData.isEmpty()) {
-            prompt.append("Additional parameters: ").append(extraData).append("\n");
+        if (extraData != null) {
+            String userPrompt = (String) extraData.get("prompt");
+            if (userPrompt != null && !userPrompt.isBlank()) {
+                prompt.append("\n## User Instructions\n");
+                prompt.append(userPrompt).append("\n");
+            }
+            // Pass remaining extraData (excluding "prompt") as additional parameters
+            Map<String, Object> params = new java.util.HashMap<>(extraData);
+            params.remove("prompt");
+            if (!params.isEmpty()) {
+                prompt.append("Additional parameters: ").append(params).append("\n");
+            }
         }
 
         prompt.append("""

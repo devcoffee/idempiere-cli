@@ -167,7 +167,7 @@ src/test/java/                     # 31 test files
 | `init` | Scaffold new plugin project | ✅ Complete |
 | `init --standalone` | Single plugin (no p2) | ✅ Complete |
 | `init --with-fragment/feature` | Multi-module options | ✅ Complete |
-| `add callout/process/...` | Add components to plugin | ✅ Complete |
+| `add callout/process/...` | Add components to plugin (with `--prompt` for AI) | ✅ Complete |
 | `add model --table=X` | Generate I_/X_/M_ from DB | ✅ Complete |
 | `add test` | Generate JUnit test stubs | ✅ Complete |
 | `add plugin/fragment/feature` | Add modules to project | ✅ Complete |
@@ -192,7 +192,7 @@ src/test/java/                     # 31 test files
 | Cross-platform install script | ✅ curl \| bash |
 | GitHub Actions CI/CD | ✅ Build + Release on tag |
 | YAML configuration | ✅ ~/.idempiere-cli.yaml (with `config init` wizard) |
-| AI integration | ✅ Anthropic, Google, OpenAI (direct API key + env var) |
+| AI integration | ✅ Anthropic, Google, OpenAI (direct API key + env var, `--prompt` on all add commands) |
 | Custom templates | ✅ ~/.idempiere-cli/templates/ |
 | Session logging | ✅ ~/.idempiere-cli/logs/ |
 | PostgreSQL 16 default | ✅ Docker + client |

@@ -275,7 +275,12 @@ public class ScaffoldService {
         Files.createDirectories(pluginDir.resolve("src").resolve(descriptor.getBasePackagePath()));
 
         templateRenderer.render("multi-module/plugin-pom.xml", data, pluginDir.resolve("pom.xml"));
-        templateRenderer.render("plugin/MANIFEST.MF", data, pluginDir.resolve("META-INF/MANIFEST.MF"));
+
+        // MANIFEST uses basePluginId as Bundle-SymbolicName (must match Java package)
+        Map<String, Object> manifestData = new HashMap<>(data);
+        manifestData.put("pluginId", descriptor.getBasePluginId());
+        templateRenderer.render("plugin/MANIFEST.MF", manifestData, pluginDir.resolve("META-INF/MANIFEST.MF"));
+
         templateRenderer.render("plugin/plugin.xml", data, pluginDir.resolve("plugin.xml"));
 
         // Create build.properties

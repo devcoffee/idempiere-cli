@@ -6,6 +6,7 @@ import org.idempiere.cli.service.ScaffoldService;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import java.nio.file.Path;
+import java.util.Map;
 
 @Command(
         name = "wlistbox-editor",
@@ -19,6 +20,9 @@ public class AddWListboxEditorCommand implements Runnable {
 
     @Option(names = {"--to"}, description = "Target plugin directory")
     String pluginDir;
+
+    @Option(names = {"--prompt"}, description = "Describe what this component should do (used for AI generation)")
+    String prompt;
 
     @Inject
     ScaffoldService scaffoldService;
@@ -35,6 +39,7 @@ public class AddWListboxEditorCommand implements Runnable {
             System.err.println("Make sure you are inside a plugin directory or use --to to specify one.");
             return;
         }
-        scaffoldService.addComponent("wlistbox-editor", name, dir, pluginId);
+        scaffoldService.addComponent("wlistbox-editor", name, dir, pluginId,
+                prompt != null ? Map.of("prompt", prompt) : null);
     }
 }

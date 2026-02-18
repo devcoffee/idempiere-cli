@@ -70,13 +70,16 @@ org.mycompany.myplugin/
 
 ## Additional Options
 
-| Flag                  | Description                                    |
-|-----------------------|------------------------------------------------|
-| `--with-fragment`     | Include a fragment module (multi-module only)   |
-| `--with-feature`      | Include a feature module for p2 distribution    |
-| `--no-test`           | Skip test module creation                       |
-| `--fragment-host`     | Fragment host bundle (default: org.adempiere.ui.zk) |
-| `--no-interactive`    | Disable interactive prompts                     |
+| Flag                     | Description                                    |
+|--------------------------|------------------------------------------------|
+| `--name=<name>`          | Project directory name (default: last segment of plugin ID) |
+| `--with-fragment`        | Include a fragment module (multi-module only)   |
+| `--with-feature`         | Include a feature module for p2 distribution    |
+| `--no-test`              | Skip test module creation                       |
+| `--fragment-host`        | Fragment host bundle (default: org.adempiere.ui.zk) |
+| `--eclipse-project`      | Generate Eclipse `.project` files (default: true) |
+| `--no-eclipse-project`   | Skip Eclipse `.project` file generation         |
+| `--no-interactive`       | Disable interactive prompts                     |
 
 ## Example Usage
 
@@ -122,17 +125,20 @@ After `init`, the plugin includes:
 - `build.properties` - Tycho/PDE build configuration
 - `pom.xml` - Maven/Tycho POM with iDempiere p2 repositories
 - `OSGI-INF/*.xml` - Service component descriptors (for registered components)
+- `.project` - Eclipse project file (unless `--no-eclipse-project`)
+- `.gitignore` - Ignores build output, IDE files, and OS files
 - `src/` - Java source with generated component stubs
+- `mvnw`, `mvnw.cmd` - Maven Wrapper scripts
 
 ## What Happens Next
 
 After creating the plugin, the typical workflow is:
 
 ```bash
-cd org.mycompany.myplugin
+cd myplugin
 
-# Add more components later
-idempiere-cli add callout MyNewCallout
+# Add more components later (use --prompt for AI-powered generation)
+idempiere-cli add callout MyNewCallout --prompt="Validate order total against credit limit"
 idempiere-cli add process MyBatchProcess
 
 # Build the plugin
@@ -148,6 +154,8 @@ idempiere-cli deploy --target=/path/to/idempiere
 ## Notes
 
 - The plugin ID should follow Java package naming conventions (e.g., `org.mycompany.myplugin`).
+- The project directory uses the last segment of the plugin ID by default (e.g., `myplugin/`). Use `--name` to override.
 - Multi-module is recommended for plugins that will have tests and p2 packaging.
 - Use standalone for simple, single-purpose plugins.
 - Interactive mode auto-detects if running in a terminal and prompts accordingly.
+- Components are generated using built-in templates. For AI-powered generation with context-aware code, use `add <component> --prompt="..."` after creating the project.

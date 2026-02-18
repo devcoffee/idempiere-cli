@@ -414,4 +414,30 @@ class ScaffoldServiceTest {
         String testProject = Files.readString(rootDir.resolve("org.test.multi.base.test/.project"));
         assertTrue(testProject.contains("<name>org.test.multi.base.test</name>"), "Test project name");
     }
+
+    @Test
+    void testMultiModuleManifestUsesBasePluginId() throws IOException {
+        // Given: Multi-module project
+        PluginDescriptor descriptor = new PluginDescriptor("org.test.manifest");
+        descriptor.setPlatformVersion(PlatformVersion.of(12));
+        descriptor.setOutputDir(tempDir);
+        descriptor.setMultiModule(true);
+        descriptor.addFeature("callout");
+
+        // When
+        scaffoldService.createPlugin(descriptor);
+
+        // Then: Base module MANIFEST should use basePluginId (org.test.manifest.base)
+        Path baseDir = tempDir.resolve("manifest/org.test.manifest.base");
+        String manifest = Files.readString(baseDir.resolve("META-INF/MANIFEST.MF"));
+        assertTrue(manifest.contains("Bundle-SymbolicName: org.test.manifest.base"),
+                "MANIFEST should use basePluginId as Bundle-SymbolicName");
+
+        // Callout source should be in the matching package
+        Path srcDir = baseDir.resolve("src/org/test/manifest/base");
+        assertTrue(Files.exists(srcDir.resolve("BaseCallout.java")),
+                "Callout should be in base package");
+        assertTrue(Files.exists(srcDir.resolve("BaseCalloutFactory.java")),
+                "CalloutFactory should be in base package");
+    }
 }

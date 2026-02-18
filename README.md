@@ -240,7 +240,13 @@ idempiere-cli add facts-validator --name=MyFactsValidator --to=./my-plugin
 idempiere-cli add model --table=C_Order --db-host=localhost --to=./my-plugin
 idempiere-cli add test --dir=./my-plugin              # All components
 idempiere-cli add test --for=MyProcess --dir=./my-plugin  # Specific class
+
+# AI-powered generation with custom prompt
+idempiere-cli add callout --name=OrderDateCallout --to=./my-plugin \
+  --prompt="Validate that the order date is not in the future and set a warning"
 ```
+
+The `--prompt` option is available on all component commands (callout, process, event-handler, zk-form, report, etc.). When an AI provider is configured, it uses the prompt to generate context-aware code. Without AI, the standard template is used.
 
 The `model` subcommand connects to PostgreSQL and generates `I_`, `X_`, and `M_` classes from `AD_Column` metadata.
 
@@ -463,6 +469,10 @@ idempiere-cli config init
 
 # 2. Use normally — AI generates code adapted to your project
 idempiere-cli add callout --name=OrderTotalCalculator --to=./my-plugin
+
+# 3. Describe what the component should do with --prompt
+idempiere-cli add process --name=GenerateInvoices --to=./my-plugin \
+  --prompt="Generate invoices for all confirmed orders in the current period"
 ```
 
 Or configure manually:

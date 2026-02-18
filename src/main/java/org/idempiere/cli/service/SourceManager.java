@@ -76,11 +76,7 @@ public class SourceManager {
             return false;
         }
 
-        if (config.isIncludeRest()) {
-            return cloneRest(config);
-        }
-
-        return true;
+        return cloneRestIfRequested(config);
     }
 
     private boolean updateSource(SetupConfig config) {
@@ -88,32 +84,24 @@ public class SourceManager {
 
         Path sourceDir = config.getSourceDir();
 
-        int exitCode = processRunner.runLiveInDir(sourceDir, "git", "fetch", "--all");
-        if (exitCode != 0) {
-            sessionLogger.logError("Failed to fetch from remote (exit code: " + exitCode + ")");
-            System.err.println("  Failed to fetch from remote.");
+        if (!runGitStep(sourceDir, "Failed to fetch from remote", "  Failed to fetch from remote.",
+                "fetch", "--all")) {
             return false;
         }
 
-        exitCode = processRunner.runLiveInDir(sourceDir, "git", "checkout", config.getBranch());
-        if (exitCode != 0) {
-            sessionLogger.logError("Failed to checkout branch: " + config.getBranch() + " (exit code: " + exitCode + ")");
-            System.err.println("  Failed to checkout branch: " + config.getBranch());
+        if (!runGitStep(sourceDir,
+                "Failed to checkout branch: " + config.getBranch(),
+                "  Failed to checkout branch: " + config.getBranch(),
+                "checkout", config.getBranch())) {
             return false;
         }
 
-        exitCode = processRunner.runLiveInDir(sourceDir, "git", "pull");
-        if (exitCode != 0) {
-            sessionLogger.logError("Failed to pull latest changes (exit code: " + exitCode + ")");
-            System.err.println("  Failed to pull latest changes.");
+        if (!runGitStep(sourceDir, "Failed to pull latest changes", "  Failed to pull latest changes.",
+                "pull")) {
             return false;
         }
 
-        if (config.isIncludeRest()) {
-            return cloneRest(config);
-        }
-
-        return true;
+        return cloneRestIfRequested(config);
     }
 
     private boolean cloneRest(SetupConfig config) {
@@ -166,14 +154,30 @@ public class SourceManager {
             System.err.println("  Maven build failed. See session log for details.");
             // Show last 30 lines as summary on screen
             System.err.println("  Last 30 lines:");
-            String[] lines = result.output().split("\n");
-            int start = Math.max(0, lines.length - 30);
-            for (int i = start; i < lines.length; i++) {
-                System.err.println("    " + lines[i]);
-            }
+            printLastLines(result.output(), 30);
             return false;
         }
 
+        return true;
+    }
+
+    private boolean cloneRestIfRequested(SetupConfig config) {
+        if (!config.isIncludeRest()) {
+            return true;
+        }
+        return cloneRest(config);
+    }
+
+    private boolean runGitStep(Path sourceDir, String logMessage, String stderrMessage, String... gitArgs) {
+        String[] command = new String[gitArgs.length + 1];
+        command[0] = "git";
+        System.arraycopy(gitArgs, 0, command, 1, gitArgs.length);
+        int exitCode = processRunner.runLiveInDir(sourceDir, command);
+        if (exitCode != 0) {
+            sessionLogger.logError(logMessage + " (exit code: " + exitCode + ")");
+            System.err.println(stderrMessage);
+            return false;
+        }
         return true;
     }
 
@@ -243,6 +247,17 @@ public class SourceManager {
             return stream.findFirst().isEmpty();
         } catch (IOException e) {
             return false;
+        }
+    }
+
+    private void printLastLines(String output, int maxLines) {
+        if (output == null || output.isEmpty()) {
+            return;
+        }
+        String[] lines = output.split("\n");
+        int start = Math.max(0, lines.length - maxLines);
+        for (int i = start; i < lines.length; i++) {
+            System.err.println("    " + lines[i]);
         }
     }
 }

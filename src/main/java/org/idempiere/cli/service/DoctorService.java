@@ -171,6 +171,9 @@ public class DoctorService {
             }
         }
 
+        // Report tools that were requested but have no auto-install package for this OS
+        reportManualInstalls(entries, optionalFilter, os);
+
         boolean fixDocker = optionalFilter != null && optionalFilter.contains("docker");
         if (os.contains("mac")) {
             runAutoFixMac(brewPackages, brewCasks, entries, fixDocker);
@@ -290,25 +293,55 @@ public class DoctorService {
     }
 
     private void runAutoFixWindows(Set<String> wingetPackages, List<CheckEntry> entries, boolean fixDocker) {
-        if (!processRunner.isAvailable("winget")) {
-            System.out.println("winget not found. Install from: https://aka.ms/getwinget");
-            return;
-        }
-
         if (!wingetPackages.isEmpty()) {
+            if (!processRunner.isAvailable("winget")) {
+                System.out.println("winget not found. Install from: https://aka.ms/getwinget");
+                return;
+            }
+
             System.out.println("Installing packages with winget...");
+            List<String> failedPackages = new ArrayList<>();
             for (String pkg : wingetPackages) {
                 System.out.println("  Installing " + pkg + "...");
                 // Use no timeout for package installations which can take a long time
-                processRunner.runLiveNoTimeout("winget", "install", "--accept-package-agreements", "--source", "winget", pkg);
+                int pkgExitCode = installWithWinget(pkg);
+                if (pkgExitCode != 0) {
+                    failedPackages.add(pkg);
+                }
+            }
+
+            // Check if psql was installed but not in PATH, and fix it
+            addPsqlToPathIfNeeded();
+
+            System.out.println();
+            if (failedPackages.isEmpty()) {
+                System.out.println("Installation complete. Restart your terminal and run 'idempiere-cli doctor' to verify.");
+            } else {
+                System.out.println("Some packages failed to install: " + String.join(", ", failedPackages));
+                System.out.println("Check output above and install manually if needed.");
             }
         }
+    }
 
-        // Check if psql was installed but not in PATH, and fix it
-        addPsqlToPathIfNeeded();
+    private int installWithWinget(String pkg) {
+        List<String> command = new ArrayList<>();
+        command.add("winget");
+        command.add("install");
+        command.add("--accept-package-agreements");
+        command.add("--accept-source-agreements");
+        command.add("--source");
+        command.add("winget");
 
-        System.out.println();
-        System.out.println("Installation complete. Restart your terminal and run 'idempiere-cli doctor' to verify.");
+        if (pkg.contains(".")) {
+            command.add("--id");
+            command.add(pkg);
+            command.add("--exact");
+        } else {
+            // Keep compatibility for search terms (e.g. custom --java value on Windows).
+            command.add(pkg);
+        }
+
+        return processRunner.runLiveNoTimeout(command.toArray(new String[0]));
     }
 
     /**
@@ -502,6 +535,41 @@ public class DoctorService {
             return Path.of(sdkmanDir);
         }
         return Path.of(System.getProperty("user.home"), ".sdkman");
+    }
+
+    /**
+     * Reports tools that were requested for auto-fix but have no installable package on the current OS.
+     */
+    private void reportManualInstalls(List<CheckEntry> entries, Set<String> optionalFilter, String os) {
+        for (CheckEntry entry : entries) {
+            CheckResult result = entry.result();
+            boolean wasRequested = result.isFail()
+                    || (optionalFilter != null && result.isWarn()
+                        && optionalFilter.contains(result.tool().toLowerCase()));
+            if (!wasRequested) continue;
+
+            EnvironmentCheck.FixSuggestion fix = entry.check().getFixSuggestion(os);
+            if (fix == null) continue;
+
+            boolean canAutoInstall;
+            if (os.contains("win")) {
+                canAutoInstall = fix.wingetPackage() != null;
+            } else if (os.contains("mac")) {
+                canAutoInstall = fix.brewPackage() != null || fix.brewCask() != null
+                        || fix.sdkmanPackage() != null;
+            } else {
+                canAutoInstall = fix.aptPackage() != null || fix.dnfPackage() != null
+                        || fix.pacmanPackage() != null || fix.sdkmanPackage() != null;
+            }
+
+            if (!canAutoInstall) {
+                System.out.println("  " + result.tool() + ": No auto-install available on this platform.");
+                if (fix.manualUrl() != null) {
+                    System.out.println("    Install manually: " + fix.manualUrl());
+                }
+                System.out.println();
+            }
+        }
     }
 
     /**

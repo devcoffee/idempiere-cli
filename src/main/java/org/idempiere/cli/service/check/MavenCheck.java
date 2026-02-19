@@ -61,7 +61,8 @@ public class MavenCheck implements EnvironmentCheck {
                 .dnf("maven")
                 .pacman("maven")
                 .zypper("maven")
-                .url("https://sdkman.io/")
+                .winget("Apache.Maven")
+                .url("https://maven.apache.org/download.cgi")
                 .build();
     }
 }

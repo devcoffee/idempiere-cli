@@ -12,6 +12,13 @@
 #   PLUGIN_ID    Plugin id used for scaffold smoke (default: org.smoke.demo)
 #   PROJECT_NAME Project folder name (default: smoke-demo)
 #   PROMPT_TEXT  Prompt used in add command (default: predefined sentence)
+#   RUN_SETUP_DEV_ENV_DRY_RUN 1|0 include setup-dev-env dry-run step (default: 1)
+#   RUN_SETUP_DEV_ENV_FULL    1|0 include setup-dev-env full run step (default: 0)
+#   SETUP_DEV_ENV_ARGS        Common args for setup-dev-env smoke (default: docker+rest profile)
+#   SETUP_DB_PASS             DB user password for setup-dev-env (default: random per run)
+#   SETUP_DB_ADMIN_PASS       DB admin password for setup-dev-env (default: random per run)
+#   SETUP_SOURCE_DIR          Source directory used by setup-dev-env step
+#   SETUP_ECLIPSE_DIR         Eclipse directory used by setup-dev-env step
 
 set -u
 set -o pipefail
@@ -26,16 +33,39 @@ JAR_PATH="${JAR_PATH:-${PROJECT_ROOT}/target/quarkus-app/quarkus-run.jar}"
 PLUGIN_ID="${PLUGIN_ID:-org.smoke.demo}"
 PROJECT_NAME="${PROJECT_NAME:-smoke-demo}"
 PROMPT_TEXT="${PROMPT_TEXT:-Define Description as Name + Name2 when leaving those fields.}"
+RUN_SETUP_DEV_ENV_DRY_RUN="${RUN_SETUP_DEV_ENV_DRY_RUN:-1}"
+RUN_SETUP_DEV_ENV_FULL="${RUN_SETUP_DEV_ENV_FULL:-0}"
+SETUP_DEV_ENV_ARGS="${SETUP_DEV_ENV_ARGS:---with-docker --include-rest}"
 
 SMOKE_ROOT="${1:-/tmp/idempiere-cli-smoke-$(date +%Y%m%d-%H%M%S)}"
 WORK_DIR="${SMOKE_ROOT}/work"
 REPORT_DIR="${SMOKE_ROOT}/reports"
 PLUGIN_ROOT="${WORK_DIR}/${PROJECT_NAME}"
 BASE_MODULE="${PLUGIN_ROOT}/${PLUGIN_ID}.base"
+SETUP_SOURCE_DIR="${SETUP_SOURCE_DIR:-${WORK_DIR}/setup-dev-env/idempiere}"
+SETUP_ECLIPSE_DIR="${SETUP_ECLIPSE_DIR:-${WORK_DIR}/setup-dev-env/eclipse}"
 SUMMARY_FILE="${REPORT_DIR}/summary.tsv"
 INDEX_FILE="${REPORT_DIR}/index.md"
 LAST_STEP_RC=0
 CLI_MODE_EFFECTIVE=""
+SETUP_DEV_ENV_EFFECTIVE_ARGS=""
+
+generate_password() {
+  LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24
+}
+
+SETUP_DB_PASS="${SETUP_DB_PASS:-$(generate_password)}"
+SETUP_DB_ADMIN_PASS="${SETUP_DB_ADMIN_PASS:-$(generate_password)}"
+
+SETUP_DEV_ENV_EFFECTIVE_ARGS="${SETUP_DEV_ENV_ARGS}"
+case " ${SETUP_DEV_ENV_EFFECTIVE_ARGS} " in
+  *" --db-pass="*) ;;
+  *) SETUP_DEV_ENV_EFFECTIVE_ARGS="${SETUP_DEV_ENV_EFFECTIVE_ARGS} --db-pass=\"\$SETUP_DB_PASS\"" ;;
+esac
+case " ${SETUP_DEV_ENV_EFFECTIVE_ARGS} " in
+  *" --db-admin-pass="*) ;;
+  *) SETUP_DEV_ENV_EFFECTIVE_ARGS="${SETUP_DEV_ENV_EFFECTIVE_ARGS} --db-admin-pass=\"\$SETUP_DB_ADMIN_PASS\"" ;;
+esac
 
 mkdir -p "${WORK_DIR}" "${REPORT_DIR}"
 
@@ -172,6 +202,8 @@ printf "step\texit_code\tlog_file\n" > "${SUMMARY_FILE}"
   echo "- Work dir: \`${WORK_DIR}\`"
   echo "- Plugin ID: \`${PLUGIN_ID}\`"
   echo "- Project name: \`${PROJECT_NAME}\`"
+  echo "- setup-dev-env dry-run step: \`${RUN_SETUP_DEV_ENV_DRY_RUN}\`"
+  echo "- setup-dev-env full step: \`${RUN_SETUP_DEV_ENV_FULL}\`"
   echo
   echo "## Steps"
 } > "${INDEX_FILE}"
@@ -209,6 +241,16 @@ run_step "Doctor text" \
 run_step "Doctor json" \
   "run_cli doctor --json"
 
+if [ "${RUN_SETUP_DEV_ENV_DRY_RUN}" = "1" ]; then
+  run_step "Setup-dev-env dry-run docker+rest profile" \
+    "run_cli setup-dev-env --non-interactive --dry-run --source-dir=\"${SETUP_SOURCE_DIR}\" --eclipse-dir=\"${SETUP_ECLIPSE_DIR}\" ${SETUP_DEV_ENV_EFFECTIVE_ARGS}"
+fi
+
+if [ "${RUN_SETUP_DEV_ENV_FULL}" = "1" ]; then
+  run_step "Setup-dev-env full docker+rest profile" \
+    "run_cli setup-dev-env --non-interactive --source-dir=\"${SETUP_SOURCE_DIR}\" --eclipse-dir=\"${SETUP_ECLIPSE_DIR}\" ${SETUP_DEV_ENV_EFFECTIVE_ARGS}"
+fi
+
 run_step "Init non-interactive multi-module" \
   "( cd \"${WORK_DIR}\" && run_cli init \"${PLUGIN_ID}\" --name=\"${PROJECT_NAME}\" --no-interactive --with-callout --with-test --with-fragment --with-feature )"
 
@@ -219,7 +261,7 @@ run_step "Info base module json" \
   "run_cli info --dir=\"${BASE_MODULE}\" --json"
 
 run_step "Validate base module" \
-  "run_cli validate --dir=\"${BASE_MODULE}\" --strict"
+  "run_cli validate --strict \"${BASE_MODULE}\""
 
 run_step "Deps base module text" \
   "run_cli deps --dir=\"${BASE_MODULE}\""
@@ -256,7 +298,7 @@ if ls "${HOME}/.idempiere-cli/logs/session-"*.log >/dev/null 2>&1; then
 fi
 
 total_steps=$(( $(wc -l < "${SUMMARY_FILE}") - 1 ))
-passed_steps=$(awk 'NR>1 && $2==0 {c++} END {print c+0}' "${SUMMARY_FILE}")
+passed_steps=$(awk -F'\t' 'NR>1 && $2==0 {c++} END {print c+0}' "${SUMMARY_FILE}")
 failed_steps=$(( total_steps - passed_steps ))
 
 {

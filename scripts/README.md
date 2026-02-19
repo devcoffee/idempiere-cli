@@ -10,6 +10,7 @@ Runs a practical smoke suite for `idempiere-cli`, captures stdout/stderr for eac
 
 - CLI startup and help
 - `doctor` (text + json)
+- `setup-dev-env` profile validation (`--dry-run`, docker+rest args)
 - `init` (non-interactive, multi-module)
 - `info`, `validate`, `deps`, plugin `doctor`
 - `add` flow with AI prompt
@@ -65,6 +66,27 @@ CLI_MODE=auto ./scripts/run-cli-prebuild-smoke.sh
 - `PLUGIN_ID` default: `org.smoke.demo`
 - `PROJECT_NAME` default: `smoke-demo`
 - `PROMPT_TEXT` default: predefined callout prompt
+- `RUN_SETUP_DEV_ENV_DRY_RUN` default: `1` (adds `setup-dev-env --dry-run` smoke step)
+- `RUN_SETUP_DEV_ENV_FULL` default: `0` (runs real `setup-dev-env`, heavy and stateful)
+- `SETUP_DEV_ENV_ARGS` default: `--with-docker --include-rest`
+- `SETUP_DB_PASS` default: random per run (24 chars, alphanumeric)
+- `SETUP_DB_ADMIN_PASS` default: random per run (24 chars, alphanumeric)
+- `SETUP_SOURCE_DIR` default: `<smoke-root>/work/setup-dev-env/idempiere`
+- `SETUP_ECLIPSE_DIR` default: `<smoke-root>/work/setup-dev-env/eclipse`
+
+### Setup-dev-env examples
+
+Dry-run only (default behavior):
+
+```bash
+CLI_MODE=jar ./scripts/run-cli-prebuild-smoke.sh
+```
+
+Run full setup-dev-env step too:
+
+```bash
+CLI_MODE=jar RUN_SETUP_DEV_ENV_FULL=1 ./scripts/run-cli-prebuild-smoke.sh
+```
 
 ### Notes
 

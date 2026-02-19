@@ -71,8 +71,8 @@ CLI_MODE=auto ./scripts/run-cli-prebuild-smoke.sh
 - `SETUP_DEV_ENV_ARGS` default: `--with-docker --include-rest`
 - `SETUP_DB_PASS` default: random per run (24 chars, alphanumeric)
 - `SETUP_DB_ADMIN_PASS` default: random per run (24 chars, alphanumeric)
-- `SETUP_SOURCE_DIR` default: `<smoke-root>/work/setup-dev-env/idempiere`
-- `SETUP_ECLIPSE_DIR` default: `<smoke-root>/work/setup-dev-env/eclipse`
+- `SETUP_SOURCE_DIR` default: `<smoke-root>/work/idempiere`
+- `SETUP_ECLIPSE_DIR` default: `<smoke-root>/work/eclipse`
 
 ### Setup-dev-env examples
 

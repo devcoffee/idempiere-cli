@@ -42,8 +42,8 @@ WORK_DIR="${SMOKE_ROOT}/work"
 REPORT_DIR="${SMOKE_ROOT}/reports"
 PLUGIN_ROOT="${WORK_DIR}/${PROJECT_NAME}"
 BASE_MODULE="${PLUGIN_ROOT}/${PLUGIN_ID}.base"
-SETUP_SOURCE_DIR="${SETUP_SOURCE_DIR:-${WORK_DIR}/setup-dev-env/idempiere}"
-SETUP_ECLIPSE_DIR="${SETUP_ECLIPSE_DIR:-${WORK_DIR}/setup-dev-env/eclipse}"
+SETUP_SOURCE_DIR="${SETUP_SOURCE_DIR:-${WORK_DIR}/idempiere}"
+SETUP_ECLIPSE_DIR="${SETUP_ECLIPSE_DIR:-${WORK_DIR}/eclipse}"
 SUMMARY_FILE="${REPORT_DIR}/summary.tsv"
 INDEX_FILE="${REPORT_DIR}/index.md"
 LAST_STEP_RC=0
@@ -281,8 +281,8 @@ run_step "Add process with AI prompt" \
 run_step "Build with plugin mvnw" \
   "( cd \"${PLUGIN_ROOT}\" && ./mvnw -q -DskipTests verify )"
 
-run_step "Build command at root" \
-  "run_cli build --dir=\"${PLUGIN_ROOT}\""
+run_step "Build command at base module" \
+  "run_cli build --dir=\"${BASE_MODULE}\""
 
 run_step "Package zip" \
   "run_cli package --dir=\"${PLUGIN_ROOT}\" --format=zip --output=dist-smoke"

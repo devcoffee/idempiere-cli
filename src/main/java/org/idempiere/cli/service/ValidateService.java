@@ -260,17 +260,15 @@ public class ValidateService {
                         "Missing or invalid packaging - should be 'eclipse-plugin' or 'bundle'"));
             }
 
-            // Check for Tycho plugin
-            if (!content.contains("tycho-maven-plugin") && !content.contains("tycho.version")) {
+            // Check for Tycho plugin (module may inherit config from parent pom.xml)
+            if (!hasTychoConfigInPomOrParent(pom, content)) {
                 issues.add(new ValidationIssue(Severity.WARNING, "pom.xml",
                         "Tycho Maven plugin not found - required for OSGi builds"));
             }
 
             // Check artifactId matches Bundle-SymbolicName
-            Pattern artifactPattern = Pattern.compile("<artifactId>([^<]+)</artifactId>");
-            Matcher am = artifactPattern.matcher(content);
-            if (am.find()) {
-                String artifactId = am.group(1);
+            String artifactId = extractProjectArtifactId(content);
+            if (artifactId != null) {
                 String pluginId = extractPluginId(pluginDir);
                 if (!artifactId.equals(pluginId) && !pluginId.equals("unknown")) {
                     issues.add(new ValidationIssue(Severity.WARNING, "pom.xml",
@@ -393,7 +391,7 @@ public class ValidateService {
 
             // Check for extension points
             if (!content.contains("<extension") && !content.contains("<extension-point")) {
-                issues.add(new ValidationIssue(Severity.WARNING, "plugin.xml",
+                issues.add(new ValidationIssue(Severity.INFO, "plugin.xml",
                         "No extensions defined - file may be unnecessary"));
             }
 
@@ -488,5 +486,61 @@ public class ValidateService {
             issues.add(new ValidationIssue(Severity.ERROR, relativePath,
                     "Cannot read file: " + e.getMessage()));
         }
+    }
+
+    private boolean hasTychoConfigInPomOrParent(Path pomPath, String content) {
+        if (hasTychoConfig(content)) {
+            return true;
+        }
+
+        Path parentPom = resolveParentPomPath(pomPath, content);
+        if (parentPom == null || !Files.exists(parentPom)) {
+            return false;
+        }
+
+        try {
+            String parentContent = Files.readString(parentPom);
+            return hasTychoConfig(parentContent);
+        } catch (IOException ignored) {
+            return false;
+        }
+    }
+
+    private boolean hasTychoConfig(String pomContent) {
+        return pomContent.contains("tycho-maven-plugin")
+                || pomContent.contains("<tycho.version>")
+                || pomContent.contains("org.eclipse.tycho");
+    }
+
+    private Path resolveParentPomPath(Path pomPath, String content) {
+        Pattern parentPattern = Pattern.compile("(?s)<parent>(.*?)</parent>");
+        Matcher parentMatcher = parentPattern.matcher(content);
+        if (!parentMatcher.find()) {
+            return null;
+        }
+
+        String parentBlock = parentMatcher.group(1);
+        Pattern relativePathPattern = Pattern.compile("<relativePath>([^<]*)</relativePath>");
+        Matcher relativePathMatcher = relativePathPattern.matcher(parentBlock);
+
+        String relativePath = "../pom.xml";
+        if (relativePathMatcher.find()) {
+            String candidate = relativePathMatcher.group(1).trim();
+            if (!candidate.isEmpty()) {
+                relativePath = candidate;
+            }
+        }
+
+        return pomPath.getParent().resolve(relativePath).normalize();
+    }
+
+    private String extractProjectArtifactId(String pomContent) {
+        String withoutParent = pomContent.replaceFirst("(?s)<parent>.*?</parent>", "");
+        Pattern artifactPattern = Pattern.compile("<artifactId>([^<]+)</artifactId>");
+        Matcher matcher = artifactPattern.matcher(withoutParent);
+        if (matcher.find()) {
+            return matcher.group(1).trim();
+        }
+        return null;
     }
 }

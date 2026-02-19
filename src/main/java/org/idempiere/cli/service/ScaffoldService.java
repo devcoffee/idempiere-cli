@@ -58,6 +58,9 @@ public class ScaffoldService {
     @Inject
     SmartScaffoldService smartScaffoldService;
 
+    @Inject
+    SessionLogger sessionLogger;
+
     public ScaffoldResult createPlugin(PluginDescriptor descriptor) {
         if (descriptor.isMultiModule()) {
             return createMultiModulePlugin(descriptor);
@@ -476,6 +479,14 @@ public class ScaffoldService {
      * @param extraData additional data for the generator (e.g., resourcePath for REST)
      */
     public ScaffoldResult addComponent(String type, String name, Path pluginDir, String pluginId, Map<String, Object> extraData) {
+        boolean startedSession = false;
+        boolean success = false;
+
+        if (!sessionLogger.isActive()) {
+            sessionLogger.startSession(buildAddCommandLine(type, name, pluginDir, extraData));
+            startedSession = true;
+        }
+
         System.out.println();
         System.out.println("Adding " + type + ": " + name);
         System.out.println();
@@ -497,10 +508,26 @@ public class ScaffoldService {
             System.out.println();
             System.out.println("Component added successfully!");
             System.out.println();
+            success = true;
             return ScaffoldResult.ok(pluginDir);
         } catch (IOException e) {
             return ioError("Error adding component", e, false);
+        } finally {
+            if (startedSession) {
+                sessionLogger.endSession(success);
+            }
         }
+    }
+
+    private String buildAddCommandLine(String type, String name, Path pluginDir, Map<String, Object> extraData) {
+        StringBuilder cmd = new StringBuilder("add ").append(type)
+                .append(" --name=").append(name)
+                .append(" --to=").append(pluginDir.toAbsolutePath());
+
+        if (extraData != null && extraData.get("prompt") instanceof String prompt && !prompt.isBlank()) {
+            cmd.append(" --prompt=<provided>");
+        }
+        return cmd.toString();
     }
 
     /**

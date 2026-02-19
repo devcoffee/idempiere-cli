@@ -33,7 +33,20 @@ public class SmartScaffoldService {
     @Inject
     ProjectAnalyzer projectAnalyzer;
 
+    @Inject
+    SessionLogger sessionLogger;
+
     private static final ObjectMapper objectMapper = new ObjectMapper();
+
+    private record ParseResult(GeneratedCode code, String errorMessage) {
+        static ParseResult success(GeneratedCode code) {
+            return new ParseResult(code, null);
+        }
+
+        static ParseResult failure(String errorMessage) {
+            return new ParseResult(null, errorMessage);
+        }
+    }
 
     /**
      * Tries AI generation for a component. Returns the generated code if successful, empty otherwise.
@@ -61,18 +74,26 @@ public class SmartScaffoldService {
         }
 
         String prompt = buildAiPrompt(skill.orElse(null), ctx, type, name, extraData);
+        sessionLogger.logCommandOutput("ai-prompt", prompt);
 
         System.out.println("  Generating with AI (" + client.providerName() + ")...");
         AiResponse response = client.generate(prompt);
 
         if (!response.success()) {
+            sessionLogger.logError("AI generation failed: " + response.error());
             System.err.println("  AI generation failed: " + response.error());
             return Optional.empty();
         }
 
-        GeneratedCode code = parseAiResponse(response.content());
+        sessionLogger.logCommandOutput("ai-response", response.content());
+
+        ParseResult parsed = parseAiResponseDetailed(response.content());
+        GeneratedCode code = parsed.code();
         if (code == null || code.getFiles().isEmpty()) {
-            System.err.println("  Failed to parse AI response");
+            sessionLogger.logError("AI parse failed: " + parsed.errorMessage());
+            sessionLogger.logCommandOutput("ai-response-raw", response.content());
+            System.err.println("  Failed to parse AI response. Falling back to template generation.");
+            System.err.println("  See log for details: " + currentLogPathHint());
             return Optional.empty();
         }
 
@@ -87,6 +108,7 @@ public class SmartScaffoldService {
             System.out.println("  Generated with AI");
             return Optional.of(code);
         } catch (IOException e) {
+            sessionLogger.logError("Failed to write AI-generated files: " + e.getMessage());
             System.err.println("  Failed to write AI-generated files: " + e.getMessage());
             return Optional.empty();
         }
@@ -187,39 +209,61 @@ public class SmartScaffoldService {
     }
 
     GeneratedCode parseAiResponse(String raw) {
-        if (raw == null || raw.isBlank()) return null;
+        return parseAiResponseDetailed(raw).code();
+    }
+
+    private ParseResult parseAiResponseDetailed(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return ParseResult.failure("AI response is empty");
+        }
 
         // 1. Try raw as-is
-        GeneratedCode result = tryParseJson(raw.strip());
-        if (result != null) return result;
+        ParseResult result = tryParseJson(raw.strip(), "raw response");
+        if (result.code() != null) return result;
+        String lastError = result.errorMessage();
 
         // 2. Try extracting from markdown code fences (```json ... ``` or ``` ... ```)
         java.util.regex.Matcher fenceMatcher = java.util.regex.Pattern
                 .compile("```(?:json)?\\s*\\n?(\\{.*?\\})\\s*```", java.util.regex.Pattern.DOTALL)
                 .matcher(raw);
         if (fenceMatcher.find()) {
-            result = tryParseJson(fenceMatcher.group(1).strip());
-            if (result != null) return result;
+            result = tryParseJson(fenceMatcher.group(1).strip(), "markdown code fence");
+            if (result.code() != null) return result;
+            lastError = result.errorMessage();
         }
 
         // 3. Try extracting the outermost { ... } block
         int start = raw.indexOf('{');
         int end = raw.lastIndexOf('}');
         if (start >= 0 && end > start) {
-            result = tryParseJson(raw.substring(start, end + 1).strip());
-            if (result != null) return result;
+            result = tryParseJson(raw.substring(start, end + 1).strip(), "outer JSON block");
+            if (result.code() != null) return result;
+            lastError = result.errorMessage();
         }
 
-        return null;
+        return ParseResult.failure(lastError != null ? lastError : "No parseable JSON object found in AI response");
     }
 
-    private GeneratedCode tryParseJson(String json) {
+    private ParseResult tryParseJson(String json, String source) {
         try {
             GeneratedCode code = objectMapper.readValue(json, GeneratedCode.class);
-            return (code != null && code.getFiles() != null && !code.getFiles().isEmpty()) ? code : null;
+            if (code != null && code.getFiles() != null && !code.getFiles().isEmpty()) {
+                return ParseResult.success(code);
+            }
+            return ParseResult.failure("Parsed " + source + " but files array is empty");
         } catch (Exception e) {
-            return null;
+            String message = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+            message = message.replace('\n', ' ').replace('\r', ' ');
+            return ParseResult.failure("Invalid JSON in " + source + ": " + message);
         }
+    }
+
+    private String currentLogPathHint() {
+        Path sessionLog = sessionLogger.getSessionLogFile();
+        if (sessionLog != null) {
+            return sessionLog.toAbsolutePath().toString();
+        }
+        return "~/.idempiere-cli/logs/latest.log";
     }
 
     List<String> validateGeneratedCode(GeneratedCode code, String pluginId) {

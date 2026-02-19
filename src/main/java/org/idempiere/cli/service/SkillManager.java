@@ -21,6 +21,8 @@ import java.util.stream.Stream;
  */
 @ApplicationScoped
 public class SkillManager {
+    public static final String ROOT_SKILL_DIR = "<root>";
+    private static final String SKILL_FILE_NAME = "SKILL.md";
 
     /** Maps CLI component type to the skill directory name in hengsin/idempiere-skills. */
     public static final Map<String, String> TYPE_TO_SKILL = Map.ofEntries(
@@ -68,6 +70,7 @@ public class SkillManager {
      * 1. Hardcoded TYPE_TO_SKILL map (known iDempiere types)
      * 2. Dynamic discovery: exact directory name match
      * 3. Dynamic discovery: "idempiere-{type}" convention
+     * 4. Fallback: root-level SKILL.md in the source directory
      *
      * Sources are checked in priority order (0 = highest).
      */
@@ -92,7 +95,13 @@ public class SkillManager {
         }
 
         // 3. Dynamic discovery: "idempiere-{type}" convention
-        return findSkillInSources("idempiere-" + componentType, sources, config.getSkills().getCacheDir());
+        result = findSkillInSources("idempiere-" + componentType, sources, config.getSkills().getCacheDir());
+        if (result.isPresent()) {
+            return result;
+        }
+
+        // 4. Fallback: root-level SKILL.md (e.g., repos like idempiere-examples)
+        return findRootSkillInSources(sources, config.getSkills().getCacheDir());
     }
 
     private Optional<SkillResolution> findSkillInSources(String skillDir, List<CliConfig.SkillSource> sources, String cacheDir) {
@@ -102,9 +111,24 @@ public class SkillManager {
                 continue;
             }
 
-            Path skillMdPath = sourceDir.resolve(skillDir).resolve("SKILL.md");
+            Path skillMdPath = sourceDir.resolve(skillDir).resolve(SKILL_FILE_NAME);
             if (Files.exists(skillMdPath)) {
                 return Optional.of(new SkillResolution(source.getName(), skillDir, skillMdPath));
+            }
+        }
+        return Optional.empty();
+    }
+
+    private Optional<SkillResolution> findRootSkillInSources(List<CliConfig.SkillSource> sources, String cacheDir) {
+        for (CliConfig.SkillSource source : sources) {
+            Path sourceDir = resolveSourceDir(source, cacheDir);
+            if (sourceDir == null || !Files.isDirectory(sourceDir)) {
+                continue;
+            }
+
+            Path skillMdPath = sourceDir.resolve(SKILL_FILE_NAME);
+            if (Files.exists(skillMdPath)) {
+                return Optional.of(new SkillResolution(source.getName(), ROOT_SKILL_DIR, skillMdPath));
             }
         }
         return Optional.empty();
@@ -181,10 +205,13 @@ public class SkillManager {
             if (sourceDir != null && Files.isDirectory(sourceDir)) {
                 try (Stream<Path> dirs = Files.list(sourceDir)) {
                     dirs.filter(Files::isDirectory)
-                            .filter(d -> Files.exists(d.resolve("SKILL.md")))
+                            .filter(d -> Files.exists(d.resolve(SKILL_FILE_NAME)))
                             .forEach(d -> skills.add(d.getFileName().toString()));
                 } catch (IOException e) {
                     // ignore
+                }
+                if (Files.exists(sourceDir.resolve(SKILL_FILE_NAME))) {
+                    skills.add(ROOT_SKILL_DIR);
                 }
             }
 
@@ -211,7 +238,7 @@ public class SkillManager {
 
             try (Stream<Path> dirs = Files.list(sourceDir)) {
                 dirs.filter(Files::isDirectory)
-                        .filter(d -> Files.exists(d.resolve("SKILL.md")))
+                        .filter(d -> Files.exists(d.resolve(SKILL_FILE_NAME)))
                         .map(d -> d.getFileName().toString())
                         .filter(name -> !TYPE_TO_SKILL.containsValue(name))
                         .map(name -> name.startsWith("idempiere-") ? name.substring("idempiere-".length()) : name)

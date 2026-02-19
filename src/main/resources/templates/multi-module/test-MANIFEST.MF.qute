@@ -11,4 +11,4 @@ Import-Package: org.idempiere.test,
  org.junit.jupiter.api.extension;version="[5.9.0,6.0.0]",
  org.osgi.framework;version="[1.10.0,2.0.0)"
 Require-Bundle: org.adempiere.base;bundle-version="{bundleVersion}",
- {basePluginId};bundle-version="{version}"
+ {basePluginId};bundle-version="{baseVersion}"

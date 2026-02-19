@@ -559,6 +559,7 @@ public class ScaffoldService {
         data.put("pluginId", descriptor.getPluginId());
         data.put("pluginName", descriptor.getPluginName());
         data.put("version", descriptor.getVersion());
+        data.put("baseVersion", toBaseVersion(descriptor.getVersion()));
         // Maven version: convert OSGi .qualifier to Maven -SNAPSHOT
         data.put("mavenVersion", toMavenVersion(descriptor.getVersion()));
         data.put("vendor", descriptor.getVendor());
@@ -613,6 +614,14 @@ public class ScaffoldService {
         if (osgiVersion == null) return null;
         if (osgiVersion.endsWith(".qualifier")) {
             return osgiVersion.replace(".qualifier", "-SNAPSHOT");
+        }
+        return osgiVersion;
+    }
+
+    private String toBaseVersion(String osgiVersion) {
+        if (osgiVersion == null) return null;
+        if (osgiVersion.endsWith(".qualifier")) {
+            return osgiVersion.substring(0, osgiVersion.length() - ".qualifier".length());
         }
         return osgiVersion;
     }

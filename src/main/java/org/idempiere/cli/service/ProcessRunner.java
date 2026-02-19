@@ -227,22 +227,39 @@ public class ProcessRunner {
      * Shows a simple progress indicator while running.
      */
     public RunResult runQuiet(String... command) {
-        return runQuietInDir(null, command);
+        return runQuietInDirWithTimeout(null, 0, command);
+    }
+
+    /**
+     * Run a command quietly with an explicit timeout (seconds).
+     * Use timeoutSeconds <= 0 for no timeout.
+     */
+    public RunResult runQuietWithTimeout(int timeoutSeconds, String... command) {
+        return runQuietInDirWithTimeout(null, timeoutSeconds, command);
     }
 
     public RunResult runQuietInDirWithEnv(Path workDir, Map<String, String> env, String... command) {
-        return runQuietInternal(workDir, env, null, command);
+        return runQuietInternal(workDir, env, null, 0, command);
     }
 
     public RunResult runQuietInDirWithEnvAndInput(Path workDir, Map<String, String> env, String input, String... command) {
-        return runQuietInternal(workDir, env, input, command);
+        return runQuietInternal(workDir, env, input, 0, command);
     }
 
     public RunResult runQuietInDir(Path workDir, String... command) {
-        return runQuietInternal(workDir, null, null, command);
+        return runQuietInDirWithTimeout(workDir, 0, command);
     }
 
-    private RunResult runQuietInternal(Path workDir, Map<String, String> env, String input, String... command) {
+    /**
+     * Run a command quietly in a directory with an explicit timeout (seconds).
+     * Use timeoutSeconds <= 0 for no timeout.
+     */
+    public RunResult runQuietInDirWithTimeout(Path workDir, int timeoutSeconds, String... command) {
+        return runQuietInternal(workDir, null, null, timeoutSeconds, command);
+    }
+
+    private RunResult runQuietInternal(Path workDir, Map<String, String> env, String input,
+                                       int timeoutSeconds, String... command) {
         long startTime = System.currentTimeMillis();
         sessionLogger.logCommand(workDir, command);
 
@@ -288,6 +305,15 @@ public class ProcessRunner {
             while (process.isAlive()) {
                 System.out.print(".");
                 System.out.flush();
+
+                if (timeoutSeconds > 0 && System.currentTimeMillis() - startTime >= timeoutSeconds * 1000L) {
+                    process.destroyForcibly();
+                    reader.join(1000);
+                    System.out.println();
+                    sessionLogger.logCommandResult(-2, System.currentTimeMillis() - startTime);
+                    return new RunResult(-2, output + "\n[TIMEOUT after " + timeoutSeconds + "s]");
+                }
+
                 try {
                     Thread.sleep(2000);
                 } catch (InterruptedException e) {

@@ -62,4 +62,19 @@ class ProcessRunnerTest {
         ProcessRunner.RunResult failure = new ProcessRunner.RunResult(1, "error");
         assertFalse(failure.isSuccess());
     }
+
+    @Test
+    void testRunQuietWithTimeout() {
+        String os = System.getProperty("os.name", "").toLowerCase();
+        ProcessRunner.RunResult result;
+
+        if (os.contains("win")) {
+            result = processRunner.runQuietWithTimeout(1, "ping", "-n", "6", "127.0.0.1");
+        } else {
+            result = processRunner.runQuietWithTimeout(1, "sh", "-c", "sleep 3");
+        }
+
+        assertTrue(result.isTimeout());
+        assertEquals(-2, result.exitCode());
+    }
 }

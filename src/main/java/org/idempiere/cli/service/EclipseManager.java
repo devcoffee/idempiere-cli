@@ -30,6 +30,9 @@ public class EclipseManager {
     private static final String TPD_REPO = "https://download.eclipse.org/cbi/updates/tpd/nightly/latest";
     private static final String LSP4E_REPO = "https://download.eclipse.org/lsp4e/releases/latest/";
     private static final String COPILOT_REPO = "https://azuredownloads-g3ahgwb5b8bkbxhd.b01.azurefd.net/github-copilot/";
+    private static final int P2_DIRECTOR_TIMEOUT_SECONDS = CliDefaults.TIMEOUT_LONG;
+    private static final int IMPORT_WORKSPACE_TIMEOUT_SECONDS = 900;
+    private static final int LOAD_TARGET_PLATFORM_TIMEOUT_SECONDS = CliDefaults.TIMEOUT_LONG;
 
     @Inject
     ProcessRunner processRunner;
@@ -129,6 +132,7 @@ public class EclipseManager {
         ProcessRunner.RunResult result = runEclipseCommand(
                 eclipseExe,
                 vm,
+                P2_DIRECTOR_TIMEOUT_SECONDS,
                 "-nosplash",
                 "-data", dataDir.toAbsolutePath().toString(),
                 "-application", "org.eclipse.equinox.p2.director",
@@ -155,6 +159,16 @@ public class EclipseManager {
         Path eclipseDir = config.getEclipseDir();
 
         try {
+            Path lockFile = sourceDir.resolve(".metadata/.lock");
+            if (Files.exists(lockFile)) {
+                sessionLogger.logError("Workspace lock detected at " + lockFile);
+                System.err.println("  Workspace lock detected: " + lockFile);
+                System.err.println("  Close Eclipse (or remove stale .metadata/.lock) and run setup again.");
+                System.err.println("  You can also skip this step with --skip-workspace and import later using:");
+                System.err.println("    idempiere-cli import-workspace --dir <plugin-dir> --eclipse-dir <eclipse-dir> --workspace " + sourceDir);
+                return false;
+            }
+
             // Count projects for info (top-level + nested repos like idempiere-rest)
             int projectCount = 0;
             try (var dirs = Files.list(sourceDir)) {
@@ -199,15 +213,18 @@ public class EclipseManager {
             // Step 1: Import projects using setup-ws.xml
             System.out.println("  Importing projects into workspace...");
             boolean importOk = runAntRunner(eclipseExe, vmArg, sourceDir,
-                    libDir.resolve("setup-ws.xml"), sourceDir);
+                    libDir.resolve("setup-ws.xml"), sourceDir,
+                    "workspace import", IMPORT_WORKSPACE_TIMEOUT_SECONDS);
             if (!importOk) {
                 System.err.println("  Warning: Project import may have had issues. Check Eclipse manually.");
             }
 
             // Step 2: Load target platform using loadtargetplatform.xml
-            System.out.println("  Loading target platform (this may take a while)...");
+            System.out.println("  Loading target platform (this may take a while, timeout: "
+                    + formatTimeout(LOAD_TARGET_PLATFORM_TIMEOUT_SECONDS) + ")...");
             boolean targetOk = runAntRunner(eclipseExe, vmArg, sourceDir,
-                    libDir.resolve("loadtargetplatform.xml"), sourceDir);
+                    libDir.resolve("loadtargetplatform.xml"), sourceDir,
+                    "target platform loading", LOAD_TARGET_PLATFORM_TIMEOUT_SECONDS);
             if (!targetOk) {
                 System.err.println("  Warning: Target platform loading may have had issues. Check Eclipse manually.");
             }
@@ -230,11 +247,13 @@ public class EclipseManager {
         }
     }
 
-    private boolean runAntRunner(Path eclipseExe, String vm, Path dataDir, Path buildFile, Path idempiereDir) {
+    private boolean runAntRunner(Path eclipseExe, String vm, Path dataDir, Path buildFile, Path idempiereDir,
+                                 String stepName, int timeoutSeconds) {
         String idempiereProperty = "-Didempiere=" + idempiereDir.toAbsolutePath().toString();
         ProcessRunner.RunResult result = runEclipseCommand(
                 eclipseExe,
                 vm,
+                timeoutSeconds,
                 "-nosplash",
                 "-data", dataDir.toAbsolutePath().toString(),
                 "-application", "org.eclipse.ant.core.antRunner",
@@ -244,6 +263,13 @@ public class EclipseManager {
 
         // Only show output on failure
         if (!result.isSuccess()) {
+            if (result.isTimeout()) {
+                sessionLogger.logError("Ant Runner timed out during " + stepName + " (" + timeoutSeconds + "s)");
+                System.err.println("  Ant Runner timed out during " + stepName + " after "
+                        + formatTimeout(timeoutSeconds) + ".");
+                System.err.println("  Try closing Eclipse and rerun setup-dev-env.");
+                System.err.println("  If needed, run with --skip-workspace and import later.");
+            }
             // Log full output to session log
             sessionLogger.logCommandOutput("ant-runner", result.output());
             System.err.println("  Ant Runner failed. See session log for details.");
@@ -309,7 +335,8 @@ public class EclipseManager {
             System.out.println("  Importing projects into workspace...");
             boolean success = runAntRunnerWithProperty(eclipseExe, vmArg, workspaceDir,
                     libDir.resolve("import-project.xml"),
-                    "pluginPath", pluginDir.toAbsolutePath().toString());
+                    "pluginPath", pluginDir.toAbsolutePath().toString(),
+                    IMPORT_WORKSPACE_TIMEOUT_SECONDS);
 
             if (success) {
                 System.out.println("  Projects imported successfully.");
@@ -325,12 +352,14 @@ public class EclipseManager {
     }
 
     private boolean runAntRunnerWithProperty(Path eclipseExe, String vm, Path dataDir,
-                                              Path buildFile, String propName, String propValue) {
+                                             Path buildFile, String propName, String propValue,
+                                             int timeoutSeconds) {
         String property = "-D" + propName + "=" + propValue;
 
         ProcessRunner.RunResult result = runEclipseCommand(
                 eclipseExe,
                 vm,
+                timeoutSeconds,
                 "-nosplash",
                 "-data", dataDir.toAbsolutePath().toString(),
                 "-application", "org.eclipse.ant.core.antRunner",
@@ -358,7 +387,7 @@ public class EclipseManager {
         return javaBin.toAbsolutePath().toString();
     }
 
-    private ProcessRunner.RunResult runEclipseCommand(Path eclipseExe, String vm, String... args) {
+    private ProcessRunner.RunResult runEclipseCommand(Path eclipseExe, String vm, int timeoutSeconds, String... args) {
         List<String> command = new ArrayList<>();
         command.add(eclipseExe.toString());
         if (vm != null && !vm.isBlank()) {
@@ -368,7 +397,14 @@ public class EclipseManager {
         for (String arg : args) {
             command.add(arg);
         }
-        return processRunner.runQuiet(command.toArray(new String[0]));
+        return processRunner.runQuietWithTimeout(timeoutSeconds, command.toArray(new String[0]));
+    }
+
+    private String formatTimeout(int timeoutSeconds) {
+        if (timeoutSeconds % 60 == 0) {
+            return (timeoutSeconds / 60) + "m";
+        }
+        return timeoutSeconds + "s";
     }
 
     private void printLastLines(String output, int maxLines) {

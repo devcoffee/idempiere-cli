@@ -12,6 +12,7 @@
 #   PLUGIN_ID    Plugin id used for scaffold smoke (default: org.smoke.demo)
 #   PROJECT_NAME Project folder name (default: smoke-demo)
 #   PROMPT_TEXT  Prompt used in add command (default: predefined sentence)
+#   RUN_COMMAND_MATRIX 1|0 validate full command/subcommand tree with --help (default: 1)
 #   RUN_SETUP_DEV_ENV_DRY_RUN 1|0 include setup-dev-env dry-run step (default: 1)
 #   RUN_SETUP_DEV_ENV_FULL    1|0 include setup-dev-env full run step (default: 0)
 #   SETUP_DEV_ENV_ARGS        Common args for setup-dev-env smoke (default: docker+rest profile)
@@ -33,6 +34,7 @@ JAR_PATH="${JAR_PATH:-${PROJECT_ROOT}/target/quarkus-app/quarkus-run.jar}"
 PLUGIN_ID="${PLUGIN_ID:-org.smoke.demo}"
 PROJECT_NAME="${PROJECT_NAME:-smoke-demo}"
 PROMPT_TEXT="${PROMPT_TEXT:-Define Description as Name + Name2 when leaving those fields.}"
+RUN_COMMAND_MATRIX="${RUN_COMMAND_MATRIX:-1}"
 RUN_SETUP_DEV_ENV_DRY_RUN="${RUN_SETUP_DEV_ENV_DRY_RUN:-1}"
 RUN_SETUP_DEV_ENV_FULL="${RUN_SETUP_DEV_ENV_FULL:-0}"
 SETUP_DEV_ENV_ARGS="${SETUP_DEV_ENV_ARGS:---with-docker --include-rest}"
@@ -49,6 +51,7 @@ INDEX_FILE="${REPORT_DIR}/index.md"
 LAST_STEP_RC=0
 CLI_MODE_EFFECTIVE=""
 SETUP_DEV_ENV_EFFECTIVE_ARGS=""
+COMMAND_MATRIX_PATHS=()
 
 generate_password() {
   LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24
@@ -146,6 +149,50 @@ latest_session_log_markers() {
   fi
 }
 
+list_subcommands_for_path() {
+  local help_output=""
+  if ! help_output="$(run_cli "$@" --help 2>/dev/null)"; then
+    return 0
+  fi
+
+  printf '%s\n' "${help_output}" | awk '
+    /^Commands:/ {in_commands=1; next}
+    in_commands && /^[^[:space:]]/ {in_commands=0}
+    in_commands && $0 ~ /^[[:space:]][[:space:]][a-z0-9][a-z0-9-]*[[:space:]][[:space:]]/ {print $1}
+  '
+}
+
+collect_command_matrix_paths() {
+  local -a queue=()
+  local -a parts=()
+  local -a children=()
+  local current=""
+  local child=""
+
+  COMMAND_MATRIX_PATHS=()
+  mapfile -t queue < <(list_subcommands_for_path)
+
+  while [ ${#queue[@]} -gt 0 ]; do
+    current="${queue[0]}"
+    queue=("${queue[@]:1}")
+    COMMAND_MATRIX_PATHS+=("${current}")
+
+    IFS=' ' read -r -a parts <<< "${current}"
+    mapfile -t children < <(list_subcommands_for_path "${parts[@]}")
+    for child in "${children[@]}"; do
+      queue+=("${current} ${child}")
+    done
+  done
+}
+
+print_command_matrix_paths() {
+  echo "Discovered ${#COMMAND_MATRIX_PATHS[@]} command/subcommand combinations:"
+  if [ ${#COMMAND_MATRIX_PATHS[@]} -eq 0 ]; then
+    return 1
+  fi
+  printf '  - %s\n' "${COMMAND_MATRIX_PATHS[@]}"
+}
+
 run_step() {
   local step="$1"
   shift
@@ -181,6 +228,73 @@ run_step() {
   fi
 }
 
+command_matrix_help_is_valid() {
+  local raw_rc="$1"
+  local path="$2"
+  local log_file="$3"
+
+  if [ "${raw_rc}" -eq 0 ]; then
+    return 0
+  fi
+
+  # Some commands/subcommands return exit 2 for --help due parser behavior,
+  # but still print a valid usage line for the resolved command path.
+  if [ "${raw_rc}" -eq 2 ] && grep -Fq "Usage: idempiere-cli ${path}" "${log_file}"; then
+    if grep -Eq "Unmatched argument|Unknown command" "${log_file}"; then
+      return 1
+    fi
+    return 0
+  fi
+
+  return 1
+}
+
+run_command_matrix_step() {
+  local path="$1"
+  local step="Command help matrix: ${path}"
+  local slug
+  slug="$(slugify "${step}")"
+  local log_file="${REPORT_DIR}/${slug}.log"
+  local cmd="run_cli ${path} --help"
+  local raw_rc=0
+  local rc=0
+
+  {
+    echo "[$(date '+%F %T')] STEP: ${step}"
+    echo "\$ ${cmd}"
+    echo
+  } > "${log_file}"
+
+  eval "${cmd}" >> "${log_file}" 2>&1
+  raw_rc=$?
+  rc=$raw_rc
+
+  if command_matrix_help_is_valid "${raw_rc}" "${path}" "${log_file}"; then
+    rc=0
+    if [ "${raw_rc}" -ne 0 ]; then
+      echo >> "${log_file}"
+      echo "[matrix] Accepted non-zero exit (${raw_rc}) because command path is valid and usage was resolved." >> "${log_file}"
+    fi
+  fi
+
+  LAST_STEP_RC=$rc
+  printf "%s\t%s\t%s\n" "${step}" "${rc}" "${log_file}" >> "${SUMMARY_FILE}"
+
+  if [ "${rc}" -eq 0 ]; then
+    echo "[PASS] ${step} (exit=${raw_rc})"
+    {
+      echo "- [PASS] ${step} (exit=${raw_rc})"
+      echo "  - log: \`${log_file}\`"
+    } >> "${INDEX_FILE}"
+  else
+    echo "[FAIL] ${step} (exit=${raw_rc})"
+    {
+      echo "- [FAIL] ${step} (exit=${raw_rc})"
+      echo "  - log: \`${log_file}\`"
+    } >> "${INDEX_FILE}"
+  fi
+}
+
 resolve_cli_mode
 
 printf "step\texit_code\tlog_file\n" > "${SUMMARY_FILE}"
@@ -202,6 +316,7 @@ printf "step\texit_code\tlog_file\n" > "${SUMMARY_FILE}"
   echo "- Work dir: \`${WORK_DIR}\`"
   echo "- Plugin ID: \`${PLUGIN_ID}\`"
   echo "- Project name: \`${PROJECT_NAME}\`"
+  echo "- command matrix step: \`${RUN_COMMAND_MATRIX}\`"
   echo "- setup-dev-env dry-run step: \`${RUN_SETUP_DEV_ENV_DRY_RUN}\`"
   echo "- setup-dev-env full step: \`${RUN_SETUP_DEV_ENV_FULL}\`"
   echo
@@ -292,6 +407,17 @@ run_step "Package p2" \
 
 run_step "Latest session log markers" \
   "latest_session_log_markers"
+
+if [ "${RUN_COMMAND_MATRIX}" = "1" ]; then
+  run_step "Command matrix phase header" \
+    "echo \"Running full command/subcommand help matrix after core developer flow...\""
+  collect_command_matrix_paths
+  run_step "Command matrix discovery" \
+    "print_command_matrix_paths"
+  for path in "${COMMAND_MATRIX_PATHS[@]}"; do
+    run_command_matrix_step "${path}"
+  done
+fi
 
 if ls "${HOME}/.idempiere-cli/logs/session-"*.log >/dev/null 2>&1; then
   cp "$(ls -t "${HOME}/.idempiere-cli/logs/session-"*.log | head -n 3)" "${REPORT_DIR}/" 2>/dev/null || true

@@ -17,6 +17,7 @@ Runs a practical smoke suite for `idempiere-cli`, captures stdout/stderr for eac
 - plugin build (`mvnw verify`)
 - `build`, `package` (`zip` and `p2`)
 - session log markers (`ai-prompt`, `ai-response`, parse diagnostics)
+- full command/subcommand matrix via `--help` (dynamic discovery, executed after core flow)
 
 ### Output artifacts
 
@@ -66,6 +67,7 @@ CLI_MODE=auto ./scripts/run-cli-prebuild-smoke.sh
 - `PLUGIN_ID` default: `org.smoke.demo`
 - `PROJECT_NAME` default: `smoke-demo`
 - `PROMPT_TEXT` default: predefined callout prompt
+- `RUN_COMMAND_MATRIX` default: `1` (validates all discovered command/subcommand combinations with `--help`)
 - `RUN_SETUP_DEV_ENV_DRY_RUN` default: `1` (adds `setup-dev-env --dry-run` smoke step)
 - `RUN_SETUP_DEV_ENV_FULL` default: `0` (runs real `setup-dev-env`, heavy and stateful)
 - `SETUP_DEV_ENV_ARGS` default: `--with-docker --include-rest`
@@ -88,8 +90,17 @@ Run full setup-dev-env step too:
 CLI_MODE=jar RUN_SETUP_DEV_ENV_FULL=1 ./scripts/run-cli-prebuild-smoke.sh
 ```
 
+Run a faster smoke without command matrix:
+
+```bash
+CLI_MODE=jar RUN_COMMAND_MATRIX=0 ./scripts/run-cli-prebuild-smoke.sh
+```
+
 ### Notes
 
 - This script is a **developer smoke harness**. It does not replace CI.
+- The script executes in a natural developer order first, then runs the full command matrix as a coverage pass.
 - Some steps can fail depending on machine state (tooling, network, AI config, local env).
 - Use `reports/index.md` + step logs for triage.
+- The command matrix uses `--help` only (safe, no side effects). It does not run `doctor --fix` or `doctor --fix-optional`.
+- In matrix mode, some commands may return non-zero for `--help` due parser behavior; if a valid `Usage: idempiere-cli <command...>` is resolved, the step is treated as valid.

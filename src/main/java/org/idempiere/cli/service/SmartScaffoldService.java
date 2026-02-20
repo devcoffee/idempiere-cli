@@ -1,6 +1,5 @@
 package org.idempiere.cli.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.idempiere.cli.model.GeneratedCode;
@@ -48,7 +47,9 @@ public class SmartScaffoldService {
     @Inject
     AiPromptBuilderService aiPromptBuilderService;
 
-    private static final ObjectMapper objectMapper = new ObjectMapper();
+    @Inject
+    AiResponseParserService aiResponseParserService;
+
     private static final ConcurrentHashMap<Path, Optional<ClasspathIndex>> CLASSPATH_INDEX_CACHE = new ConcurrentHashMap<>();
     private static final Pattern IMPORT_PATTERN = Pattern.compile("(?m)^\\s*import\\s+([\\w.]+)(\\.\\*)?\\s*;");
     private static final Pattern PACKAGE_PATTERN = Pattern.compile("(?m)^\\s*package\\s+([\\w.]+)\\s*;");
@@ -57,16 +58,6 @@ public class SmartScaffoldService {
     private static final List<String> CRITICAL_PREFIXES = List.of("org.idempiere.", "org.compiere.", "org.adempiere.");
     private static final List<String> JDK_PREFIXES = List.of("java.", "jdk.", "sun.", "com.sun.", "org.w3c.", "org.xml.", "org.ietf.");
     private static final int MAX_ISSUES_TO_PRINT = 10;
-
-    private record ParseResult(GeneratedCode code, String errorMessage) {
-        static ParseResult success(GeneratedCode code) {
-            return new ParseResult(code, null);
-        }
-
-        static ParseResult failure(String errorMessage) {
-            return new ParseResult(null, errorMessage);
-        }
-    }
 
     private record ClasspathIndex(Set<String> classes, Set<String> packages) {}
 
@@ -109,7 +100,7 @@ public class SmartScaffoldService {
 
         sessionLogger.logCommandOutput("ai-response", response.content());
 
-        ParseResult parsed = parseAiResponseDetailed(response.content());
+        AiResponseParserService.ParseResult parsed = parseAiResponseDetailed(response.content());
         GeneratedCode code = parsed.code();
         if (code == null || code.getFiles().isEmpty()) {
             sessionLogger.logError("AI parse failed: " + parsed.errorMessage());
@@ -156,53 +147,11 @@ public class SmartScaffoldService {
     }
 
     GeneratedCode parseAiResponse(String raw) {
-        return parseAiResponseDetailed(raw).code();
+        return aiResponseParserService.parse(raw);
     }
 
-    private ParseResult parseAiResponseDetailed(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return ParseResult.failure("AI response is empty");
-        }
-
-        // 1. Try raw as-is
-        ParseResult result = tryParseJson(raw.strip(), "raw response");
-        if (result.code() != null) return result;
-        String lastError = result.errorMessage();
-
-        // 2. Try extracting from markdown code fences (```json ... ``` or ``` ... ```)
-        java.util.regex.Matcher fenceMatcher = java.util.regex.Pattern
-                .compile("```(?:json)?\\s*\\n?(\\{.*?\\})\\s*```", java.util.regex.Pattern.DOTALL)
-                .matcher(raw);
-        if (fenceMatcher.find()) {
-            result = tryParseJson(fenceMatcher.group(1).strip(), "markdown code fence");
-            if (result.code() != null) return result;
-            lastError = result.errorMessage();
-        }
-
-        // 3. Try extracting the outermost { ... } block
-        int start = raw.indexOf('{');
-        int end = raw.lastIndexOf('}');
-        if (start >= 0 && end > start) {
-            result = tryParseJson(raw.substring(start, end + 1).strip(), "outer JSON block");
-            if (result.code() != null) return result;
-            lastError = result.errorMessage();
-        }
-
-        return ParseResult.failure(lastError != null ? lastError : "No parseable JSON object found in AI response");
-    }
-
-    private ParseResult tryParseJson(String json, String source) {
-        try {
-            GeneratedCode code = objectMapper.readValue(json, GeneratedCode.class);
-            if (code != null && code.getFiles() != null && !code.getFiles().isEmpty()) {
-                return ParseResult.success(code);
-            }
-            return ParseResult.failure("Parsed " + source + " but files array is empty");
-        } catch (Exception e) {
-            String message = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
-            message = message.replace('\n', ' ').replace('\r', ' ');
-            return ParseResult.failure("Invalid JSON in " + source + ": " + message);
-        }
+    private AiResponseParserService.ParseResult parseAiResponseDetailed(String raw) {
+        return aiResponseParserService.parseDetailed(raw);
     }
 
     private String currentLogPathHint() {

@@ -3,9 +3,6 @@ package org.idempiere.cli.service;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.idempiere.cli.model.PluginDescriptor;
-import org.idempiere.cli.util.XmlUtils;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -53,6 +50,9 @@ public class ScaffoldService {
 
     @Inject
     ScaffoldModuleWriterService scaffoldModuleWriterService;
+
+    @Inject
+    ScaffoldXmlUpdateService scaffoldXmlUpdateService;
 
     public ScaffoldResult createPlugin(PluginDescriptor descriptor) {
         if (descriptor.isMultiModule()) {
@@ -396,10 +396,10 @@ public class ScaffoldService {
             scaffoldModuleWriterService.createPluginModule(pluginDir, descriptor, data);
 
             // Update root pom.xml to include new module
-            updateRootPomModules(rootDir, pluginId);
+            scaffoldXmlUpdateService.updateRootPomModules(rootDir, pluginId);
 
             // Update category.xml if p2 module exists
-            updateCategoryXml(rootDir, pluginId, false);
+            scaffoldXmlUpdateService.updateCategoryXml(rootDir, pluginId, false);
 
             System.out.println();
             System.out.println("Plugin module added successfully!");
@@ -442,13 +442,13 @@ public class ScaffoldService {
             scaffoldModuleWriterService.createFragmentModule(fragmentDir, descriptor, data);
 
             // Update root pom.xml to include new module
-            updateRootPomModules(rootDir, fragmentId);
+            scaffoldXmlUpdateService.updateRootPomModules(rootDir, fragmentId);
 
             // Update category.xml if p2 module exists
-            updateCategoryXml(rootDir, fragmentId, false);
+            scaffoldXmlUpdateService.updateCategoryXml(rootDir, fragmentId, false);
 
             // Update feature.xml if feature module exists
-            updateFeatureXml(rootDir, fragmentId, true);
+            scaffoldXmlUpdateService.updateFeatureXml(rootDir, fragmentId, true);
 
             System.out.println();
             System.out.println("Fragment module added successfully!");
@@ -491,10 +491,10 @@ public class ScaffoldService {
             scaffoldModuleWriterService.createFeatureModule(featureDir, descriptor, data);
 
             // Update root pom.xml to include new module
-            updateRootPomModules(rootDir, featureId);
+            scaffoldXmlUpdateService.updateRootPomModules(rootDir, featureId);
 
             // Update category.xml if p2 module exists - use feature instead of individual plugins
-            updateCategoryXmlForFeature(rootDir, featureId);
+            scaffoldXmlUpdateService.updateCategoryXmlForFeature(rootDir, featureId);
 
             System.out.println();
             System.out.println("Feature module added successfully!");
@@ -524,149 +524,6 @@ public class ScaffoldService {
         data.put("categoryName", descriptor.getPluginId().replace('.', '-'));
 
         return data;
-    }
-
-    /**
-     * Updates the root pom.xml to add a new module entry.
-     */
-    private void updateRootPomModules(Path rootDir, String moduleName) throws IOException {
-        Path pomFile = rootDir.resolve("pom.xml");
-        if (!Files.exists(pomFile)) {
-            System.err.println("Warning: Root pom.xml not found, skipping module registration");
-            return;
-        }
-
-        Document doc = XmlUtils.load(pomFile);
-
-        // Check if module already exists
-        if (XmlUtils.hasModuleWithName(doc, moduleName)) {
-            System.out.println("  Module already registered in pom.xml");
-            return;
-        }
-
-        // Add the new module
-        XmlUtils.addModule(doc, moduleName);
-        XmlUtils.savePreservingFormat(doc, pomFile);
-        System.out.println("  Updated: " + pomFile);
-    }
-
-    /**
-     * Updates category.xml to include a new plugin or fragment.
-     */
-    private void updateCategoryXml(Path rootDir, String bundleId, boolean isFragment) throws IOException {
-        // Find p2 module directory
-        Path p2Dir = findP2Module(rootDir);
-        if (p2Dir == null) {
-            return;  // No p2 module, nothing to update
-        }
-
-        Path categoryFile = p2Dir.resolve("category.xml");
-        if (!Files.exists(categoryFile)) {
-            return;
-        }
-
-        Document doc = XmlUtils.load(categoryFile);
-
-        // Check if bundle already in category
-        if (XmlUtils.hasElementWithAttribute(doc, "bundle", "id", bundleId)) {
-            return;
-        }
-
-        // Get category name from category-def
-        String categoryName = XmlUtils.getAttributeValue(doc, "category-def", "name").orElse("default");
-
-        // Create and add bundle element
-        Element bundleElement = XmlUtils.createBundleElement(doc, bundleId, categoryName);
-        XmlUtils.findElement(doc, "site").ifPresent(site -> site.appendChild(bundleElement));
-
-        XmlUtils.savePreservingFormat(doc, categoryFile);
-        System.out.println("  Updated: " + categoryFile);
-    }
-
-    /**
-     * Updates category.xml to use a feature instead of individual bundles.
-     */
-    private void updateCategoryXmlForFeature(Path rootDir, String featureId) throws IOException {
-        Path p2Dir = findP2Module(rootDir);
-        if (p2Dir == null) {
-            return;
-        }
-
-        Path categoryFile = p2Dir.resolve("category.xml");
-        if (!Files.exists(categoryFile)) {
-            return;
-        }
-
-        Document doc = XmlUtils.load(categoryFile);
-        String baseFeatureId = featureId.replace(".feature", "");
-
-        // Check if iu already exists
-        if (XmlUtils.hasElementWithAttribute(doc, "iu", "id", baseFeatureId + ".feature.group")) {
-            return;
-        }
-
-        // Get category name
-        String categoryName = XmlUtils.getAttributeValue(doc, "category-def", "name").orElse("default");
-
-        // Create and insert iu element before category-def
-        Element iuElement = XmlUtils.createIuElement(doc, baseFeatureId, categoryName);
-        XmlUtils.insertBefore(doc, iuElement, "category-def");
-
-        XmlUtils.savePreservingFormat(doc, categoryFile);
-        System.out.println("  Updated: " + categoryFile);
-    }
-
-    /**
-     * Updates feature.xml to include a new plugin or fragment.
-     */
-    private void updateFeatureXml(Path rootDir, String bundleId, boolean isFragment) throws IOException {
-        // Find feature module directory
-        String baseId = extractBaseProjectId(rootDir);
-        Path featureDir = rootDir.resolve(baseId + ".feature");
-        if (!Files.exists(featureDir)) {
-            return;
-        }
-
-        Path featureFile = featureDir.resolve("feature.xml");
-        if (!Files.exists(featureFile)) {
-            return;
-        }
-
-        Document doc = XmlUtils.load(featureFile);
-
-        // Check if bundle already in feature
-        if (XmlUtils.hasElementWithAttribute(doc, "plugin", "id", bundleId)) {
-            return;
-        }
-
-        // Create and add plugin element
-        Element pluginElement = XmlUtils.createPluginElement(doc, bundleId, isFragment);
-        XmlUtils.findElement(doc, "feature").ifPresent(feature -> feature.appendChild(pluginElement));
-
-        XmlUtils.savePreservingFormat(doc, featureFile);
-        System.out.println("  Updated: " + featureFile);
-    }
-
-    /**
-     * Finds the p2 module directory.
-     */
-    private Path findP2Module(Path rootDir) {
-        try (var stream = Files.list(rootDir)) {
-            return stream
-                    .filter(Files::isDirectory)
-                    .filter(p -> p.getFileName().toString().endsWith(".p2"))
-                    .findFirst()
-                    .orElse(null);
-        } catch (IOException e) {
-            return null;
-        }
-    }
-
-    /**
-     * Extracts the base project ID from root directory name or pom.
-     */
-    private String extractBaseProjectId(Path rootDir) {
-        return rootDir.getFileName().toString();
     }
 
     private void writeFileAndReport(Path file, String content) throws IOException {

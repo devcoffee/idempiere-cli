@@ -104,6 +104,32 @@ public class ScaffoldModuleWriterService {
         templateRenderer.render("multi-module/category.xml", data, p2Dir.resolve("category.xml"));
     }
 
+    public void createStandaloneStructure(Path baseDir, PluginDescriptor descriptor) throws IOException {
+        Files.createDirectories(baseDir.resolve("META-INF"));
+        Files.createDirectories(baseDir.resolve("OSGI-INF"));
+        Files.createDirectories(baseDir.resolve("src").resolve(descriptor.getPackagePath()));
+        Files.createDirectories(baseDir.resolve(".mvn"));
+    }
+
+    public void createStandaloneFiles(Path baseDir, Map<String, Object> data) throws IOException {
+        templateRenderer.render("plugin/pom.xml", data, baseDir.resolve("pom.xml"));
+        templateRenderer.render("plugin/MANIFEST.MF", data, baseDir.resolve("META-INF/MANIFEST.MF"));
+        templateRenderer.render("plugin/plugin.xml", data, baseDir.resolve("plugin.xml"));
+
+        writeFileAndReport(baseDir.resolve("build.properties"),
+                "source.. = src/\n" +
+                        "output.. = bin/\n" +
+                        "bin.includes = META-INF/,\\\n" +
+                        "               OSGI-INF/,\\\n" +
+                        "               .,\\\n" +
+                        "               plugin.xml\n");
+
+        // Increase XML parser limits for large p2 repositories.
+        writeFileAndReport(baseDir.resolve(".mvn/jvm.config"),
+                "-Djdk.xml.maxGeneralEntitySizeLimit=0\n" +
+                        "-Djdk.xml.totalEntitySizeLimit=0\n");
+    }
+
     public void generateStandaloneComponents(Path baseDir, PluginDescriptor descriptor) throws IOException {
         ScaffoldResult componentResult = descriptorComponentGenerationService.generateComponentFiles(baseDir, descriptor);
         if (!componentResult.success()) {

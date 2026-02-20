@@ -7,9 +7,7 @@ import org.idempiere.cli.model.PluginDescriptor;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * Creates new iDempiere plugin projects and adds components to existing plugins.
@@ -37,9 +35,6 @@ public class ScaffoldService {
     TemplateRenderer templateRenderer;
 
     @Inject
-    ManifestService manifestService;
-
-    @Inject
     MavenWrapperService mavenWrapperService;
 
     @Inject
@@ -53,6 +48,9 @@ public class ScaffoldService {
 
     @Inject
     ScaffoldModuleManagementService scaffoldModuleManagementService;
+
+    @Inject
+    ScaffoldProjectAuxFilesService scaffoldProjectAuxFilesService;
 
     public ScaffoldResult createPlugin(PluginDescriptor descriptor) {
         if (descriptor.isMultiModule()) {
@@ -131,11 +129,7 @@ public class ScaffoldService {
             scaffoldModuleWriterService.createP2Module(p2Dir, descriptor, data);
 
             // Create .mvn/jvm.config at root
-            Path mvnDir = rootDir.resolve(".mvn");
-            Files.createDirectories(mvnDir);
-            writeFileAndReport(mvnDir.resolve("jvm.config"),
-                    "-Djdk.xml.maxGeneralEntitySizeLimit=0\n" +
-                    "-Djdk.xml.totalEntitySizeLimit=0\n");
+            scaffoldProjectAuxFilesService.generateMavenJvmConfig(rootDir);
 
             // Add Maven Wrapper
             if (mavenWrapperService.addWrapper(rootDir)) {
@@ -143,17 +137,17 @@ public class ScaffoldService {
             }
 
             // Generate .gitignore
-            generateGitignore(rootDir);
+            scaffoldProjectAuxFilesService.generateGitignore(rootDir);
 
             // Generate Eclipse .project files (if enabled)
             if (descriptor.isWithEclipseProject()) {
-                generateEclipseProject(pluginDir, descriptor.getBasePluginId());
+                scaffoldProjectAuxFilesService.generateEclipseProject(pluginDir, descriptor.getBasePluginId());
                 if (descriptor.isWithTest()) {
-                    generateEclipseProject(rootDir.resolve(descriptor.getBasePluginId() + ".test"),
+                    scaffoldProjectAuxFilesService.generateEclipseProject(rootDir.resolve(descriptor.getBasePluginId() + ".test"),
                             descriptor.getBasePluginId() + ".test");
                 }
                 if (descriptor.isWithFragment()) {
-                    generateEclipseProject(rootDir.resolve(descriptor.getPluginId() + ".fragment"),
+                    scaffoldProjectAuxFilesService.generateEclipseProject(rootDir.resolve(descriptor.getPluginId() + ".fragment"),
                             descriptor.getPluginId() + ".fragment");
                 }
             }
@@ -221,8 +215,9 @@ public class ScaffoldService {
         System.out.println();
 
         try {
-            createDirectoryStructure(baseDir, descriptor);
-            generatePluginFiles(baseDir, descriptor);
+            scaffoldModuleWriterService.createStandaloneStructure(baseDir, descriptor);
+            Map<String, Object> data = scaffoldTemplateDataFactory.buildPluginData(descriptor);
+            scaffoldModuleWriterService.createStandaloneFiles(baseDir, data);
             scaffoldModuleWriterService.generateStandaloneComponents(baseDir, descriptor);
 
             // Add Maven Wrapper
@@ -231,11 +226,11 @@ public class ScaffoldService {
             }
 
             // Generate .gitignore
-            generateGitignore(baseDir);
+            scaffoldProjectAuxFilesService.generateGitignore(baseDir);
 
             // Generate Eclipse .project file (if enabled)
             if (descriptor.isWithEclipseProject()) {
-                generateEclipseProject(baseDir, descriptor.getPluginId());
+                scaffoldProjectAuxFilesService.generateEclipseProject(baseDir, descriptor.getPluginId());
             }
 
             System.out.println();
@@ -283,90 +278,6 @@ public class ScaffoldService {
         return addComponentService.addComponent(type, name, pluginDir, pluginId, extraData);
     }
 
-    private void createDirectoryStructure(Path baseDir, PluginDescriptor descriptor) throws IOException {
-        Files.createDirectories(baseDir.resolve("META-INF"));
-        Files.createDirectories(baseDir.resolve("OSGI-INF"));
-        Files.createDirectories(baseDir.resolve("src").resolve(descriptor.getPackagePath()));
-        Files.createDirectories(baseDir.resolve(".mvn"));
-    }
-
-    private void generatePluginFiles(Path baseDir, PluginDescriptor descriptor) throws IOException {
-        Map<String, Object> data = scaffoldTemplateDataFactory.buildPluginData(descriptor);
-
-        templateRenderer.render("plugin/pom.xml", data, baseDir.resolve("pom.xml"));
-        templateRenderer.render("plugin/MANIFEST.MF", data, baseDir.resolve("META-INF/MANIFEST.MF"));
-        templateRenderer.render("plugin/plugin.xml", data, baseDir.resolve("plugin.xml"));
-
-        // Create build.properties
-        writeFileAndReport(baseDir.resolve("build.properties"),
-                "source.. = src/\n" +
-                "output.. = bin/\n" +
-                "bin.includes = META-INF/,\\\n" +
-                "               OSGI-INF/,\\\n" +
-                "               .,\\\n" +
-                "               plugin.xml\n");
-
-        // Create .mvn/jvm.config to increase XML parser limits for large p2 repositories
-        writeFileAndReport(baseDir.resolve(".mvn/jvm.config"),
-                "-Djdk.xml.maxGeneralEntitySizeLimit=0\n" +
-                "-Djdk.xml.totalEntitySizeLimit=0\n");
-    }
-
-    /**
-     * Generates a .gitignore file in the given directory.
-     */
-    private void generateGitignore(Path dir) throws IOException {
-        Path gitignore = dir.resolve(".gitignore");
-        writeFileAndReport(gitignore,
-                "# Build output\n" +
-                "target/\n" +
-                "bin/\n" +
-                "\n" +
-                "# Eclipse IDE\n" +
-                ".settings/\n" +
-                ".classpath\n" +
-                "\n" +
-                "# IntelliJ IDEA\n" +
-                ".idea/\n" +
-                "*.iml\n" +
-                "\n" +
-                "# OS files\n" +
-                ".DS_Store\n" +
-                "Thumbs.db\n");
-    }
-
-    /**
-     * Generates an Eclipse .project file for a plugin/module directory.
-     */
-    private void generateEclipseProject(Path moduleDir, String projectName) throws IOException {
-        Path projectFile = moduleDir.resolve(".project");
-        writeFileAndReport(projectFile,
-                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
-                "<projectDescription>\n" +
-                "\t<name>" + projectName + "</name>\n" +
-                "\t<comment></comment>\n" +
-                "\t<projects></projects>\n" +
-                "\t<buildSpec>\n" +
-                "\t\t<buildCommand>\n" +
-                "\t\t\t<name>org.eclipse.jdt.core.javabuilder</name>\n" +
-                "\t\t\t<arguments></arguments>\n" +
-                "\t\t</buildCommand>\n" +
-                "\t\t<buildCommand>\n" +
-                "\t\t\t<name>org.eclipse.pde.ManifestBuilder</name>\n" +
-                "\t\t\t<arguments></arguments>\n" +
-                "\t\t</buildCommand>\n" +
-                "\t\t<buildCommand>\n" +
-                "\t\t\t<name>org.eclipse.pde.SchemaBuilder</name>\n" +
-                "\t\t\t<arguments></arguments>\n" +
-                "\t\t</buildCommand>\n" +
-                "\t</buildSpec>\n" +
-                "\t<natures>\n" +
-                "\t\t<nature>org.eclipse.pde.PluginNature</nature>\n" +
-                "\t\t<nature>org.eclipse.jdt.core.javanature</nature>\n" +
-                "\t</natures>\n" +
-                "</projectDescription>\n");
-    }
-
     // ========================================================================
     // Methods for adding modules to existing multi-module projects
     // ========================================================================
@@ -401,11 +312,6 @@ public class ScaffoldService {
      */
     public ScaffoldResult addFeatureModuleToProject(Path rootDir, PluginDescriptor descriptor) {
         return scaffoldModuleManagementService.addFeatureModuleToProject(rootDir, descriptor);
-    }
-
-    private void writeFileAndReport(Path file, String content) throws IOException {
-        Files.writeString(file, content);
-        System.out.println("  Created: " + file);
     }
 
     private ScaffoldResult directoryExistsError(Path dir) {

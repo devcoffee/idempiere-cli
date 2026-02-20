@@ -52,6 +52,9 @@ public class ScaffoldService {
     @Inject
     ScaffoldOutputService scaffoldOutputService;
 
+    @Inject
+    ScaffoldErrorService scaffoldErrorService;
+
     public ScaffoldResult createPlugin(PluginDescriptor descriptor) {
         if (descriptor.isMultiModule()) {
             return createMultiModulePlugin(descriptor);
@@ -79,7 +82,7 @@ public class ScaffoldService {
         }
 
         if (Files.exists(rootDir)) {
-            return directoryExistsError(rootDir);
+            return scaffoldErrorService.directoryExistsError(rootDir);
         }
 
         scaffoldOutputService.printMultiModuleStart(descriptor.getPluginId());
@@ -130,7 +133,7 @@ public class ScaffoldService {
             scaffoldOutputService.printMultiModuleSuccess(descriptor);
             return ScaffoldResult.ok(rootDir);
         } catch (IOException e) {
-            return ioError("Error creating project", e, true);
+            return scaffoldErrorService.ioError("Error creating project", e, true);
         }
     }
 
@@ -146,7 +149,7 @@ public class ScaffoldService {
         }
 
         if (Files.exists(baseDir)) {
-            return directoryExistsError(baseDir);
+            return scaffoldErrorService.directoryExistsError(baseDir);
         }
 
         scaffoldOutputService.printStandaloneStart(descriptor.getPluginId());
@@ -167,7 +170,7 @@ public class ScaffoldService {
             scaffoldOutputService.printStandaloneSuccess(descriptor);
             return ScaffoldResult.ok(baseDir);
         } catch (IOException e) {
-            return ioError("Error creating plugin", e, false);
+            return scaffoldErrorService.ioError("Error creating plugin", e, false);
         }
     }
 
@@ -226,21 +229,6 @@ public class ScaffoldService {
      */
     public ScaffoldResult addFeatureModuleToProject(Path rootDir, PluginDescriptor descriptor) {
         return scaffoldModuleManagementService.addFeatureModuleToProject(rootDir, descriptor);
-    }
-
-    private ScaffoldResult directoryExistsError(Path dir) {
-        String message = "Directory '" + dir + "' already exists.";
-        System.err.println("Error: " + message);
-        return ScaffoldResult.error("DIRECTORY_EXISTS", message);
-    }
-
-    private ScaffoldResult ioError(String context, IOException e, boolean withStackTrace) {
-        String message = context + ": " + e.getMessage();
-        System.err.println(message);
-        if (withStackTrace) {
-            e.printStackTrace();
-        }
-        return ScaffoldResult.error("IO_ERROR", message);
     }
 
 }

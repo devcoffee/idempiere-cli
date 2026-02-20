@@ -24,6 +24,9 @@ public class ScaffoldModuleManagementService {
     @Inject
     ScaffoldXmlUpdateService scaffoldXmlUpdateService;
 
+    @Inject
+    ScaffoldErrorService scaffoldErrorService;
+
     public ScaffoldResult addPluginModuleToProject(Path rootDir, String pluginId, PluginDescriptor descriptor) {
         System.out.println();
         System.out.println("Adding plugin module: " + pluginId);
@@ -32,7 +35,7 @@ public class ScaffoldModuleManagementService {
         try {
             Path pluginDir = rootDir.resolve(pluginId);
             if (Files.exists(pluginDir)) {
-                return directoryExistsError(pluginDir);
+                return scaffoldErrorService.directoryExistsError(pluginDir);
             }
 
             Map<String, Object> data = buildModuleData(descriptor);
@@ -49,7 +52,7 @@ public class ScaffoldModuleManagementService {
             System.out.println();
             return ScaffoldResult.ok(pluginDir);
         } catch (IOException e) {
-            return ioError("Error adding plugin module", e, true);
+            return scaffoldErrorService.ioError("Error adding plugin module", e, true);
         }
     }
 
@@ -63,7 +66,7 @@ public class ScaffoldModuleManagementService {
         try {
             Path fragmentDir = rootDir.resolve(fragmentId);
             if (Files.exists(fragmentDir)) {
-                return directoryExistsError(fragmentDir);
+                return scaffoldErrorService.directoryExistsError(fragmentDir);
             }
 
             Map<String, Object> data = buildModuleData(descriptor);
@@ -79,7 +82,7 @@ public class ScaffoldModuleManagementService {
             System.out.println();
             return ScaffoldResult.ok(fragmentDir);
         } catch (IOException e) {
-            return ioError("Error adding fragment module", e, true);
+            return scaffoldErrorService.ioError("Error adding fragment module", e, true);
         }
     }
 
@@ -92,7 +95,7 @@ public class ScaffoldModuleManagementService {
         try {
             Path featureDir = rootDir.resolve(featureId);
             if (Files.exists(featureDir)) {
-                return directoryExistsError(featureDir);
+                return scaffoldErrorService.directoryExistsError(featureDir);
             }
 
             Map<String, Object> data = buildModuleData(descriptor);
@@ -114,7 +117,7 @@ public class ScaffoldModuleManagementService {
             System.out.println();
             return ScaffoldResult.ok(featureDir);
         } catch (IOException e) {
-            return ioError("Error adding feature module", e, true);
+            return scaffoldErrorService.ioError("Error adding feature module", e, true);
         }
     }
 
@@ -131,18 +134,4 @@ public class ScaffoldModuleManagementService {
         return data;
     }
 
-    private ScaffoldResult directoryExistsError(Path dir) {
-        String message = "Directory '" + dir + "' already exists.";
-        System.err.println("Error: " + message);
-        return ScaffoldResult.error("DIRECTORY_EXISTS", message);
-    }
-
-    private ScaffoldResult ioError(String context, IOException e, boolean withStackTrace) {
-        String message = context + ": " + e.getMessage();
-        System.err.println(message);
-        if (withStackTrace) {
-            e.printStackTrace();
-        }
-        return ScaffoldResult.error("IO_ERROR", message);
-    }
 }

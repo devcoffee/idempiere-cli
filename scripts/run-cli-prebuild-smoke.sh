@@ -20,6 +20,7 @@
 #   SETUP_DB_ADMIN_PASS       DB admin password for setup-dev-env (default: random per run)
 #   SETUP_SOURCE_DIR          Source directory used by setup-dev-env step
 #   SETUP_ECLIPSE_DIR         Eclipse directory used by setup-dev-env step
+#   SMOKE_MAVEN_REPO          Dedicated Maven local repository override for smoke run (default: <smoke-root>/work/.m2-repo)
 
 set -u
 set -o pipefail
@@ -46,6 +47,8 @@ PLUGIN_ROOT="${WORK_DIR}/${PROJECT_NAME}"
 BASE_MODULE="${PLUGIN_ROOT}/${PLUGIN_ID}.base"
 SETUP_SOURCE_DIR="${SETUP_SOURCE_DIR:-${WORK_DIR}/idempiere}"
 SETUP_ECLIPSE_DIR="${SETUP_ECLIPSE_DIR:-${WORK_DIR}/eclipse}"
+SMOKE_MAVEN_REPO="${SMOKE_MAVEN_REPO:-${WORK_DIR}/.m2-repo}"
+MAVEN_REPO_ARG=""
 SUMMARY_FILE="${REPORT_DIR}/summary.tsv"
 INDEX_FILE="${REPORT_DIR}/index.md"
 LAST_STEP_RC=0
@@ -71,6 +74,11 @@ case " ${SETUP_DEV_ENV_EFFECTIVE_ARGS} " in
 esac
 
 mkdir -p "${WORK_DIR}" "${REPORT_DIR}"
+
+if [ -n "${SMOKE_MAVEN_REPO}" ]; then
+  mkdir -p "${SMOKE_MAVEN_REPO}"
+  MAVEN_REPO_ARG="-Dmaven.repo.local=${SMOKE_MAVEN_REPO}"
+fi
 
 slugify() {
   printf "%s" "$1" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '_' | sed 's/^_//; s/_$//'
@@ -147,6 +155,115 @@ latest_session_log_markers() {
   else
     grep -nE "Command: add|ai-prompt|ai-response|ai-response-raw|AI parse failed|Failed to parse AI response" "${latest}" || true
   fi
+}
+
+build_multimodule_verify() {
+  local -a mvn_args=("-q" "-DskipTests")
+  local output=""
+  local rc=0
+  local attempt=1
+  if [ -n "${MAVEN_REPO_ARG}" ]; then
+    mvn_args+=("${MAVEN_REPO_ARG}")
+  fi
+  mvn_args+=("verify")
+
+  if [ -x "./mvnw" ]; then
+    MVNW_REPOURL="https://repo.maven.apache.org/maven2" ./mvnw "${mvn_args[@]}"
+    local wrapper_rc=$?
+    if [ "${wrapper_rc}" -eq 0 ]; then
+      return 0
+    fi
+    echo "mvnw failed (exit=${wrapper_rc}); trying system mvn fallback..."
+  fi
+
+  if command -v mvn >/dev/null 2>&1; then
+    while [ "${attempt}" -le 2 ]; do
+      output="$(mvn "${mvn_args[@]}" 2>&1)"
+      rc=$?
+      printf "%s\n" "${output}"
+
+      if [ "${rc}" -eq 0 ]; then
+        return 0
+      fi
+
+      if printf "%s\n" "${output}" | grep -q "Could not acquire lock on file"; then
+        clear_stale_tycho_lock
+        echo "Transient Maven lock timeout detected (attempt ${attempt}); retrying in 5s..."
+        sleep 5
+        attempt=$((attempt + 1))
+        continue
+      fi
+
+      return "${rc}"
+    done
+
+    return "${rc}"
+  fi
+
+  echo "mvnw failed and system mvn is not available."
+  return 1
+}
+
+resolve_maven_repo_path() {
+  if [ -n "${SMOKE_MAVEN_REPO}" ]; then
+    printf "%s" "${SMOKE_MAVEN_REPO}"
+  else
+    printf "%s/.m2/repository" "${HOME}"
+  fi
+}
+
+clear_stale_tycho_lock() {
+  local repo_path
+  local lock_file
+  repo_path="$(resolve_maven_repo_path)"
+  lock_file="${repo_path}/.meta/p2-artifacts.properties.tycholock"
+
+  if [ ! -f "${lock_file}" ]; then
+    return 0
+  fi
+
+  if command -v pgrep >/dev/null 2>&1; then
+    if pgrep -f "org.codehaus.plexus.classworlds.launcher.Launcher" >/dev/null 2>&1; then
+      echo "Maven process detected; preserving lock file: ${lock_file}"
+      return 0
+    fi
+  fi
+
+  rm -f "${lock_file}" 2>/dev/null || true
+  echo "Removed stale Tycho lock: ${lock_file}"
+}
+
+build_base_module_with_cli() {
+  local module_dir="$1"
+  local rc=0
+  local attempt=1
+  local output=""
+
+  while [ "${attempt}" -le 2 ]; do
+    if [ -n "${MAVEN_REPO_ARG}" ]; then
+      output="$(run_cli build --dir="${module_dir}" --disable-p2-mirrors --maven-args="${MAVEN_REPO_ARG}" 2>&1)"
+    else
+      output="$(run_cli build --dir="${module_dir}" --disable-p2-mirrors 2>&1)"
+    fi
+    rc=$?
+    printf "%s\n" "${output}"
+
+    if [ "${rc}" -eq 0 ]; then
+      return 0
+    fi
+
+    if printf "%s\n" "${output}" | grep -q "Could not acquire lock on file"; then
+      clear_stale_tycho_lock
+      echo "Transient Maven lock timeout detected (attempt ${attempt}); retrying in 5s..."
+      sleep 5
+      attempt=$((attempt + 1))
+      continue
+    fi
+
+    return "${rc}"
+  done
+
+  return "${rc}"
 }
 
 list_subcommands_for_path() {
@@ -314,6 +431,7 @@ printf "step\texit_code\tlog_file\n" > "${SUMMARY_FILE}"
   echo "- Project root: \`${PROJECT_ROOT}\`"
   echo "- Smoke root: \`${SMOKE_ROOT}\`"
   echo "- Work dir: \`${WORK_DIR}\`"
+  echo "- Maven local repo: \`${SMOKE_MAVEN_REPO}\`"
   echo "- Plugin ID: \`${PLUGIN_ID}\`"
   echo "- Project name: \`${PROJECT_NAME}\`"
   echo "- command matrix step: \`${RUN_COMMAND_MATRIX}\`"
@@ -387,23 +505,23 @@ run_step "Deps base module json" \
 run_step "Doctor plugin check" \
   "run_cli doctor --dir=\"${BASE_MODULE}\""
 
+run_step "Build with plugin mvnw" \
+  "( cd \"${PLUGIN_ROOT}\" && build_multimodule_verify )"
+
+run_step "Build command at base module" \
+  "build_base_module_with_cli \"${BASE_MODULE}\""
+
+run_step "Package zip" \
+  "run_cli package --dir=\"${BASE_MODULE}\" --format=zip --output=dist-smoke"
+
+run_step "Package p2" \
+  "run_cli package --dir=\"${PLUGIN_ROOT}\" --format=p2 --output=dist-smoke"
+
 run_step "Add callout with AI prompt" \
   "run_cli add callout --to=\"${BASE_MODULE}\" --name=SetBPDescription --prompt=\"${PROMPT_TEXT}\""
 
 run_step "Add process with AI prompt" \
   "run_cli add process --to=\"${BASE_MODULE}\" --name=SyncPartnerName --prompt=\"${PROMPT_TEXT}\""
-
-run_step "Build with plugin mvnw" \
-  "( cd \"${PLUGIN_ROOT}\" && ./mvnw -q -DskipTests verify )"
-
-run_step "Build command at base module" \
-  "run_cli build --dir=\"${BASE_MODULE}\""
-
-run_step "Package zip" \
-  "run_cli package --dir=\"${PLUGIN_ROOT}\" --format=zip --output=dist-smoke"
-
-run_step "Package p2" \
-  "run_cli package --dir=\"${PLUGIN_ROOT}\" --format=p2 --output=dist-smoke"
 
 run_step "Latest session log markers" \
   "latest_session_log_markers"

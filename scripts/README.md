@@ -19,6 +19,8 @@ Runs a practical smoke suite for `idempiere-cli`, captures stdout/stderr for eac
 - session log markers (`ai-prompt`, `ai-response`, parse diagnostics)
 - full command/subcommand matrix via `--help` (dynamic discovery, executed after core flow)
 
+Build/package validation runs before AI prompt steps, so compile/package gates stay deterministic.
+
 ### Output artifacts
 
 All artifacts are written under the smoke root (default: `/tmp/idempiere-cli-smoke-<timestamp>`):
@@ -75,6 +77,7 @@ CLI_MODE=auto ./scripts/run-cli-prebuild-smoke.sh
 - `SETUP_DB_ADMIN_PASS` default: random per run (24 chars, alphanumeric)
 - `SETUP_SOURCE_DIR` default: `<smoke-root>/work/idempiere`
 - `SETUP_ECLIPSE_DIR` default: `<smoke-root>/work/eclipse`
+- `SMOKE_MAVEN_REPO` default: `<smoke-root>/work/.m2-repo` (isolates Maven cache/locks per run)
 
 ### Setup-dev-env examples
 
@@ -100,7 +103,8 @@ CLI_MODE=jar RUN_COMMAND_MATRIX=0 ./scripts/run-cli-prebuild-smoke.sh
 
 - This script is a **developer smoke harness**. It does not replace CI.
 - The script executes in a natural developer order first, then runs the full command matrix as a coverage pass.
-- Some steps can fail depending on machine state (tooling, network, AI config, local env).
+- Core flow is designed to be deterministic; failures should indicate an actionable regression or environment issue.
+- First run with isolated Maven repo may download dependencies again; expect longer runtime and required network access.
 - Use `reports/index.md` + step logs for triage.
 - The command matrix uses `--help` only (safe, no side effects). It does not run `doctor --fix` or `doctor --fix-optional`.
 - In matrix mode, some commands may return non-zero for `--help` due parser behavior; if a valid `Usage: idempiere-cli <command...>` is resolved, the step is treated as valid.

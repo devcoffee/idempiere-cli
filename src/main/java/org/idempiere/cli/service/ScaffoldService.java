@@ -52,7 +52,7 @@ public class ScaffoldService {
     ScaffoldModuleWriterService scaffoldModuleWriterService;
 
     @Inject
-    ScaffoldXmlUpdateService scaffoldXmlUpdateService;
+    ScaffoldModuleManagementService scaffoldModuleManagementService;
 
     public ScaffoldResult createPlugin(PluginDescriptor descriptor) {
         if (descriptor.isMultiModule()) {
@@ -379,39 +379,7 @@ public class ScaffoldService {
      * @param descriptor optional descriptor with settings (version, vendor, etc.)
      */
     public ScaffoldResult addPluginModuleToProject(Path rootDir, String pluginId, PluginDescriptor descriptor) {
-        System.out.println();
-        System.out.println("Adding plugin module: " + pluginId);
-        System.out.println();
-
-        try {
-            Path pluginDir = rootDir.resolve(pluginId);
-            if (Files.exists(pluginDir)) {
-                return directoryExistsError(pluginDir);
-            }
-
-            // Build template data
-            Map<String, Object> data = buildModuleData(rootDir, pluginId, descriptor);
-
-            // Create plugin module
-            scaffoldModuleWriterService.createPluginModule(pluginDir, descriptor, data);
-
-            // Update root pom.xml to include new module
-            scaffoldXmlUpdateService.updateRootPomModules(rootDir, pluginId);
-
-            // Update category.xml if p2 module exists
-            scaffoldXmlUpdateService.updateCategoryXml(rootDir, pluginId, false);
-
-            System.out.println();
-            System.out.println("Plugin module added successfully!");
-            System.out.println();
-            System.out.println("Next steps:");
-            System.out.println("  1. Refresh Maven project in Eclipse");
-            System.out.println("  2. The module will be included in the build automatically");
-            System.out.println();
-            return ScaffoldResult.ok(pluginDir);
-        } catch (IOException e) {
-            return ioError("Error adding plugin module", e, true);
-        }
+        return scaffoldModuleManagementService.addPluginModuleToProject(rootDir, pluginId, descriptor);
     }
 
     /**
@@ -422,41 +390,7 @@ public class ScaffoldService {
      * @param descriptor optional descriptor with settings
      */
     public ScaffoldResult addFragmentModuleToProject(Path rootDir, String fragmentHost, PluginDescriptor descriptor) {
-        String fragmentId = descriptor.getPluginId() + ".fragment";
-        System.out.println();
-        System.out.println("Adding fragment module: " + fragmentId);
-        System.out.println("Fragment host: " + fragmentHost);
-        System.out.println();
-
-        try {
-            Path fragmentDir = rootDir.resolve(fragmentId);
-            if (Files.exists(fragmentDir)) {
-                return directoryExistsError(fragmentDir);
-            }
-
-            // Build template data
-            Map<String, Object> data = buildModuleData(rootDir, fragmentId, descriptor);
-            data.put("fragmentHost", fragmentHost);
-
-            // Create fragment module
-            scaffoldModuleWriterService.createFragmentModule(fragmentDir, descriptor, data);
-
-            // Update root pom.xml to include new module
-            scaffoldXmlUpdateService.updateRootPomModules(rootDir, fragmentId);
-
-            // Update category.xml if p2 module exists
-            scaffoldXmlUpdateService.updateCategoryXml(rootDir, fragmentId, false);
-
-            // Update feature.xml if feature module exists
-            scaffoldXmlUpdateService.updateFeatureXml(rootDir, fragmentId, true);
-
-            System.out.println();
-            System.out.println("Fragment module added successfully!");
-            System.out.println();
-            return ScaffoldResult.ok(fragmentDir);
-        } catch (IOException e) {
-            return ioError("Error adding fragment module", e, true);
-        }
+        return scaffoldModuleManagementService.addFragmentModuleToProject(rootDir, fragmentHost, descriptor);
     }
 
     /**
@@ -466,64 +400,7 @@ public class ScaffoldService {
      * @param descriptor optional descriptor with settings
      */
     public ScaffoldResult addFeatureModuleToProject(Path rootDir, PluginDescriptor descriptor) {
-        String featureId = descriptor.getPluginId() + ".feature";
-        System.out.println();
-        System.out.println("Adding feature module: " + featureId);
-        System.out.println();
-
-        try {
-            Path featureDir = rootDir.resolve(featureId);
-            if (Files.exists(featureDir)) {
-                return directoryExistsError(featureDir);
-            }
-
-            // Build template data
-            Map<String, Object> data = buildModuleData(rootDir, featureId, descriptor);
-            data.put("withFragment", false);  // Will be updated if fragment exists
-
-            // Check for existing fragment
-            Path fragmentDir = rootDir.resolve(descriptor.getPluginId() + ".fragment");
-            if (Files.exists(fragmentDir)) {
-                data.put("withFragment", true);
-            }
-
-            // Create feature module
-            scaffoldModuleWriterService.createFeatureModule(featureDir, descriptor, data);
-
-            // Update root pom.xml to include new module
-            scaffoldXmlUpdateService.updateRootPomModules(rootDir, featureId);
-
-            // Update category.xml if p2 module exists - use feature instead of individual plugins
-            scaffoldXmlUpdateService.updateCategoryXmlForFeature(rootDir, featureId);
-
-            System.out.println();
-            System.out.println("Feature module added successfully!");
-            System.out.println();
-            System.out.println("The feature groups your plugins for easier installation.");
-            System.out.println();
-            return ScaffoldResult.ok(featureDir);
-        } catch (IOException e) {
-            return ioError("Error adding feature module", e, true);
-        }
-    }
-
-    /**
-     * Build template data for adding a module to an existing project.
-     */
-    private Map<String, Object> buildModuleData(Path rootDir, String moduleId, PluginDescriptor descriptor) {
-        Map<String, Object> data = scaffoldTemplateDataFactory.buildPluginData(descriptor);
-
-        // Override with module-specific data
-        data.put("pluginId", descriptor.getPluginId());
-        data.put("basePluginId", descriptor.getBasePluginId());
-        data.put("groupId", descriptor.getGroupId());
-        data.put("withFragment", descriptor.isWithFragment());
-        data.put("withFeature", descriptor.isWithFeature());
-        data.put("withTest", descriptor.isWithTest());
-        data.put("fragmentHost", descriptor.getFragmentHost());
-        data.put("categoryName", descriptor.getPluginId().replace('.', '-'));
-
-        return data;
+        return scaffoldModuleManagementService.addFeatureModuleToProject(rootDir, descriptor);
     }
 
     private void writeFileAndReport(Path file, String content) throws IOException {

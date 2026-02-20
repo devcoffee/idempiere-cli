@@ -20,6 +20,7 @@ Runs a practical smoke suite for `idempiere-cli`, captures stdout/stderr for eac
 - full command/subcommand matrix via `--help` (dynamic discovery, executed after core flow)
 
 Build/package validation runs before AI prompt steps, so compile/package gates stay deterministic.
+AI steps run in a dedicated phase and are non-blocking by default (`AI_BLOCKING=0`).
 
 ### Output artifacts
 
@@ -71,6 +72,8 @@ CLI_MODE=auto ./scripts/run-cli-prebuild-smoke.sh
 - `PROJECT_NAME` default: `smoke-demo`
 - `PROMPT_TEXT` default: predefined callout prompt
 - `RUN_COMMAND_MATRIX` default: `1` (validates all discovered command/subcommand combinations with `--help`)
+- `RUN_AI_STEPS` default: `1` (runs AI add steps in dedicated phase)
+- `AI_BLOCKING` default: `0` (AI step failures become `XFAIL` instead of `FAIL`)
 - `RUN_SETUP_DEV_ENV_DRY_RUN` default: `1` (adds `setup-dev-env --dry-run` smoke step)
 - `RUN_SETUP_DEV_ENV_FULL` default: `0` (runs real `setup-dev-env`, heavy and stateful)
 - `SETUP_DEV_ENV_ARGS` default: `--with-docker --include-rest`
@@ -81,6 +84,7 @@ CLI_MODE=auto ./scripts/run-cli-prebuild-smoke.sh
 - `SMOKE_MAVEN_REPO` default: `<smoke-root>/work/.m2-repo` (isolates Maven cache/locks per run)
 - `DEPLOY_TARGET_HOME` default: `<smoke-root>/work/idempiere-home` (fake target with `plugins/` for deploy smoke)
 - `EXPECTED_FAILURE_STEPS` default: empty; semicolon-separated step names treated as expected failure (`XFAIL`)
+- `HELP_MATRIX_ACCEPT_EXIT2_PATHS` default: fixed allowlist of command paths that may legitimately return exit `2` for `--help`
 - `SMOKE_FAIL_ON_REGRESSION` default: `0`; when `1`, script exits non-zero if any unexpected failure (`FAIL`) occurs
 
 ### Setup-dev-env examples
@@ -103,6 +107,18 @@ Run a faster smoke without command matrix:
 CLI_MODE=jar RUN_COMMAND_MATRIX=0 ./scripts/run-cli-prebuild-smoke.sh
 ```
 
+Skip AI phase entirely:
+
+```bash
+CLI_MODE=jar RUN_AI_STEPS=0 ./scripts/run-cli-prebuild-smoke.sh
+```
+
+Make AI failures blocking:
+
+```bash
+CLI_MODE=jar AI_BLOCKING=1 ./scripts/run-cli-prebuild-smoke.sh
+```
+
 Mark known issues as expected failures (without hiding real regressions):
 
 ```bash
@@ -118,4 +134,4 @@ CLI_MODE=jar ./scripts/run-cli-prebuild-smoke.sh
 - First run with isolated Maven repo may download dependencies again; expect longer runtime and required network access.
 - Use `reports/index.md` + step logs for triage.
 - The command matrix uses `--help` only (safe, no side effects). It does not run `doctor --fix` or `doctor --fix-optional`.
-- In matrix mode, some commands may return non-zero for `--help` due parser behavior; if a valid `Usage: idempiere-cli <command...>` is resolved, the step is treated as valid.
+- In matrix mode, exit `2` is accepted only for paths in `HELP_MATRIX_ACCEPT_EXIT2_PATHS` and only when a valid `Usage: idempiere-cli <command...>` is resolved.

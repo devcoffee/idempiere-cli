@@ -24,6 +24,11 @@ Outputs:
 java -jar target/quarkus-app/quarkus-run.jar doctor
 ```
 
+For a full pre-release smoke workflow, see:
+- [Pre-Release Smoke Validation](../jtbd/06-pre-release-smoke.md)
+- [Release Checklist](release-checklist.md)
+- [Known Limitations](known-limitations.md)
+
 ## Release Flow
 
 ```bash
@@ -32,4 +37,3 @@ git push --tags
 ```
 
 Tag push triggers GitHub Actions release build for supported platforms.
-

@@ -28,6 +28,8 @@ Use this hub by scenario.
 - [Command Reference](reference/commands.md)
 - [Configuration and AI](reference/configuration.md)
 - [Build and Release](reference/build-release.md)
+- [Release Checklist](reference/release-checklist.md)
+- [Known Limitations](reference/known-limitations.md)
 - [Architecture, Scope, and Roadmap](reference/architecture-roadmap.md)
 
 ## Strategy

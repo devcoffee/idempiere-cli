@@ -157,6 +157,9 @@ Manage skill sources.
 idempiere-cli skills list
 idempiere-cli skills sync
 idempiere-cli skills which idempiere-cli-build-deploy
+idempiere-cli skills source list
+idempiere-cli skills source add --name=official --url=https://github.com/hengsin/idempiere-skills.git --priority=1
+idempiere-cli skills source remove --name=official
 ```
 
 ### `upgrade`

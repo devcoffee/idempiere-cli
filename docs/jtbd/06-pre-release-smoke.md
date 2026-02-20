@@ -41,6 +41,18 @@ Interpretation:
 - `XFAIL`: known failure, tracked but not blocking
 - `FAIL`: unexpected regression (should block release)
 
+AI steps are non-blocking by default. To make them blocking:
+
+```bash
+CLI_MODE=jar AI_BLOCKING=1 SMOKE_FAIL_ON_REGRESSION=1 ./scripts/run-cli-prebuild-smoke.sh
+```
+
+To skip AI phase completely:
+
+```bash
+CLI_MODE=jar RUN_AI_STEPS=0 SMOKE_FAIL_ON_REGRESSION=1 ./scripts/run-cli-prebuild-smoke.sh
+```
+
 ## 4. Read Results Fast
 
 After each run, inspect:
@@ -66,3 +78,5 @@ Archive:       /tmp/idempiere-cli-smoke-<timestamp>/reports.tar.gz
 The smoke script also runs a dynamic command/subcommand `--help` matrix (safe, no side effects) after the main flow.
 
 Keep it enabled (`RUN_COMMAND_MATRIX=1`) for release validation unless you are doing a quick local debug loop.
+
+Exit code `2` is accepted only for command paths in the explicit matrix allowlist.

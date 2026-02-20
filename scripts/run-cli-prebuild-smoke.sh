@@ -13,6 +13,8 @@
 #   PROJECT_NAME Project folder name (default: smoke-demo)
 #   PROMPT_TEXT  Prompt used in add command (default: predefined sentence)
 #   RUN_COMMAND_MATRIX 1|0 validate full command/subcommand tree with --help (default: 1)
+#   RUN_AI_STEPS 1|0 include AI generation add steps (default: 1)
+#   AI_BLOCKING  1|0 make AI step failures block the run (default: 0)
 #   RUN_SETUP_DEV_ENV_DRY_RUN 1|0 include setup-dev-env dry-run step (default: 1)
 #   RUN_SETUP_DEV_ENV_FULL    1|0 include setup-dev-env full run step (default: 0)
 #   SETUP_DEV_ENV_ARGS        Common args for setup-dev-env smoke (default: docker+rest profile)
@@ -23,6 +25,7 @@
 #   SMOKE_MAVEN_REPO          Dedicated Maven local repository override for smoke run (default: <smoke-root>/work/.m2-repo)
 #   DEPLOY_TARGET_HOME        Fake iDempiere home for deploy smoke step (default: <smoke-root>/work/idempiere-home)
 #   EXPECTED_FAILURE_STEPS    Optional semicolon-separated step names treated as expected failures (XFAIL)
+#   HELP_MATRIX_ACCEPT_EXIT2_PATHS Optional semicolon-separated command paths allowed to return exit 2 with --help
 #   SMOKE_FAIL_ON_REGRESSION  1|0 exit non-zero when unexpected failures exist (default: 0)
 
 set -u
@@ -39,6 +42,8 @@ PLUGIN_ID="${PLUGIN_ID:-org.smoke.demo}"
 PROJECT_NAME="${PROJECT_NAME:-smoke-demo}"
 PROMPT_TEXT="${PROMPT_TEXT:-Define Description as Name + Name2 when leaving those fields.}"
 RUN_COMMAND_MATRIX="${RUN_COMMAND_MATRIX:-1}"
+RUN_AI_STEPS="${RUN_AI_STEPS:-1}"
+AI_BLOCKING="${AI_BLOCKING:-0}"
 RUN_SETUP_DEV_ENV_DRY_RUN="${RUN_SETUP_DEV_ENV_DRY_RUN:-1}"
 RUN_SETUP_DEV_ENV_FULL="${RUN_SETUP_DEV_ENV_FULL:-0}"
 SETUP_DEV_ENV_ARGS="${SETUP_DEV_ENV_ARGS:---with-docker --include-rest}"
@@ -53,6 +58,7 @@ SETUP_ECLIPSE_DIR="${SETUP_ECLIPSE_DIR:-${WORK_DIR}/eclipse}"
 SMOKE_MAVEN_REPO="${SMOKE_MAVEN_REPO:-${WORK_DIR}/.m2-repo}"
 DEPLOY_TARGET_HOME="${DEPLOY_TARGET_HOME:-${WORK_DIR}/idempiere-home}"
 EXPECTED_FAILURE_STEPS="${EXPECTED_FAILURE_STEPS:-}"
+HELP_MATRIX_ACCEPT_EXIT2_PATHS="${HELP_MATRIX_ACCEPT_EXIT2_PATHS:-init;generate-completion;upgrade;add plugin;add fragment;add feature;config show;config get;config set;skills list;skills sync;skills which;skills source add;skills source remove}"
 SMOKE_FAIL_ON_REGRESSION="${SMOKE_FAIL_ON_REGRESSION:-0}"
 MAVEN_REPO_ARG=""
 SUMMARY_FILE="${REPORT_DIR}/summary.tsv"
@@ -355,6 +361,21 @@ is_expected_failure_step() {
   return 1
 }
 
+is_ai_soft_failure_step() {
+  local step="$1"
+  if [ "${AI_BLOCKING}" = "1" ]; then
+    return 1
+  fi
+  case "${step}" in
+    "Add callout with AI prompt"|"Add process with AI prompt")
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 record_step_result() {
   local step="$1"
   local raw_rc="$2"
@@ -362,9 +383,14 @@ record_step_result() {
   local log_file="$4"
   local outcome="FAIL"
   local expected="no"
+  local soft_reason=""
 
   if [ "${effective_rc}" -eq 0 ]; then
     outcome="PASS"
+  elif is_ai_soft_failure_step "${step}"; then
+    outcome="XFAIL"
+    expected="yes"
+    soft_reason="ai-non-blocking"
   elif is_expected_failure_step "${step}"; then
     outcome="XFAIL"
     expected="yes"
@@ -390,6 +416,9 @@ record_step_result() {
     {
       echo "- [XFAIL] ${step} (exit=${raw_rc})"
       echo "  - expected failure: yes"
+      if [ -n "${soft_reason}" ]; then
+        echo "  - reason: ${soft_reason}"
+      fi
       echo "  - log: \`${log_file}\`"
     } >> "${INDEX_FILE}"
     return 0
@@ -412,15 +441,34 @@ command_matrix_help_is_valid() {
     return 0
   fi
 
-  # Some commands/subcommands return exit 2 for --help due parser behavior,
-  # but still print a valid usage line for the resolved command path.
-  if [ "${raw_rc}" -eq 2 ] && grep -Fq "Usage: idempiere-cli ${path}" "${log_file}"; then
-    if grep -Eq "Unmatched argument|Unknown command" "${log_file}"; then
+  if [ "${raw_rc}" -eq 2 ]; then
+    if ! is_help_exit2_allowlisted "${path}"; then
       return 1
     fi
-    return 0
+    if grep -Fq "Usage: idempiere-cli ${path}" "${log_file}"; then
+      if grep -Eq "Unmatched argument|Unknown command" "${log_file}"; then
+        return 1
+      fi
+      return 0
+    fi
   fi
 
+  return 1
+}
+
+is_help_exit2_allowlisted() {
+  local path="$1"
+  local expected_path=""
+  local OLD_IFS="${IFS}"
+  IFS=';'
+  for expected_path in ${HELP_MATRIX_ACCEPT_EXIT2_PATHS}; do
+    expected_path="$(printf "%s" "${expected_path}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+    if [ -n "${expected_path}" ] && [ "${expected_path}" = "${path}" ]; then
+      IFS="${OLD_IFS}"
+      return 0
+    fi
+  done
+  IFS="${OLD_IFS}"
   return 1
 }
 
@@ -478,6 +526,8 @@ printf "step\traw_exit_code\teffective_exit_code\toutcome\texpected_failure\tlog
   echo "- Plugin ID: \`${PLUGIN_ID}\`"
   echo "- Project name: \`${PROJECT_NAME}\`"
   echo "- command matrix step: \`${RUN_COMMAND_MATRIX}\`"
+  echo "- AI steps: \`${RUN_AI_STEPS}\`"
+  echo "- AI blocking mode: \`${AI_BLOCKING}\`"
   echo "- setup-dev-env dry-run step: \`${RUN_SETUP_DEV_ENV_DRY_RUN}\`"
   echo "- setup-dev-env full step: \`${RUN_SETUP_DEV_ENV_FULL}\`"
   if [ -n "${EXPECTED_FAILURE_STEPS}" ]; then
@@ -485,6 +535,7 @@ printf "step\traw_exit_code\teffective_exit_code\toutcome\texpected_failure\tlog
   else
     echo "- expected failure steps: \`(none)\`"
   fi
+  echo "- matrix exit-2 allowlist: \`${HELP_MATRIX_ACCEPT_EXIT2_PATHS}\`"
   echo "- fail on regression: \`${SMOKE_FAIL_ON_REGRESSION}\`"
   echo
   echo "## Steps"
@@ -533,6 +584,9 @@ if [ "${RUN_SETUP_DEV_ENV_FULL}" = "1" ]; then
     "run_cli setup-dev-env --non-interactive --source-dir=\"${SETUP_SOURCE_DIR}\" --eclipse-dir=\"${SETUP_ECLIPSE_DIR}\" ${SETUP_DEV_ENV_EFFECTIVE_ARGS}"
 fi
 
+run_step "Deterministic phase header" \
+  "echo \"Running deterministic developer flow (init -> validate -> build -> package -> deploy)...\""
+
 run_step "Init non-interactive multi-module" \
   "( cd \"${WORK_DIR}\" && run_cli init \"${PLUGIN_ID}\" --name=\"${PROJECT_NAME}\" --no-interactive --with-callout --with-test --with-fragment --with-feature )"
 
@@ -569,11 +623,16 @@ run_step "Package p2" \
 run_step "Deploy copy at project root" \
   "mkdir -p \"${DEPLOY_TARGET_HOME}/plugins\" && run_cli deploy --dir=\"${PLUGIN_ROOT}\" --target=\"${DEPLOY_TARGET_HOME}\""
 
-run_step "Add callout with AI prompt" \
-  "run_cli add callout --to=\"${BASE_MODULE}\" --name=SetBPDescription --prompt=\"${PROMPT_TEXT}\""
+if [ "${RUN_AI_STEPS}" = "1" ]; then
+  run_step "AI phase header" \
+    "echo \"Running AI generation phase (non-blocking when AI_BLOCKING=0)...\""
 
-run_step "Add process with AI prompt" \
-  "run_cli add process --to=\"${BASE_MODULE}\" --name=SyncPartnerName --prompt=\"${PROMPT_TEXT}\""
+  run_step "Add callout with AI prompt" \
+    "run_cli add callout --to=\"${BASE_MODULE}\" --name=SetBPDescription --prompt=\"${PROMPT_TEXT}\""
+
+  run_step "Add process with AI prompt" \
+    "run_cli add process --to=\"${BASE_MODULE}\" --name=SyncPartnerName --prompt=\"${PROMPT_TEXT}\""
+fi
 
 run_step "Latest session log markers" \
   "latest_session_log_markers"

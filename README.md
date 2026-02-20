@@ -59,6 +59,8 @@ Reference:
 - [Command Reference](docs/reference/commands.md)
 - [Configuration and AI](docs/reference/configuration.md)
 - [Build and Release](docs/reference/build-release.md)
+- [Release Checklist](docs/reference/release-checklist.md)
+- [Known Limitations](docs/reference/known-limitations.md)
 - [Architecture, Scope, and Roadmap](docs/reference/architecture-roadmap.md)
 
 ## Contributing

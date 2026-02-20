@@ -19,6 +19,7 @@ class SkillsCommandTest {
         assertTrue(output.contains("list"));
         assertTrue(output.contains("sync"));
         assertTrue(output.contains("which"));
+        assertTrue(output.contains("source"));
     }
 
     @Test
@@ -51,6 +52,24 @@ class SkillsCommandTest {
         assertEquals(0, result.exitCode());
         String output = result.getOutput();
         assertTrue(output.contains("No matching skill directory found"));
+    }
+
+    @Test
+    @Launch({"skills", "source", "--help"})
+    void testSkillsSourceHelp(LaunchResult result) {
+        assertEquals(0, result.exitCode());
+        String output = result.getOutput();
+        assertTrue(output.contains("add"));
+        assertTrue(output.contains("remove"));
+        assertTrue(output.contains("list"));
+    }
+
+    @Test
+    @Launch({"skills", "source", "list"})
+    void testSkillsSourceList(LaunchResult result) {
+        assertEquals(0, result.exitCode());
+        String output = result.getOutput();
+        assertTrue(output.contains("No skill sources configured"));
     }
 
     @Test

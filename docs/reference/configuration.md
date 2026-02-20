@@ -41,11 +41,11 @@ API key resolution order:
 
 ## Skills Sources
 
-`skills.sources` is best managed directly in YAML.
+`skills.sources` can be managed directly in YAML or through `skills source` commands.
 
 Note:
 - `config set` works for scalar keys (for example `ai.provider`, `defaults.vendor`)
-- nested array entries like `skills.sources[0].name` should be edited in the config file
+- nested array entries like `skills.sources[0].name` are easier via `skills source add/remove`
 
 ```yaml
 skills:
@@ -67,6 +67,8 @@ Use:
 ```bash
 idempiere-cli skills list
 idempiere-cli skills sync
+idempiere-cli skills source list
+idempiere-cli skills source add --name=official --url=https://github.com/hengsin/idempiere-skills.git --priority=1
 ```
 
 ## Multi-Workspace Pattern

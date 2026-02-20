@@ -23,6 +23,16 @@ public class ScaffoldModuleWriterService {
     @Inject
     DescriptorComponentGenerationService descriptorComponentGenerationService;
 
+    public void createMultiModuleRootAndParent(Path rootDir, PluginDescriptor descriptor, Map<String, Object> data) throws IOException {
+        Files.createDirectories(rootDir);
+
+        templateRenderer.render("multi-module/root-pom.xml", data, rootDir.resolve("pom.xml"));
+
+        Path parentDir = rootDir.resolve(descriptor.getPluginId() + ".parent");
+        Files.createDirectories(parentDir);
+        templateRenderer.render("multi-module/parent-pom.xml", data, parentDir.resolve("pom.xml"));
+    }
+
     public void createPluginModule(Path pluginDir, PluginDescriptor descriptor, Map<String, Object> data) throws IOException {
         Files.createDirectories(pluginDir.resolve("META-INF"));
         Files.createDirectories(pluginDir.resolve("OSGI-INF"));

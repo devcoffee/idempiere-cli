@@ -35,6 +35,7 @@ Use prompts that describe:
 
 When `--prompt` is used:
 - if AI output is valid, generated code is applied normally
+- `manifest_additions` and `build_properties_additions` from AI output are merged into `META-INF/MANIFEST.MF` and `build.properties` (deduplicated)
 - if AI output is malformed/incompatible, CLI keeps deterministic scaffold output and preserves AI material for review in logs/comments instead of silently losing it
 
 Always check latest logs when output is not as expected:

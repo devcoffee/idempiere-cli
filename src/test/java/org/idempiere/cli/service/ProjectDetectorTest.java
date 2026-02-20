@@ -180,6 +180,68 @@ class ProjectDetectorTest {
     }
 
     @Test
+    void testResolvePluginDirectoryReturnsSamePluginDir() throws IOException {
+        Files.createDirectories(tempDir.resolve("META-INF"));
+        Files.writeString(tempDir.resolve("META-INF/MANIFEST.MF"), "Bundle-SymbolicName: org.test.single\n");
+
+        Optional<Path> resolved = projectDetector.resolvePluginDirectory(tempDir);
+        assertTrue(resolved.isPresent());
+        assertEquals(tempDir.toAbsolutePath().normalize(), resolved.get());
+    }
+
+    @Test
+    void testFindBasePluginModulePrefersBaseModule() throws IOException {
+        Files.writeString(tempDir.resolve("pom.xml"),
+                "<?xml version=\"1.0\"?>\n" +
+                "<project>\n" +
+                "  <packaging>pom</packaging>\n" +
+                "  <modules>\n" +
+                "    <module>org.test.fragment</module>\n" +
+                "    <module>org.test.base</module>\n" +
+                "    <module>org.test.base.test</module>\n" +
+                "  </modules>\n" +
+                "</project>\n");
+
+        Path fragmentDir = tempDir.resolve("org.test.fragment");
+        Files.createDirectories(fragmentDir.resolve("META-INF"));
+        Files.writeString(fragmentDir.resolve("META-INF/MANIFEST.MF"), "Bundle-SymbolicName: org.test.fragment\n");
+
+        Path baseDir = tempDir.resolve("org.test.base");
+        Files.createDirectories(baseDir.resolve("META-INF"));
+        Files.writeString(baseDir.resolve("META-INF/MANIFEST.MF"), "Bundle-SymbolicName: org.test.base\n");
+
+        Path testDir = tempDir.resolve("org.test.base.test");
+        Files.createDirectories(testDir.resolve("META-INF"));
+        Files.writeString(testDir.resolve("META-INF/MANIFEST.MF"), "Bundle-SymbolicName: org.test.base.test\n");
+
+        Optional<Path> basePlugin = projectDetector.findBasePluginModule(tempDir);
+        assertTrue(basePlugin.isPresent());
+        assertEquals(baseDir.toAbsolutePath().normalize(), basePlugin.get());
+    }
+
+    @Test
+    void testResolvePluginDirectoryFromMultiModuleRoot() throws IOException {
+        Files.writeString(tempDir.resolve("pom.xml"),
+                "<?xml version=\"1.0\"?>\n" +
+                "<project>\n" +
+                "  <packaging>pom</packaging>\n" +
+                "  <modules>\n" +
+                "    <module>org.test.parent</module>\n" +
+                "    <module>org.test.base</module>\n" +
+                "    <module>org.test.p2</module>\n" +
+                "  </modules>\n" +
+                "</project>\n");
+
+        Path baseDir = tempDir.resolve("org.test.base");
+        Files.createDirectories(baseDir.resolve("META-INF"));
+        Files.writeString(baseDir.resolve("META-INF/MANIFEST.MF"), "Bundle-SymbolicName: org.test.base\n");
+
+        Optional<Path> resolved = projectDetector.resolvePluginDirectory(tempDir);
+        assertTrue(resolved.isPresent());
+        assertEquals(baseDir.toAbsolutePath().normalize(), resolved.get());
+    }
+
+    @Test
     void testGetModules() throws IOException {
         Files.writeString(tempDir.resolve("pom.xml"),
                 "<?xml version=\"1.0\"?>\n" +

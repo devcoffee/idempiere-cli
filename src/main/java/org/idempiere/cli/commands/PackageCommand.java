@@ -157,7 +157,7 @@ public class PackageCommand implements Callable<Integer> {
         if (multiModuleRoot.isPresent()) {
             // Multi-module: find the base plugin module
             Path rootDir = multiModuleRoot.get();
-            Optional<Path> basePlugin = findBasePluginModule(rootDir);
+            Optional<Path> basePlugin = projectDetector.findBasePluginModule(rootDir);
             if (basePlugin.isEmpty()) {
                 System.err.println("Error: Could not find base plugin module in " + rootDir);
                 Troubleshooting.printHowToResolve(
@@ -211,23 +211,6 @@ public class PackageCommand implements Callable<Integer> {
             return stream
                     .filter(Files::isDirectory)
                     .filter(p -> p.getFileName().toString().endsWith(".p2"))
-                    .findFirst();
-        } catch (Exception e) {
-            return Optional.empty();
-        }
-    }
-
-    private Optional<Path> findBasePluginModule(Path rootDir) {
-        try (var stream = Files.list(rootDir)) {
-            return stream
-                    .filter(Files::isDirectory)
-                    .filter(p -> {
-                        String name = p.getFileName().toString();
-                        return name.endsWith(".base") ||
-                               (Files.exists(p.resolve("META-INF/MANIFEST.MF")) &&
-                                !name.endsWith(".test") &&
-                                !name.endsWith(".fragment"));
-                    })
                     .findFirst();
         } catch (Exception e) {
             return Optional.empty();

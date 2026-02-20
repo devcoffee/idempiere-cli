@@ -67,14 +67,19 @@ public class DeployCommand implements Callable<Integer> {
 
     @Override
     public Integer call() {
-        Path pluginDir = Path.of(dir);
-        if (!projectDetector.isIdempierePlugin(pluginDir)) {
-            System.err.println("Error: Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
+        Path inputDir = Path.of(dir).toAbsolutePath().normalize();
+        var pluginDirOpt = projectDetector.resolvePluginDirectory(inputDir);
+        if (pluginDirOpt.isEmpty()) {
+            System.err.println("Error: Not an iDempiere plugin in " + inputDir);
             Troubleshooting.printHowToResolve(
                     "Run deploy from a plugin directory or provide --dir with plugin path.",
                     "Validate plugin structure: idempiere-cli doctor --dir /path/to/plugin"
             );
             return ExitCodes.STATE_ERROR;
+        }
+        Path pluginDir = pluginDirOpt.get();
+        if (!pluginDir.equals(inputDir)) {
+            System.out.println("Resolved plugin module: " + pluginDir);
         }
 
         Optional<Path> jar = deployService.findBuiltJar(pluginDir);

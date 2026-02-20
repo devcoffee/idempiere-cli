@@ -21,6 +21,7 @@
 #   SETUP_SOURCE_DIR          Source directory used by setup-dev-env step
 #   SETUP_ECLIPSE_DIR         Eclipse directory used by setup-dev-env step
 #   SMOKE_MAVEN_REPO          Dedicated Maven local repository override for smoke run (default: <smoke-root>/work/.m2-repo)
+#   DEPLOY_TARGET_HOME        Fake iDempiere home for deploy smoke step (default: <smoke-root>/work/idempiere-home)
 #   EXPECTED_FAILURE_STEPS    Optional semicolon-separated step names treated as expected failures (XFAIL)
 #   SMOKE_FAIL_ON_REGRESSION  1|0 exit non-zero when unexpected failures exist (default: 0)
 
@@ -50,6 +51,7 @@ BASE_MODULE="${PLUGIN_ROOT}/${PLUGIN_ID}.base"
 SETUP_SOURCE_DIR="${SETUP_SOURCE_DIR:-${WORK_DIR}/idempiere}"
 SETUP_ECLIPSE_DIR="${SETUP_ECLIPSE_DIR:-${WORK_DIR}/eclipse}"
 SMOKE_MAVEN_REPO="${SMOKE_MAVEN_REPO:-${WORK_DIR}/.m2-repo}"
+DEPLOY_TARGET_HOME="${DEPLOY_TARGET_HOME:-${WORK_DIR}/idempiere-home}"
 EXPECTED_FAILURE_STEPS="${EXPECTED_FAILURE_STEPS:-}"
 SMOKE_FAIL_ON_REGRESSION="${SMOKE_FAIL_ON_REGRESSION:-0}"
 MAVEN_REPO_ARG=""
@@ -555,14 +557,17 @@ run_step "Doctor plugin check" \
 run_step "Build with plugin mvnw" \
   "( cd \"${PLUGIN_ROOT}\" && build_multimodule_verify )"
 
-run_step "Build command at base module" \
-  "build_base_module_with_cli \"${BASE_MODULE}\""
+run_step "Build command at project root" \
+  "build_base_module_with_cli \"${PLUGIN_ROOT}\""
 
 run_step "Package zip" \
-  "run_cli package --dir=\"${BASE_MODULE}\" --format=zip --output=dist-smoke"
+  "run_cli package --dir=\"${PLUGIN_ROOT}\" --format=zip --output=dist-smoke"
 
 run_step "Package p2" \
   "run_cli package --dir=\"${PLUGIN_ROOT}\" --format=p2 --output=dist-smoke"
+
+run_step "Deploy copy at project root" \
+  "mkdir -p \"${DEPLOY_TARGET_HOME}/plugins\" && run_cli deploy --dir=\"${PLUGIN_ROOT}\" --target=\"${DEPLOY_TARGET_HOME}\""
 
 run_step "Add callout with AI prompt" \
   "run_cli add callout --to=\"${BASE_MODULE}\" --name=SetBPDescription --prompt=\"${PROMPT_TEXT}\""

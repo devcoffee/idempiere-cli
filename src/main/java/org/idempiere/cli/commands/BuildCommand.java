@@ -72,9 +72,10 @@ public class BuildCommand implements Callable<Integer> {
 
     @Override
     public Integer call() {
-        Path pluginDir = Path.of(dir);
-        if (!projectDetector.isIdempierePlugin(pluginDir)) {
-            System.err.println("Error: Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
+        Path inputDir = Path.of(dir).toAbsolutePath().normalize();
+        var pluginDirOpt = projectDetector.resolvePluginDirectory(inputDir);
+        if (pluginDirOpt.isEmpty()) {
+            System.err.println("Error: Not an iDempiere plugin in " + inputDir);
             System.err.println("Make sure you are inside a plugin directory or use --dir to specify one.");
             Troubleshooting.printHowToResolve(
                     "Run this command inside a plugin project (with META-INF/MANIFEST.MF and pom.xml).",
@@ -82,6 +83,10 @@ public class BuildCommand implements Callable<Integer> {
                     "Validate plugin structure: idempiere-cli doctor --dir /path/to/plugin"
             );
             return ExitCodes.STATE_ERROR;
+        }
+        Path pluginDir = pluginDirOpt.get();
+        if (!pluginDir.equals(inputDir)) {
+            System.out.println("Resolved plugin module: " + pluginDir);
         }
 
         Path idHome = resolveIdempiereHome();

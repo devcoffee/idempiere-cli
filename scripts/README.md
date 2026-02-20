@@ -15,7 +15,7 @@ Runs a practical smoke suite for `idempiere-cli`, captures stdout/stderr for eac
 - `info`, `validate`, `deps`, plugin `doctor`
 - `add` flow with AI prompt
 - plugin build (`mvnw verify`)
-- `build`, `package` (`zip` and `p2`)
+- `build`, `package` (`zip` and `p2`) and `deploy` from multi-module project root
 - session log markers (`ai-prompt`, `ai-response`, parse diagnostics)
 - full command/subcommand matrix via `--help` (dynamic discovery, executed after core flow)
 
@@ -79,6 +79,7 @@ CLI_MODE=auto ./scripts/run-cli-prebuild-smoke.sh
 - `SETUP_SOURCE_DIR` default: `<smoke-root>/work/idempiere`
 - `SETUP_ECLIPSE_DIR` default: `<smoke-root>/work/eclipse`
 - `SMOKE_MAVEN_REPO` default: `<smoke-root>/work/.m2-repo` (isolates Maven cache/locks per run)
+- `DEPLOY_TARGET_HOME` default: `<smoke-root>/work/idempiere-home` (fake target with `plugins/` for deploy smoke)
 - `EXPECTED_FAILURE_STEPS` default: empty; semicolon-separated step names treated as expected failure (`XFAIL`)
 - `SMOKE_FAIL_ON_REGRESSION` default: `0`; when `1`, script exits non-zero if any unexpected failure (`FAIL`) occurs
 
@@ -105,7 +106,7 @@ CLI_MODE=jar RUN_COMMAND_MATRIX=0 ./scripts/run-cli-prebuild-smoke.sh
 Mark known issues as expected failures (without hiding real regressions):
 
 ```bash
-EXPECTED_FAILURE_STEPS="Build with plugin mvnw;Build command at base module" \
+EXPECTED_FAILURE_STEPS="Build with plugin mvnw;Build command at project root;Package zip;Package p2;Deploy copy at project root" \
 CLI_MODE=jar ./scripts/run-cli-prebuild-smoke.sh
 ```
 

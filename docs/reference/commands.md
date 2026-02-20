@@ -94,18 +94,24 @@ idempiere-cli info --json --dir=./plugin
 ### `build`
 Compile plugin module with Maven/Tycho.
 
+If `--dir` points to a multi-module root, CLI resolves the primary `.base` module automatically.
+
 ```bash
 idempiere-cli build --dir=./plugin --clean
 idempiere-cli build --dir=./plugin --skip-tests
 idempiere-cli build --dir=./plugin --idempiere-home=/opt/idempiere
+idempiere-cli build --dir=./multi-module-root
 ```
 
 ### `deploy`
 Deploy built JAR to iDempiere instance.
 
+If `--dir` points to a multi-module root, CLI resolves the primary `.base` module automatically.
+
 ```bash
 idempiere-cli deploy --dir=./plugin --target=/opt/idempiere
 idempiere-cli deploy --dir=./plugin --target=/opt/idempiere --hot
+idempiere-cli deploy --dir=./multi-module-root --target=/opt/idempiere
 ```
 
 ### `package`
@@ -166,4 +172,3 @@ Generate shell completion script.
 ```bash
 idempiere-cli generate-completion > ~/.idempiere-cli-completion.bash
 ```
-

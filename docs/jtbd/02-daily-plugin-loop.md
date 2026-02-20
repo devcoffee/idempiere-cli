@@ -50,7 +50,7 @@ idempiere-cli validate --strict ./orderext/org.mycompany.orderext.base
 idempiere-cli build --dir ./orderext/org.mycompany.orderext.base --clean
 ```
 
-Note: `build` expects a plugin module directory (contains `META-INF/MANIFEST.MF`).
+Note: in multi-module projects, you can also run from root (`--dir ./orderext`) and CLI resolves the `.base` module automatically.
 
 ## 5. Deploy
 
@@ -58,6 +58,7 @@ Copy deploy:
 
 ```bash
 idempiere-cli deploy --dir ./orderext/org.mycompany.orderext.base --target /opt/idempiere
+idempiere-cli deploy --dir ./orderext --target /opt/idempiere
 ```
 
 Hot deploy:
@@ -88,4 +89,3 @@ idempiere-cli deps --dir ./orderext/org.mycompany.orderext.base
 idempiere-cli info --dir ./orderext/org.mycompany.orderext.base
 idempiere-cli diff-schema --table=C_Order --dir ./orderext/org.mycompany.orderext.base
 ```
-

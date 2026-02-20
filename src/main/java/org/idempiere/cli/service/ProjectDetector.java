@@ -209,6 +209,71 @@ public class ProjectDetector {
     }
 
     /**
+     * Resolves the effective plugin directory for a command input path.
+     * <p>
+     * Resolution order:
+     * <ol>
+     *   <li>If {@code directory} is already a plugin module (contains MANIFEST), return it.</li>
+     *   <li>If {@code directory} is inside a multi-module project, resolve and return the base plugin module.</li>
+     * </ol>
+     */
+    public Optional<Path> resolvePluginDirectory(Path directory) {
+        Path normalized = directory.toAbsolutePath().normalize();
+        if (isIdempierePlugin(normalized)) {
+            return Optional.of(normalized);
+        }
+
+        Optional<Path> root = findMultiModuleRoot(normalized);
+        if (root.isPresent()) {
+            return findBasePluginModule(root.get());
+        }
+
+        return Optional.empty();
+    }
+
+    /**
+     * Finds the primary plugin module in a multi-module project.
+     * Prefers modules ending with ".base", then falls back to the first plugin
+     * module that is not a test/fragment/feature/p2/parent module.
+     */
+    public Optional<Path> findBasePluginModule(Path rootDir) {
+        if (!isMultiModuleRoot(rootDir)) {
+            return Optional.empty();
+        }
+
+        List<String> modules = getModules(rootDir);
+
+        // First pass: prefer explicit .base module
+        for (String module : modules) {
+            Path moduleDir = rootDir.resolve(module);
+            String name = moduleDir.getFileName().toString();
+            if (name.endsWith(".base") && isIdempierePlugin(moduleDir)) {
+                return Optional.of(moduleDir);
+            }
+        }
+
+        // Second pass: any plugin module that is not auxiliary
+        for (String module : modules) {
+            Path moduleDir = rootDir.resolve(module);
+            String name = moduleDir.getFileName().toString();
+            if (!isIdempierePlugin(moduleDir)) {
+                continue;
+            }
+            if (name.endsWith(".test")
+                    || name.endsWith(".fragment")
+                    || name.endsWith(".feature")
+                    || name.endsWith(".p2")
+                    || name.endsWith(".parent")
+                    || name.endsWith(".extensions.parent")) {
+                continue;
+            }
+            return Optional.of(moduleDir);
+        }
+
+        return Optional.empty();
+    }
+
+    /**
      * Finds subdirectories that are iDempiere plugins (have META-INF/MANIFEST.MF).
      * Useful for suggesting directories when user runs 'add' from a multi-module root.
      */

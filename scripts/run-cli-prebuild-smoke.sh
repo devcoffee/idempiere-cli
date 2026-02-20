@@ -21,6 +21,8 @@
 #   SETUP_SOURCE_DIR          Source directory used by setup-dev-env step
 #   SETUP_ECLIPSE_DIR         Eclipse directory used by setup-dev-env step
 #   SMOKE_MAVEN_REPO          Dedicated Maven local repository override for smoke run (default: <smoke-root>/work/.m2-repo)
+#   EXPECTED_FAILURE_STEPS    Optional semicolon-separated step names treated as expected failures (XFAIL)
+#   SMOKE_FAIL_ON_REGRESSION  1|0 exit non-zero when unexpected failures exist (default: 0)
 
 set -u
 set -o pipefail
@@ -48,10 +50,14 @@ BASE_MODULE="${PLUGIN_ROOT}/${PLUGIN_ID}.base"
 SETUP_SOURCE_DIR="${SETUP_SOURCE_DIR:-${WORK_DIR}/idempiere}"
 SETUP_ECLIPSE_DIR="${SETUP_ECLIPSE_DIR:-${WORK_DIR}/eclipse}"
 SMOKE_MAVEN_REPO="${SMOKE_MAVEN_REPO:-${WORK_DIR}/.m2-repo}"
+EXPECTED_FAILURE_STEPS="${EXPECTED_FAILURE_STEPS:-}"
+SMOKE_FAIL_ON_REGRESSION="${SMOKE_FAIL_ON_REGRESSION:-0}"
 MAVEN_REPO_ARG=""
 SUMMARY_FILE="${REPORT_DIR}/summary.tsv"
 INDEX_FILE="${REPORT_DIR}/index.md"
 LAST_STEP_RC=0
+LAST_STEP_EFFECTIVE_RC=0
+LAST_STEP_OUTCOME=""
 CLI_MODE_EFFECTIVE=""
 SETUP_DEV_ENV_EFFECTIVE_ARGS=""
 COMMAND_MATRIX_PATHS=()
@@ -326,23 +332,73 @@ run_step() {
 
   eval "${cmd}" >> "${log_file}" 2>&1
   local rc=$?
-  LAST_STEP_RC=$rc
+  record_step_result "${step}" "${rc}" "${rc}" "${log_file}"
+}
 
-  printf "%s\t%s\t%s\n" "${step}" "${rc}" "${log_file}" >> "${SUMMARY_FILE}"
+is_expected_failure_step() {
+  local step="$1"
+  [ -z "${EXPECTED_FAILURE_STEPS}" ] && return 1
 
-  if [ "${rc}" -eq 0 ]; then
-    echo "[PASS] ${step} (exit=${rc})"
-    {
-      echo "- [PASS] ${step} (exit=${rc})"
-      echo "  - log: \`${log_file}\`"
-    } >> "${INDEX_FILE}"
-  else
-    echo "[FAIL] ${step} (exit=${rc})"
-    {
-      echo "- [FAIL] ${step} (exit=${rc})"
-      echo "  - log: \`${log_file}\`"
-    } >> "${INDEX_FILE}"
+  local expected_step=""
+  local OLD_IFS="${IFS}"
+  IFS=';'
+  for expected_step in ${EXPECTED_FAILURE_STEPS}; do
+    expected_step="$(printf "%s" "${expected_step}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+    if [ -n "${expected_step}" ] && [ "${expected_step}" = "${step}" ]; then
+      IFS="${OLD_IFS}"
+      return 0
+    fi
+  done
+  IFS="${OLD_IFS}"
+  return 1
+}
+
+record_step_result() {
+  local step="$1"
+  local raw_rc="$2"
+  local effective_rc="$3"
+  local log_file="$4"
+  local outcome="FAIL"
+  local expected="no"
+
+  if [ "${effective_rc}" -eq 0 ]; then
+    outcome="PASS"
+  elif is_expected_failure_step "${step}"; then
+    outcome="XFAIL"
+    expected="yes"
   fi
+
+  LAST_STEP_RC="${raw_rc}"
+  LAST_STEP_EFFECTIVE_RC="${effective_rc}"
+  LAST_STEP_OUTCOME="${outcome}"
+
+  printf "%s\t%s\t%s\t%s\t%s\t%s\n" "${step}" "${raw_rc}" "${effective_rc}" "${outcome}" "${expected}" "${log_file}" >> "${SUMMARY_FILE}"
+
+  if [ "${outcome}" = "PASS" ]; then
+    echo "[PASS] ${step} (exit=${raw_rc})"
+    {
+      echo "- [PASS] ${step} (exit=${raw_rc})"
+      echo "  - log: \`${log_file}\`"
+    } >> "${INDEX_FILE}"
+    return 0
+  fi
+
+  if [ "${outcome}" = "XFAIL" ]; then
+    echo "[XFAIL] ${step} (exit=${raw_rc})"
+    {
+      echo "- [XFAIL] ${step} (exit=${raw_rc})"
+      echo "  - expected failure: yes"
+      echo "  - log: \`${log_file}\`"
+    } >> "${INDEX_FILE}"
+    return 0
+  fi
+
+  echo "[FAIL] ${step} (exit=${raw_rc})"
+  {
+    echo "- [FAIL] ${step} (exit=${raw_rc})"
+    echo "  - log: \`${log_file}\`"
+  } >> "${INDEX_FILE}"
+  return 0
 }
 
 command_matrix_help_is_valid() {
@@ -394,27 +450,12 @@ run_command_matrix_step() {
     fi
   fi
 
-  LAST_STEP_RC=$rc
-  printf "%s\t%s\t%s\n" "${step}" "${rc}" "${log_file}" >> "${SUMMARY_FILE}"
-
-  if [ "${rc}" -eq 0 ]; then
-    echo "[PASS] ${step} (exit=${raw_rc})"
-    {
-      echo "- [PASS] ${step} (exit=${raw_rc})"
-      echo "  - log: \`${log_file}\`"
-    } >> "${INDEX_FILE}"
-  else
-    echo "[FAIL] ${step} (exit=${raw_rc})"
-    {
-      echo "- [FAIL] ${step} (exit=${raw_rc})"
-      echo "  - log: \`${log_file}\`"
-    } >> "${INDEX_FILE}"
-  fi
+  record_step_result "${step}" "${raw_rc}" "${rc}" "${log_file}"
 }
 
 resolve_cli_mode
 
-printf "step\texit_code\tlog_file\n" > "${SUMMARY_FILE}"
+printf "step\traw_exit_code\teffective_exit_code\toutcome\texpected_failure\tlog_file\n" > "${SUMMARY_FILE}"
 
 {
   echo "# idempiere-cli Pre-build Smoke Report"
@@ -437,6 +478,12 @@ printf "step\texit_code\tlog_file\n" > "${SUMMARY_FILE}"
   echo "- command matrix step: \`${RUN_COMMAND_MATRIX}\`"
   echo "- setup-dev-env dry-run step: \`${RUN_SETUP_DEV_ENV_DRY_RUN}\`"
   echo "- setup-dev-env full step: \`${RUN_SETUP_DEV_ENV_FULL}\`"
+  if [ -n "${EXPECTED_FAILURE_STEPS}" ]; then
+    echo "- expected failure steps: \`${EXPECTED_FAILURE_STEPS}\`"
+  else
+    echo "- expected failure steps: \`(none)\`"
+  fi
+  echo "- fail on regression: \`${SMOKE_FAIL_ON_REGRESSION}\`"
   echo
   echo "## Steps"
 } > "${INDEX_FILE}"
@@ -445,7 +492,7 @@ if [ "${CLI_MODE_EFFECTIVE}" = "jar" ]; then
   run_step "Build CLI jar" \
     "build_cli_jar"
 
-  if [ "${LAST_STEP_RC}" -ne 0 ]; then
+  if [ "${LAST_STEP_EFFECTIVE_RC}" -ne 0 ]; then
     {
       echo
       echo "## Abort"
@@ -542,8 +589,9 @@ if ls "${HOME}/.idempiere-cli/logs/session-"*.log >/dev/null 2>&1; then
 fi
 
 total_steps=$(( $(wc -l < "${SUMMARY_FILE}") - 1 ))
-passed_steps=$(awk -F'\t' 'NR>1 && $2==0 {c++} END {print c+0}' "${SUMMARY_FILE}")
-failed_steps=$(( total_steps - passed_steps ))
+passed_steps=$(awk -F'\t' 'NR>1 && $4=="PASS" {c++} END {print c+0}' "${SUMMARY_FILE}")
+xfailed_steps=$(awk -F'\t' 'NR>1 && $4=="XFAIL" {c++} END {print c+0}' "${SUMMARY_FILE}")
+failed_steps=$(awk -F'\t' 'NR>1 && $4=="FAIL" {c++} END {print c+0}' "${SUMMARY_FILE}")
 
 {
   echo
@@ -551,7 +599,8 @@ failed_steps=$(( total_steps - passed_steps ))
   echo
   echo "- Total steps: ${total_steps}"
   echo "- Passed: ${passed_steps}"
-  echo "- Failed: ${failed_steps}"
+  echo "- Expected failures (XFAIL): ${xfailed_steps}"
+  echo "- Regressions (FAIL): ${failed_steps}"
   echo
   echo "## Files"
   echo
@@ -568,3 +617,8 @@ echo "Report folder: ${REPORT_DIR}"
 echo "Summary file:  ${SUMMARY_FILE}"
 echo "Index file:    ${INDEX_FILE}"
 echo "Archive:       ${REPORT_ARCHIVE}"
+
+if [ "${SMOKE_FAIL_ON_REGRESSION}" = "1" ] && [ "${failed_steps}" -gt 0 ]; then
+  echo "Unexpected failures detected: ${failed_steps}"
+  exit 1
+fi

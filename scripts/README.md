@@ -26,6 +26,7 @@ Build/package validation runs before AI prompt steps, so compile/package gates s
 All artifacts are written under the smoke root (default: `/tmp/idempiere-cli-smoke-<timestamp>`):
 
 - `reports/summary.tsv`: step, exit code, log path
+- `reports/summary.tsv`: step, raw/effective exit code, outcome (`PASS`/`XFAIL`/`FAIL`), expected flag, log path
 - `reports/index.md`: human-readable report index
 - `reports/*.log`: one log file per step
 - `reports.tar.gz`: compressed report package
@@ -78,6 +79,8 @@ CLI_MODE=auto ./scripts/run-cli-prebuild-smoke.sh
 - `SETUP_SOURCE_DIR` default: `<smoke-root>/work/idempiere`
 - `SETUP_ECLIPSE_DIR` default: `<smoke-root>/work/eclipse`
 - `SMOKE_MAVEN_REPO` default: `<smoke-root>/work/.m2-repo` (isolates Maven cache/locks per run)
+- `EXPECTED_FAILURE_STEPS` default: empty; semicolon-separated step names treated as expected failure (`XFAIL`)
+- `SMOKE_FAIL_ON_REGRESSION` default: `0`; when `1`, script exits non-zero if any unexpected failure (`FAIL`) occurs
 
 ### Setup-dev-env examples
 
@@ -97,6 +100,13 @@ Run a faster smoke without command matrix:
 
 ```bash
 CLI_MODE=jar RUN_COMMAND_MATRIX=0 ./scripts/run-cli-prebuild-smoke.sh
+```
+
+Mark known issues as expected failures (without hiding real regressions):
+
+```bash
+EXPECTED_FAILURE_STEPS="Build with plugin mvnw;Build command at base module" \
+CLI_MODE=jar ./scripts/run-cli-prebuild-smoke.sh
 ```
 
 ### Notes

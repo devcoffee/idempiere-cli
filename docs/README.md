@@ -17,6 +17,7 @@ Use this hub by scenario.
 ## Automation / Scripting
 
 - [Automation and Exit Codes](jtbd/04-automation-exit-codes.md)
+- [Pre-Release Smoke Validation](jtbd/06-pre-release-smoke.md)
 
 ## AI-Assisted Generation
 

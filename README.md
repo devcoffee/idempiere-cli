@@ -53,6 +53,7 @@ Practical guides:
 - [Troubleshooting Guide](docs/jtbd/03-troubleshooting.md)
 - [Automation and Exit Codes](docs/jtbd/04-automation-exit-codes.md)
 - [AI Generation Cycle](docs/jtbd/05-ai-generation-cycle.md)
+- [Pre-Release Smoke Validation](docs/jtbd/06-pre-release-smoke.md)
 
 Reference:
 - [Command Reference](docs/reference/commands.md)

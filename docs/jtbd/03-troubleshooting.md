@@ -2,6 +2,21 @@
 
 Common failures and direct fixes.
 
+## setup-dev-env appears stuck on "Loading target platform"
+
+Symptom:
+- long sequence of dots during workspace target loading
+- setup looks frozen for several minutes (or more on slow machines/networks)
+
+Reality:
+- this step can legitimately take a long time on first run
+- it resolves target artifacts and can be network-bound
+
+What to do:
+- wait until the step completes
+- check the session log path printed at the end of the command
+- if needed, rerun to confirm cache warm-up behavior
+
 ## setup-dev-env fails in headless environment
 
 Symptom:
@@ -99,3 +114,22 @@ Fix:
 ```bash
 idempiere-cli build --dir /path/to/plugin -A="-X -e"
 ```
+
+## AI generation created code but build fails
+
+Symptom:
+- `add ... --prompt` generates files, but build breaks with unresolved imports/APIs
+
+Why it happens:
+- AI generated code may not match your current iDempiere target platform exactly
+
+Fix:
+1. run structure/dependency checks first:
+
+```bash
+idempiere-cli validate --strict /path/to/plugin
+idempiere-cli deps --dir /path/to/plugin
+```
+
+2. inspect the latest session log for AI prompt/response details
+3. rerun with a tighter prompt (explicit package/API constraints), or regenerate without `--prompt` and implement logic manually

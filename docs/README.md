@@ -1,16 +1,28 @@
 # Documentation Hub
 
-Practical guides organized by job-to-be-done.
+Use this hub by scenario.
 
-## Start Here
+## Start Fast
 
 - [Onboarding in 15 Minutes](jtbd/01-onboarding-15-min.md)
+
+## Daily Flow
+
 - [Daily Plugin Development Loop](jtbd/02-daily-plugin-loop.md)
+
+## If Something Breaks
+
 - [Troubleshooting Guide](jtbd/03-troubleshooting.md)
+
+## Automation / Scripting
+
 - [Automation and Exit Codes](jtbd/04-automation-exit-codes.md)
+
+## AI-Assisted Generation
+
 - [AI Generation Cycle](jtbd/05-ai-generation-cycle.md)
 
-## Reference
+## Reference Details
 
 - [Command Reference](reference/commands.md)
 - [Configuration and AI](reference/configuration.md)

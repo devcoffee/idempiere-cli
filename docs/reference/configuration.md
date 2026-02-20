@@ -41,6 +41,12 @@ API key resolution order:
 
 ## Skills Sources
 
+`skills.sources` is best managed directly in YAML.
+
+Note:
+- `config set` works for scalar keys (for example `ai.provider`, `defaults.vendor`)
+- nested array entries like `skills.sources[0].name` should be edited in the config file
+
 ```yaml
 skills:
   sources:
@@ -51,6 +57,10 @@ skills:
       path: /opt/mycompany/idempiere-skills
       priority: 0
 ```
+
+Supported source layouts:
+- multi-skill repository (multiple directories containing `SKILL.md`)
+- single-skill repository (root `SKILL.md`)
 
 Use:
 
@@ -70,4 +80,3 @@ workspace/
 ```
 
 This keeps defaults version-specific without passing flags every time.
-

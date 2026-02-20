@@ -2,7 +2,6 @@ package org.idempiere.cli.service;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.idempiere.cli.model.PlatformVersion;
 import org.idempiere.cli.model.PluginDescriptor;
 import org.idempiere.cli.service.generator.GeneratorUtils;
 import org.idempiere.cli.util.XmlUtils;
@@ -53,6 +52,9 @@ public class ScaffoldService {
     @Inject
     DescriptorComponentGenerationService descriptorComponentGenerationService;
 
+    @Inject
+    ScaffoldTemplateDataFactory scaffoldTemplateDataFactory;
+
     public ScaffoldResult createPlugin(PluginDescriptor descriptor) {
         if (descriptor.isMultiModule()) {
             return createMultiModulePlugin(descriptor);
@@ -93,7 +95,7 @@ public class ScaffoldService {
             Files.createDirectories(rootDir);
 
             // Build template data
-            Map<String, Object> data = buildMultiModuleData(descriptor);
+            Map<String, Object> data = scaffoldTemplateDataFactory.buildMultiModuleData(descriptor);
 
             // Create root pom.xml
             templateRenderer.render("multi-module/root-pom.xml", data, rootDir.resolve("pom.xml"));
@@ -364,24 +366,6 @@ public class ScaffoldService {
     }
 
     /**
-     * Build template data for multi-module project.
-     */
-    private Map<String, Object> buildMultiModuleData(PluginDescriptor descriptor) {
-        Map<String, Object> data = buildPluginData(descriptor);
-
-        // Multi-module specific data
-        data.put("groupId", descriptor.getGroupId());
-        data.put("basePluginId", descriptor.getBasePluginId());
-        data.put("withFragment", descriptor.isWithFragment());
-        data.put("withFeature", descriptor.isWithFeature());
-        data.put("withTest", descriptor.isWithTest());
-        data.put("fragmentHost", descriptor.getFragmentHost());
-        data.put("categoryName", descriptor.getPluginId().replace('.', '-'));
-
-        return data;
-    }
-
-    /**
      * Add a component to an existing plugin using the registered generator.
      */
     public ScaffoldResult addComponent(String type, String name, Path pluginDir, String pluginId) {
@@ -410,7 +394,7 @@ public class ScaffoldService {
     }
 
     private void generatePluginFiles(Path baseDir, PluginDescriptor descriptor) throws IOException {
-        Map<String, Object> data = buildPluginData(descriptor);
+        Map<String, Object> data = scaffoldTemplateDataFactory.buildPluginData(descriptor);
 
         templateRenderer.render("plugin/pom.xml", data, baseDir.resolve("pom.xml"));
         templateRenderer.render("plugin/MANIFEST.MF", data, baseDir.resolve("META-INF/MANIFEST.MF"));
@@ -429,78 +413,6 @@ public class ScaffoldService {
         writeFileAndReport(baseDir.resolve(".mvn/jvm.config"),
                 "-Djdk.xml.maxGeneralEntitySizeLimit=0\n" +
                 "-Djdk.xml.totalEntitySizeLimit=0\n");
-    }
-
-    private Map<String, Object> buildPluginData(PluginDescriptor descriptor) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("pluginId", descriptor.getPluginId());
-        data.put("pluginName", descriptor.getPluginName());
-        data.put("version", descriptor.getVersion());
-        data.put("baseVersion", toBaseVersion(descriptor.getVersion()));
-        // Maven version: convert OSGi .qualifier to Maven -SNAPSHOT
-        data.put("mavenVersion", toMavenVersion(descriptor.getVersion()));
-        data.put("vendor", descriptor.getVendor());
-        data.put("vendorXml", escapeXml(descriptor.getVendor()));
-        data.put("withCallout", descriptor.hasFeature("callout"));
-        data.put("withEventHandler", descriptor.hasFeature("event-handler"));
-        data.put("withProcess", descriptor.hasFeature("process"));
-        data.put("withProcessMapped", descriptor.hasFeature("process-mapped"));
-        data.put("withZkForm", descriptor.hasFeature("zk-form"));
-        data.put("withZkFormZul", descriptor.hasFeature("zk-form-zul"));
-        data.put("withListboxGroup", descriptor.hasFeature("listbox-group"));
-        data.put("withWListboxEditor", descriptor.hasFeature("wlistbox-editor"));
-        data.put("withReport", descriptor.hasFeature("report"));
-        data.put("withJasperReport", descriptor.hasFeature("jasper-report"));
-        data.put("withWindowValidator", descriptor.hasFeature("window-validator"));
-        data.put("withRestExtension", descriptor.hasFeature("rest-extension"));
-        data.put("withFactsValidator", descriptor.hasFeature("facts-validator"));
-        data.put("withTest", descriptor.hasFeature("test"));
-        // Computed flags for MANIFEST.MF
-        boolean needsZk = descriptor.hasFeature("zk-form") || descriptor.hasFeature("zk-form-zul")
-                || descriptor.hasFeature("listbox-group") || descriptor.hasFeature("wlistbox-editor")
-                || descriptor.hasFeature("window-validator");
-        data.put("needsZkBundle", needsZk);
-        boolean needsActivator = descriptor.hasFeature("process-mapped") || descriptor.hasFeature("jasper-report");
-        data.put("needsActivator", needsActivator);
-        data.put("packagePath", descriptor.getPackagePath());
-
-        PlatformVersion pv = descriptor.getPlatformVersion();
-        data.put("javaRelease", pv.javaRelease());
-        data.put("javaSeVersion", pv.javaSeVersion());
-        data.put("tychoVersion", pv.tychoVersion());
-        data.put("bundleVersion", pv.bundleVersion());
-        data.put("eclipseRepoUrl", pv.eclipseRepoUrl());
-
-        return data;
-    }
-
-    /**
-     * Convert OSGi version to Maven version.
-     * OSGi uses ".qualifier" for snapshot builds, Maven uses "-SNAPSHOT".
-     */
-    private String escapeXml(String value) {
-        if (value == null || value.isEmpty()) return value;
-        return value.replace("&", "&amp;")
-                     .replace("<", "&lt;")
-                     .replace(">", "&gt;")
-                     .replace("\"", "&quot;")
-                     .replace("'", "&apos;");
-    }
-
-    private String toMavenVersion(String osgiVersion) {
-        if (osgiVersion == null) return null;
-        if (osgiVersion.endsWith(".qualifier")) {
-            return osgiVersion.replace(".qualifier", "-SNAPSHOT");
-        }
-        return osgiVersion;
-    }
-
-    private String toBaseVersion(String osgiVersion) {
-        if (osgiVersion == null) return null;
-        if (osgiVersion.endsWith(".qualifier")) {
-            return osgiVersion.substring(0, osgiVersion.length() - ".qualifier".length());
-        }
-        return osgiVersion;
     }
 
     /**
@@ -702,7 +614,7 @@ public class ScaffoldService {
      * Build template data for adding a module to an existing project.
      */
     private Map<String, Object> buildModuleData(Path rootDir, String moduleId, PluginDescriptor descriptor) {
-        Map<String, Object> data = buildPluginData(descriptor);
+        Map<String, Object> data = scaffoldTemplateDataFactory.buildPluginData(descriptor);
 
         // Override with module-specific data
         data.put("pluginId", descriptor.getPluginId());

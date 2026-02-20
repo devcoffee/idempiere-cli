@@ -3,7 +3,6 @@ package org.idempiere.cli.service;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.idempiere.cli.model.PluginDescriptor;
-import org.idempiere.cli.service.generator.GeneratorUtils;
 import org.idempiere.cli.util.XmlUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -50,10 +49,10 @@ public class ScaffoldService {
     AddComponentService addComponentService;
 
     @Inject
-    DescriptorComponentGenerationService descriptorComponentGenerationService;
+    ScaffoldTemplateDataFactory scaffoldTemplateDataFactory;
 
     @Inject
-    ScaffoldTemplateDataFactory scaffoldTemplateDataFactory;
+    ScaffoldModuleWriterService scaffoldModuleWriterService;
 
     public ScaffoldResult createPlugin(PluginDescriptor descriptor) {
         if (descriptor.isMultiModule()) {
@@ -107,29 +106,29 @@ public class ScaffoldService {
 
             // Create base plugin module
             Path pluginDir = rootDir.resolve(descriptor.getBasePluginId());
-            createPluginModule(pluginDir, descriptor, data);
+            scaffoldModuleWriterService.createPluginModule(pluginDir, descriptor, data);
 
             // Create test module (if enabled)
             if (descriptor.isWithTest()) {
                 Path testDir = rootDir.resolve(descriptor.getBasePluginId() + ".test");
-                createTestModule(testDir, descriptor, data);
+                scaffoldModuleWriterService.createTestModule(testDir, descriptor, data);
             }
 
             // Create fragment module (if enabled)
             if (descriptor.isWithFragment()) {
                 Path fragmentDir = rootDir.resolve(descriptor.getPluginId() + ".fragment");
-                createFragmentModule(fragmentDir, descriptor, data);
+                scaffoldModuleWriterService.createFragmentModule(fragmentDir, descriptor, data);
             }
 
             // Create feature module (if enabled)
             if (descriptor.isWithFeature()) {
                 Path featureDir = rootDir.resolve(descriptor.getPluginId() + ".feature");
-                createFeatureModule(featureDir, descriptor, data);
+                scaffoldModuleWriterService.createFeatureModule(featureDir, descriptor, data);
             }
 
             // Create p2 site module
             Path p2Dir = rootDir.resolve(descriptor.getPluginId() + ".p2");
-            createP2Module(p2Dir, descriptor, data);
+            scaffoldModuleWriterService.createP2Module(p2Dir, descriptor, data);
 
             // Create .mvn/jvm.config at root
             Path mvnDir = rootDir.resolve(".mvn");
@@ -224,7 +223,7 @@ public class ScaffoldService {
         try {
             createDirectoryStructure(baseDir, descriptor);
             generatePluginFiles(baseDir, descriptor);
-            descriptorComponentGenerationService.generateComponentFiles(baseDir, descriptor);
+            scaffoldModuleWriterService.generateStandaloneComponents(baseDir, descriptor);
 
             // Add Maven Wrapper
             if (mavenWrapperService.addWrapper(baseDir)) {
@@ -261,108 +260,6 @@ public class ScaffoldService {
         } catch (IOException e) {
             return ioError("Error creating plugin", e, false);
         }
-    }
-
-    /**
-     * Create the main plugin module within multi-module structure.
-     */
-    private void createPluginModule(Path pluginDir, PluginDescriptor descriptor, Map<String, Object> data) throws IOException {
-        Files.createDirectories(pluginDir.resolve("META-INF"));
-        Files.createDirectories(pluginDir.resolve("OSGI-INF"));
-        Files.createDirectories(pluginDir.resolve("src").resolve(descriptor.getBasePackagePath()));
-
-        templateRenderer.render("multi-module/plugin-pom.xml", data, pluginDir.resolve("pom.xml"));
-
-        // MANIFEST uses basePluginId as Bundle-SymbolicName (must match Java package)
-        Map<String, Object> manifestData = new HashMap<>(data);
-        manifestData.put("pluginId", descriptor.getBasePluginId());
-        templateRenderer.render("plugin/MANIFEST.MF", manifestData, pluginDir.resolve("META-INF/MANIFEST.MF"));
-
-        templateRenderer.render("plugin/plugin.xml", data, pluginDir.resolve("plugin.xml"));
-
-        // Create build.properties
-        writeFileAndReport(pluginDir.resolve("build.properties"),
-                "source.. = src/\n" +
-                "output.. = bin/\n" +
-                "bin.includes = META-INF/,\\\n" +
-                "               OSGI-INF/,\\\n" +
-                "               .,\\\n" +
-                "               plugin.xml\n");
-
-        // Generate component files (callout, process, etc.) in the plugin
-        ScaffoldResult componentResult = descriptorComponentGenerationService.generateComponentFiles(pluginDir, descriptor);
-        if (!componentResult.success()) {
-            throw new IOException(componentResult.errorMessage());
-        }
-    }
-
-    /**
-     * Create the test module within multi-module structure.
-     */
-    private void createTestModule(Path testDir, PluginDescriptor descriptor, Map<String, Object> data) throws IOException {
-        Files.createDirectories(testDir.resolve("META-INF"));
-        Files.createDirectories(testDir.resolve("src").resolve(descriptor.getBasePackagePath()));
-
-        templateRenderer.render("multi-module/test-pom.xml", data, testDir.resolve("pom.xml"));
-        templateRenderer.render("multi-module/test-MANIFEST.MF", data, testDir.resolve("META-INF/MANIFEST.MF"));
-
-        // Create build.properties
-        writeFileAndReport(testDir.resolve("build.properties"),
-                "source.. = src/\n" +
-                "output.. = bin/\n" +
-                "bin.includes = META-INF/,\\\n" +
-                "               .\n");
-
-        // Create a sample test class
-        Path srcDir = testDir.resolve("src").resolve(descriptor.getBasePackagePath());
-        String baseName = GeneratorUtils.toPascalCase(descriptor.getPluginName());
-        Map<String, Object> testData = new HashMap<>(data);
-        testData.put("className", baseName + "Test");
-        testData.put("pluginName", descriptor.getPluginName());
-        testData.put("pluginId", descriptor.getBasePluginId());
-        templateRenderer.render("test/PluginTest.java", testData, srcDir.resolve(baseName + "Test.java"));
-    }
-
-    /**
-     * Create the fragment module within multi-module structure.
-     */
-    private void createFragmentModule(Path fragmentDir, PluginDescriptor descriptor, Map<String, Object> data) throws IOException {
-        Files.createDirectories(fragmentDir.resolve("META-INF"));
-        Files.createDirectories(fragmentDir.resolve("src"));
-
-        templateRenderer.render("fragment/pom.xml", data, fragmentDir.resolve("pom.xml"));
-        templateRenderer.render("fragment/MANIFEST.MF", data, fragmentDir.resolve("META-INF/MANIFEST.MF"));
-
-        // Create build.properties
-        writeFileAndReport(fragmentDir.resolve("build.properties"),
-                "source.. = src/\n" +
-                "output.. = bin/\n" +
-                "bin.includes = META-INF/,\\\n" +
-                "               .\n");
-    }
-
-    /**
-     * Create the feature module within multi-module structure.
-     */
-    private void createFeatureModule(Path featureDir, PluginDescriptor descriptor, Map<String, Object> data) throws IOException {
-        Files.createDirectories(featureDir);
-
-        templateRenderer.render("feature/pom.xml", data, featureDir.resolve("pom.xml"));
-        templateRenderer.render("feature/feature.xml", data, featureDir.resolve("feature.xml"));
-
-        // Create build.properties
-        writeFileAndReport(featureDir.resolve("build.properties"),
-                "bin.includes = feature.xml\n");
-    }
-
-    /**
-     * Create the P2 repository module within multi-module structure.
-     */
-    private void createP2Module(Path p2Dir, PluginDescriptor descriptor, Map<String, Object> data) throws IOException {
-        Files.createDirectories(p2Dir);
-
-        templateRenderer.render("multi-module/p2-pom.xml", data, p2Dir.resolve("pom.xml"));
-        templateRenderer.render("multi-module/category.xml", data, p2Dir.resolve("category.xml"));
     }
 
     /**
@@ -496,7 +393,7 @@ public class ScaffoldService {
             Map<String, Object> data = buildModuleData(rootDir, pluginId, descriptor);
 
             // Create plugin module
-            createPluginModule(pluginDir, descriptor, data);
+            scaffoldModuleWriterService.createPluginModule(pluginDir, descriptor, data);
 
             // Update root pom.xml to include new module
             updateRootPomModules(rootDir, pluginId);
@@ -542,7 +439,7 @@ public class ScaffoldService {
             data.put("fragmentHost", fragmentHost);
 
             // Create fragment module
-            createFragmentModule(fragmentDir, descriptor, data);
+            scaffoldModuleWriterService.createFragmentModule(fragmentDir, descriptor, data);
 
             // Update root pom.xml to include new module
             updateRootPomModules(rootDir, fragmentId);
@@ -591,7 +488,7 @@ public class ScaffoldService {
             }
 
             // Create feature module
-            createFeatureModule(featureDir, descriptor, data);
+            scaffoldModuleWriterService.createFeatureModule(featureDir, descriptor, data);
 
             // Update root pom.xml to include new module
             updateRootPomModules(rootDir, featureId);

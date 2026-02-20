@@ -125,21 +125,7 @@ public class ScaffoldService {
                 scaffoldOutputService.printMavenWrapperCreated();
             }
 
-            // Generate .gitignore
-            scaffoldProjectAuxFilesService.generateGitignore(rootDir);
-
-            // Generate Eclipse .project files (if enabled)
-            if (descriptor.isWithEclipseProject()) {
-                scaffoldProjectAuxFilesService.generateEclipseProject(pluginDir, descriptor.getBasePluginId());
-                if (descriptor.isWithTest()) {
-                    scaffoldProjectAuxFilesService.generateEclipseProject(rootDir.resolve(descriptor.getBasePluginId() + ".test"),
-                            descriptor.getBasePluginId() + ".test");
-                }
-                if (descriptor.isWithFragment()) {
-                    scaffoldProjectAuxFilesService.generateEclipseProject(rootDir.resolve(descriptor.getPluginId() + ".fragment"),
-                            descriptor.getPluginId() + ".fragment");
-                }
-            }
+            scaffoldProjectAuxFilesService.generateMultiModuleAuxFiles(rootDir, pluginDir, descriptor);
 
             scaffoldOutputService.printMultiModuleSuccess(descriptor);
             return ScaffoldResult.ok(rootDir);
@@ -176,13 +162,7 @@ public class ScaffoldService {
                 scaffoldOutputService.printMavenWrapperCreated();
             }
 
-            // Generate .gitignore
-            scaffoldProjectAuxFilesService.generateGitignore(baseDir);
-
-            // Generate Eclipse .project file (if enabled)
-            if (descriptor.isWithEclipseProject()) {
-                scaffoldProjectAuxFilesService.generateEclipseProject(baseDir, descriptor.getPluginId());
-            }
+            scaffoldProjectAuxFilesService.generateStandaloneAuxFiles(baseDir, descriptor);
 
             scaffoldOutputService.printStandaloneSuccess(descriptor);
             return ScaffoldResult.ok(baseDir);

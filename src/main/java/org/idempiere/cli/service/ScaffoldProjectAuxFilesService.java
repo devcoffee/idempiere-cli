@@ -1,6 +1,7 @@
 package org.idempiere.cli.service;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import org.idempiere.cli.model.PluginDescriptor;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -11,6 +12,30 @@ import java.nio.file.Path;
  */
 @ApplicationScoped
 public class ScaffoldProjectAuxFilesService {
+
+    public void generateStandaloneAuxFiles(Path baseDir, PluginDescriptor descriptor) throws IOException {
+        generateGitignore(baseDir);
+        if (descriptor.isWithEclipseProject()) {
+            generateEclipseProject(baseDir, descriptor.getPluginId());
+        }
+    }
+
+    public void generateMultiModuleAuxFiles(Path rootDir, Path pluginDir, PluginDescriptor descriptor) throws IOException {
+        generateGitignore(rootDir);
+        if (!descriptor.isWithEclipseProject()) {
+            return;
+        }
+
+        generateEclipseProject(pluginDir, descriptor.getBasePluginId());
+        if (descriptor.isWithTest()) {
+            generateEclipseProject(rootDir.resolve(descriptor.getBasePluginId() + ".test"),
+                    descriptor.getBasePluginId() + ".test");
+        }
+        if (descriptor.isWithFragment()) {
+            generateEclipseProject(rootDir.resolve(descriptor.getPluginId() + ".fragment"),
+                    descriptor.getPluginId() + ".fragment");
+        }
+    }
 
     public void generateMavenJvmConfig(Path rootDir) throws IOException {
         Path mvnDir = rootDir.resolve(".mvn");

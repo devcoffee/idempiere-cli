@@ -78,7 +78,7 @@ public class DepsCommand implements Callable<Integer> {
             return printJson(depsService.analyzeData(pluginDir));
         } else {
             depsService.analyze(pluginDir);
-            return 0;
+            return ExitCodes.SUCCESS;
         }
     }
 
@@ -104,7 +104,7 @@ public class DepsCommand implements Callable<Integer> {
             result.unmappedImports().forEach(unmapped::add);
 
             System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root));
-            return 0;
+            return ExitCodes.SUCCESS;
         } catch (Exception e) {
             return JsonOutput.printError("JSON_SERIALIZATION", "Failed to serialize JSON", ExitCodes.IO_ERROR);
         }

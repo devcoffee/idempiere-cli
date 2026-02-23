@@ -1,5 +1,6 @@
 package org.idempiere.cli.commands.add;
 
+import org.idempiere.cli.util.ExitCodes;
 import jakarta.inject.Inject;
 import org.idempiere.cli.model.DbConfig;
 import org.idempiere.cli.service.ModelGeneratorService;
@@ -53,13 +54,13 @@ public class AddModelCommand implements Callable<Integer> {
         Path dir = Path.of(pluginDir);
         if (!projectDetector.isIdempierePlugin(dir)) {
             System.err.println("Error: Not an iDempiere plugin in " + dir.toAbsolutePath());
-            return 1;
+            return ExitCodes.VALIDATION_ERROR;
         }
 
         Optional<String> pluginId = projectDetector.detectPluginId(dir);
         if (pluginId.isEmpty()) {
             System.err.println("Error: Could not detect plugin ID.");
-            return 1;
+            return ExitCodes.VALIDATION_ERROR;
         }
 
         Path srcDir = dir.resolve("src").resolve(pluginId.get().replace('.', '/'));
@@ -76,9 +77,9 @@ public class AddModelCommand implements Callable<Integer> {
         System.out.println();
         if (success) {
             System.out.println("Model classes generated successfully.");
-            return 0;
+            return ExitCodes.SUCCESS;
         } else {
-            return 1;
+            return ExitCodes.VALIDATION_ERROR;
         }
     }
 }

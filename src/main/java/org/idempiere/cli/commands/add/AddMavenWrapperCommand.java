@@ -1,5 +1,6 @@
 package org.idempiere.cli.commands.add;
 
+import org.idempiere.cli.util.ExitCodes;
 import jakarta.inject.Inject;
 import org.idempiere.cli.service.MavenWrapperService;
 import picocli.CommandLine.Command;
@@ -36,21 +37,21 @@ public class AddMavenWrapperCommand implements Callable<Integer> {
         if (mavenWrapperService.hasWrapper(dir) && !force) {
             System.out.println("Maven Wrapper already exists in " + dir.toAbsolutePath());
             System.out.println("Use --force to overwrite.");
-            return 0;
+            return ExitCodes.SUCCESS;
         }
 
         System.out.println("Adding Maven Wrapper to " + dir.toAbsolutePath() + "...");
 
         if (!mavenWrapperService.addWrapper(dir)) {
             System.err.println("Failed to add Maven Wrapper.");
-            return 1;
+            return ExitCodes.VALIDATION_ERROR;
         }
 
         // Update Maven version if specified
         if (mavenVersion != null && !mavenVersion.isBlank()) {
             if (!mavenWrapperService.updateMavenVersion(dir, mavenVersion)) {
                 System.err.println("Failed to set Maven version.");
-                return 1;
+                return ExitCodes.VALIDATION_ERROR;
             }
             System.out.println("Maven version set to: " + mavenVersion);
         }
@@ -63,6 +64,6 @@ public class AddMavenWrapperCommand implements Callable<Integer> {
         System.out.println("  .mvn/wrapper/     - Wrapper configuration");
         System.out.println();
         System.out.println("Usage: ./mvnw verify (or mvnw.cmd on Windows)");
-        return 0;
+        return ExitCodes.SUCCESS;
     }
 }

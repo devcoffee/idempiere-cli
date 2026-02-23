@@ -158,4 +158,18 @@ class AddCalloutIntegrationTest {
         // FactsValidator creates {name}.java
         assertTrue(Files.exists(srcDir.resolve("MyFactsValidator.java")));
     }
+
+    @Test
+    void testAddJasperReportComponentCreatesFontResources() throws IOException {
+        scaffoldService.addComponent("jasper-report", "MyJasperReport", pluginDir, "org.test.plugin");
+
+        Path srcDir = pluginDir.resolve("src/org/test/plugin");
+        assertTrue(Files.exists(srcDir.resolve("PluginActivator.java")));
+        assertTrue(Files.exists(pluginDir.resolve("reports/MyJasperReport.jrxml")));
+        assertTrue(Files.exists(srcDir.resolve("fontfamily.xml")));
+        assertTrue(Files.exists(srcDir.resolve("jasperreports_extension.properties")));
+
+        String extensionProps = Files.readString(srcDir.resolve("jasperreports_extension.properties"));
+        assertTrue(extensionProps.contains("org/test/plugin/fontfamily.xml"));
+    }
 }

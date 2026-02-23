@@ -1,6 +1,7 @@
 package org.idempiere.cli.commands.add;
 
 import org.idempiere.cli.commands.ExitCodeMapper;
+import org.idempiere.cli.util.ExitCodes;
 import jakarta.inject.Inject;
 import org.idempiere.cli.model.PlatformVersion;
 import org.idempiere.cli.model.PluginDescriptor;
@@ -75,7 +76,7 @@ public class AddFragmentModuleCommand implements Callable<Integer> {
         if (rootOpt.isEmpty()) {
             System.err.println("Error: Not inside a multi-module project.");
             System.err.println("Use 'idempiere-cli init' to create a new project first.");
-            return 1;
+            return ExitCodes.VALIDATION_ERROR;
         }
 
         Path rootDir = rootOpt.get();
@@ -83,7 +84,7 @@ public class AddFragmentModuleCommand implements Callable<Integer> {
         // Check if fragment already exists
         if (projectDetector.hasFragment(rootDir)) {
             System.err.println("Error: A fragment module already exists in this project.");
-            return 1;
+            return ExitCodes.VALIDATION_ERROR;
         }
 
         // Detect project settings from existing project

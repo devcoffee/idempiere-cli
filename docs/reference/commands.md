@@ -50,8 +50,14 @@ idempiere-cli add feature
 
 idempiere-cli add callout --name=MyCallout --to=./plugin
 idempiere-cli add process --name=MyProcess --to=./plugin
+idempiere-cli add jasper-report --name=SalesSummary --to=./plugin
 idempiere-cli add test --dir=./plugin
 ```
+
+`add jasper-report` scaffolds:
+- `reports/<Name>.jrxml`
+- `src/<package>/fontfamily.xml`
+- `src/<package>/jasperreports_extension.properties`
 
 Internal AI flags (`--prompt`, `--show-ai-prompt`, `--save-ai-debug`) are hidden from public help.
 Use them only for internal/dev diagnostics; they are not part of the released core contract.
@@ -66,6 +72,11 @@ idempiere-cli validate ./plugin
 idempiere-cli validate --strict ./plugin
 idempiere-cli validate --json ./plugin
 ```
+
+Exit codes:
+- `0`: valid (or only warnings in non-strict mode)
+- `1`: validation errors
+- `2`: strict mode warning failure (`--strict` with warnings)
 
 ### `deps`
 Analyze imports vs `Require-Bundle`.

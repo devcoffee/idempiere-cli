@@ -212,6 +212,15 @@ class ScaffoldServiceTest {
         Path pluginDir = tempDir.resolve("jasper");
         assertTrue(Files.exists(pluginDir.resolve("reports/JasperReport.jrxml")), "JRXML file should exist");
         assertTrue(Files.exists(pluginDir.resolve("src/org/test/jasper/JasperActivator.java")), "Activator should exist");
+        assertTrue(Files.exists(pluginDir.resolve("src/org/test/jasper/fontfamily.xml")),
+                "fontfamily.xml should exist");
+        assertTrue(Files.exists(pluginDir.resolve("src/org/test/jasper/jasperreports_extension.properties")),
+                "jasperreports_extension.properties should exist");
+
+        String extensionProps = Files.readString(
+                pluginDir.resolve("src/org/test/jasper/jasperreports_extension.properties"));
+        assertTrue(extensionProps.contains("org/test/jasper/fontfamily.xml"),
+                "Jasper extension property should point to fontfamily.xml under package path");
     }
 
     @Test

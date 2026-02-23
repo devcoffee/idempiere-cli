@@ -1,5 +1,6 @@
 package org.idempiere.cli.commands.add;
 
+import org.idempiere.cli.util.ExitCodes;
 import jakarta.inject.Inject;
 import org.idempiere.cli.service.ProjectDetector;
 import org.idempiere.cli.service.TestGeneratorService;
@@ -34,13 +35,13 @@ public class AddTestCommand implements Callable<Integer> {
         Path pluginDir = Path.of(dir);
         if (!projectDetector.isIdempierePlugin(pluginDir)) {
             System.err.println("Error: Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
-            return 1;
+            return ExitCodes.VALIDATION_ERROR;
         }
 
         Optional<String> pluginId = projectDetector.detectPluginId(pluginDir);
         if (pluginId.isEmpty()) {
             System.err.println("Error: Could not detect plugin ID.");
-            return 1;
+            return ExitCodes.VALIDATION_ERROR;
         }
 
         System.out.println();
@@ -57,6 +58,6 @@ public class AddTestCommand implements Callable<Integer> {
         System.out.println();
         System.out.println("Test stubs generated successfully.");
         System.out.println();
-        return 0;
+        return ExitCodes.SUCCESS;
     }
 }

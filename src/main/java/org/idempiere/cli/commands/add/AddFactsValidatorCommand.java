@@ -1,6 +1,7 @@
 package org.idempiere.cli.commands.add;
 
 import org.idempiere.cli.commands.ExitCodeMapper;
+import org.idempiere.cli.util.ExitCodes;
 import jakarta.inject.Inject;
 import org.idempiere.cli.service.ProjectDetector;
 import org.idempiere.cli.service.ScaffoldService;
@@ -41,7 +42,7 @@ public class AddFactsValidatorCommand implements Callable<Integer> {
         String pluginId = projectDetector.detectPluginId(dir).orElse(null);
         if (pluginId == null) {
             projectDetector.printPluginNotFoundError(dir);
-            return 1;
+            return ExitCodes.VALIDATION_ERROR;
         }
         return ExitCodeMapper.fromScaffold(scaffoldService.addComponent("facts-validator", name, dir, pluginId,
                 aiAuditOptions.createExtraData(prompt)));

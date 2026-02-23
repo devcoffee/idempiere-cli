@@ -1,6 +1,7 @@
 package org.idempiere.cli.commands.add;
 
 import org.idempiere.cli.commands.ExitCodeMapper;
+import org.idempiere.cli.util.ExitCodes;
 import jakarta.inject.Inject;
 import org.idempiere.cli.service.ProjectDetector;
 import org.idempiere.cli.service.ScaffoldService;
@@ -47,7 +48,7 @@ public class AddRestExtensionCommand implements Callable<Integer> {
         String pluginId = projectDetector.detectPluginId(dir).orElse(null);
         if (pluginId == null) {
             projectDetector.printPluginNotFoundError(dir);
-            return 1;
+            return ExitCodes.VALIDATION_ERROR;
         }
         Map<String, Object> extraData = new HashMap<>();
         extraData.put("resourcePath", resourcePath);

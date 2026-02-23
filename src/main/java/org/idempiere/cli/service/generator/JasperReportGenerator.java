@@ -38,9 +38,11 @@ public class JasperReportGenerator implements ComponentGenerator {
         String pluginId = (String) data.get("pluginId");
         String baseName = toPascalCase(extractPluginName(pluginId));
         String pluginName = extractPluginName(pluginId);
+        String packagePath = pluginId.replace('.', '/');
 
         Map<String, Object> templateData = new HashMap<>(data);
         templateData.put("pluginName", pluginName);
+        templateData.put("packagePath", packagePath);
 
         // Only create Activator if not already present (may be created by process-mapped)
         Boolean hasProcessMapped = (Boolean) data.get("hasProcessMapped");
@@ -54,15 +56,19 @@ public class JasperReportGenerator implements ComponentGenerator {
         Files.createDirectories(reportsDir);
         templateData.put("className", baseName + "Report");
         templateRenderer.render("jasper-report/SampleReport.jrxml", templateData, reportsDir.resolve(baseName + "Report.jrxml"));
+
+        renderJasperFontsResources(baseDir, templateData, packagePath);
     }
 
     @Override
     public void addToExisting(Path srcDir, Path pluginDir, Map<String, Object> data) throws IOException {
         String name = (String) data.get("className");
         String pluginId = (String) data.get("pluginId");
+        String packagePath = pluginId.replace('.', '/');
 
         Map<String, Object> templateData = new HashMap<>(data);
         templateData.put("pluginName", extractPluginName(pluginId));
+        templateData.put("packagePath", packagePath);
 
         // Only create Activator if none exists (shared by process-mapped and jasper-report)
         if (!hasPluginActivator(srcDir)) {
@@ -79,7 +85,17 @@ public class JasperReportGenerator implements ComponentGenerator {
         Files.createDirectories(reportsDir);
         templateData.put("className", name);
         templateRenderer.render("jasper-report/SampleReport.jrxml", templateData, reportsDir.resolve(name + ".jrxml"));
+        renderJasperFontsResources(pluginDir, templateData, packagePath);
 
         manifestService.addRequiredBundles(pluginDir, type());
+    }
+
+    private void renderJasperFontsResources(Path pluginDir, Map<String, Object> templateData, String packagePath)
+            throws IOException {
+        Path packageResourceDir = pluginDir.resolve("src").resolve(packagePath);
+        templateRenderer.render("jasper-fonts/fontfamily.xml", templateData,
+                packageResourceDir.resolve("fontfamily.xml"));
+        templateRenderer.render("jasper-fonts/jasperreports_extension.properties", templateData,
+                packageResourceDir.resolve("jasperreports_extension.properties"));
     }
 }

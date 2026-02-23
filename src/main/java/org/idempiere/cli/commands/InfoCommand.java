@@ -76,7 +76,7 @@ public class InfoCommand implements Callable<Integer> {
             return printJson(pluginInfoService.getInfo(pluginDir));
         } else {
             pluginInfoService.printInfo(pluginDir);
-            return 0;
+            return ExitCodes.SUCCESS;
         }
     }
 
@@ -102,7 +102,7 @@ public class InfoCommand implements Callable<Integer> {
             info.components().forEach(components::add);
 
             System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root));
-            return 0;
+            return ExitCodes.SUCCESS;
         } catch (Exception e) {
             return JsonOutput.printError("JSON_SERIALIZATION", "Failed to serialize JSON", ExitCodes.IO_ERROR);
         }

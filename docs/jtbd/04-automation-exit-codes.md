@@ -12,7 +12,7 @@ Use this contract in local scripts and CI jobs.
 | `3` | State error (invalid project/context) |
 
 Notes:
-- `validate --strict` can return `2` when warnings are treated as failures.
+- `validate --strict` can return `2` when warnings are treated as failures (command-specific strict-warning failure; not I/O).
 - Prefer `!= 0` checks unless your script needs fine-grained behavior.
 
 ## Bash Pattern (recommended)
@@ -48,4 +48,3 @@ idempiere-cli doctor --json
 idempiere-cli info --json --dir ./plugin
 idempiere-cli deps --json --dir ./plugin
 ```
-

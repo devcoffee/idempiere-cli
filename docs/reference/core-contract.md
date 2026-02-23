@@ -70,6 +70,7 @@ Core commands use this semantic convention:
 
 Notes:
 - Exact command-level semantics are validated by tests and command docs.
+- `validate --strict` is a documented command-specific exception: it returns `2` when warnings are treated as failures (strict-warning failure), not an I/O failure.
 - Scripts should prefer `!= 0` for generic failure handling unless command-specific branching is required.
 
 ## JSON Contract (Core)

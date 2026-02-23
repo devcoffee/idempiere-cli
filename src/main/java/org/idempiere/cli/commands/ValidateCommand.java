@@ -5,6 +5,7 @@ import org.idempiere.cli.service.ValidateService;
 import org.idempiere.cli.service.ValidateService.Severity;
 import org.idempiere.cli.service.ValidateService.ValidationIssue;
 import org.idempiere.cli.service.ValidateService.ValidationResult;
+import org.idempiere.cli.util.ExitCodes;
 import org.idempiere.cli.util.JsonOutput;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -53,6 +54,12 @@ import java.util.concurrent.Callable;
         mixinStandardHelpOptions = true
 )
 public class ValidateCommand implements Callable<Integer> {
+    /**
+     * Command-specific semantic:
+     * strict mode warnings return exit code 2 for backward compatibility with existing automation.
+     */
+    private static final int STRICT_WARNINGS_EXIT_CODE = ExitCodes.IO_ERROR;
+
 
     @Parameters(index = "0", description = "Plugin directory to validate", defaultValue = ".")
     Path pluginDir;
@@ -111,20 +118,20 @@ public class ValidateCommand implements Callable<Integer> {
             if (!quiet) {
                 System.out.println("Validation FAILED");
             }
-            return 1;
+            return ExitCodes.VALIDATION_ERROR;
         }
 
         if (strict && result.warnings() > 0) {
             if (!quiet) {
                 System.out.println("Validation FAILED (strict mode - warnings treated as errors)");
             }
-            return 2;
+            return STRICT_WARNINGS_EXIT_CODE;
         }
 
         if (!quiet) {
             System.out.println("Validation PASSED" + (result.warnings() > 0 ? " (with warnings)" : ""));
         }
-        return 0;
+        return ExitCodes.SUCCESS;
     }
 
     private Integer outputJson(ValidationResult result) {
@@ -147,15 +154,15 @@ public class ValidateCommand implements Callable<Integer> {
 
             System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root));
         } catch (Exception e) {
-            return JsonOutput.printError("JSON_SERIALIZATION", "Failed to serialize JSON", 1);
+            return JsonOutput.printError("JSON_SERIALIZATION", "Failed to serialize JSON", ExitCodes.IO_ERROR);
         }
 
         if (result.errors() > 0) {
-            return 1;
+            return ExitCodes.VALIDATION_ERROR;
         }
         if (strict && result.warnings() > 0) {
-            return 2;
+            return STRICT_WARNINGS_EXIT_CODE;
         }
-        return 0;
+        return ExitCodes.SUCCESS;
     }
 }

@@ -12,6 +12,8 @@ Out of scope:
 - replacing iDempiere runtime operations
 - replacing Application Dictionary workflows
 
+Contract reference: [Core Contract (v1)](core-contract.md).
+
 ## Project Structure (high level)
 
 ```text

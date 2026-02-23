@@ -68,6 +68,7 @@ Practical guides:
 - [Pre-Release Smoke Validation](docs/jtbd/06-pre-release-smoke.md)
 
 Reference:
+- [Core Contract (v1)](docs/reference/core-contract.md)
 - [Command Reference](docs/reference/commands.md)
 - [Configuration and AI](docs/reference/configuration.md)
 - [Build and Release](docs/reference/build-release.md)

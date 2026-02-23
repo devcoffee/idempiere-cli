@@ -41,6 +41,7 @@ Check:
 
 Confirm:
 - `README.md` quick-start commands still work
+- `docs/reference/core-contract.md` still matches implemented core behavior
 - `docs/reference/commands.md` matches current CLI
 - `docs/reference/configuration.md` matches config behavior
 

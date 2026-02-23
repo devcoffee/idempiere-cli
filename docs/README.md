@@ -26,6 +26,7 @@ Use this hub by scenario.
 
 ## Reference Details
 
+- [Core Contract (v1)](reference/core-contract.md)
 - [Command Reference](reference/commands.md)
 - [Configuration and AI](reference/configuration.md)
 - [Build and Release](reference/build-release.md)

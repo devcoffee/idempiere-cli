@@ -1,6 +1,7 @@
 # Command Reference
 
 This page is the practical command index. For complete flags, use `--help` per command.
+For stability guarantees and compatibility scope, see [Core Contract (v1)](core-contract.md).
 
 ## Environment
 

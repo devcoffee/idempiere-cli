@@ -100,3 +100,4 @@ Recommended command:
 Implementation note:
 - contract tests are marked with JUnit tag `core-contract`
 - the script runs this tag set by default
+- this tag set includes command surface/exit-code checks plus deterministic scaffolding checks (`init`, template-based `add`) and `validate --json` behavior

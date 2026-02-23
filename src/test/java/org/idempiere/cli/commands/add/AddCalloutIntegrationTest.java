@@ -6,6 +6,7 @@ import org.idempiere.cli.service.ProjectDetector;
 import org.idempiere.cli.service.ScaffoldService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -21,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Integration tests for Add commands - tests actual component generation.
  */
 @QuarkusTest
+@Tag("core-contract")
 class AddCalloutIntegrationTest {
 
     @Inject

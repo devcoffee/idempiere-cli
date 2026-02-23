@@ -1,6 +1,7 @@
 package org.idempiere.cli.service;
 
 import org.idempiere.cli.model.SetupConfig;
+import org.idempiere.cli.util.ExitCodes;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -66,8 +68,9 @@ class SetupDevEnvServiceTest {
         config.setUseDocker(true);
         config.setSkipDb(false);
 
-        service.setup(config);
+        int exitCode = service.setup(config);
 
+        assertEquals(ExitCodes.STATE_ERROR, exitCode);
         assertFalse(sourceManager.cloneCalled);
         assertFalse(databaseManager.setupCalled);
         assertTrue(sessionLogger.endCalled);
@@ -98,8 +101,9 @@ class SetupDevEnvServiceTest {
         config.setSkipWorkspace(true);
         config.setContinueOnError(false);
 
-        service.setup(config);
+        int exitCode = service.setup(config);
 
+        assertEquals(ExitCodes.IO_ERROR, exitCode);
         assertTrue(sourceManager.cloneCalled);
         assertTrue(sourceManager.buildCalled);
         assertFalse(sourceManager.downloadJythonCalled);

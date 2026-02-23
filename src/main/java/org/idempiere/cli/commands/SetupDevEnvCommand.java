@@ -203,8 +203,7 @@ public class SetupDevEnvCommand implements Callable<Integer> {
         config.setNonInteractive(nonInteractive);
         config.setContinueOnError(continueOnError);
 
-        setupDevEnvService.setup(config);
-        return ExitCodes.SUCCESS;
+        return setupDevEnvService.setup(config);
     }
 
     /**

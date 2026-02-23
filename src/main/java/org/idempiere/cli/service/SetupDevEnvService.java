@@ -5,6 +5,7 @@ import jakarta.inject.Inject;
 import org.idempiere.cli.model.SetupConfig;
 import org.idempiere.cli.util.CliDefaults;
 import org.idempiere.cli.util.CliOutput;
+import org.idempiere.cli.util.ExitCodes;
 
 import java.util.Scanner;
 
@@ -29,7 +30,7 @@ public class SetupDevEnvService {
     @Inject
     SessionLogger sessionLogger;
 
-    public void setup(SetupConfig config) {
+    public int setup(SetupConfig config) {
         // Start session logging
         sessionLogger.startSession(buildCommandLine(config));
 
@@ -46,14 +47,14 @@ public class SetupDevEnvService {
             System.out.print("Proceed with setup? [Y/n] ");
             @SuppressWarnings("resource")
             Scanner scanner = new Scanner(System.in);
-            String answer = scanner.nextLine().trim();
-            if (answer.equalsIgnoreCase("n") || answer.equalsIgnoreCase("no")) {
-                sessionLogger.logInfo("Setup cancelled by user");
-                sessionLogger.endSession(false);
-                System.out.println("Setup cancelled.");
-                return;
+                String answer = scanner.nextLine().trim();
+                if (answer.equalsIgnoreCase("n") || answer.equalsIgnoreCase("no")) {
+                    sessionLogger.logInfo("Setup cancelled by user");
+                    sessionLogger.endSession(false);
+                    System.out.println("Setup cancelled.");
+                    return ExitCodes.SUCCESS;
+                }
             }
-        }
 
         System.out.println();
 
@@ -69,7 +70,7 @@ public class SetupDevEnvService {
                     }
                     databaseManager.printDockerError(dockerStatus);
                     sessionLogger.endSession(false);
-                    return;
+                    return ExitCodes.STATE_ERROR;
                 }
             } else {
                 // Without Docker, verify PostgreSQL/Oracle is reachable now
@@ -82,7 +83,7 @@ public class SetupDevEnvService {
                     System.err.println("Fix: verify host/port and credentials, or use Docker.");
                     System.err.println("Try: idempiere-cli setup-dev-env --with-docker");
                     abortSetup("Database not reachable. Aborting.", null);
-                    return;
+                    return ExitCodes.STATE_ERROR;
                 }
             }
         }
@@ -102,7 +103,7 @@ public class SetupDevEnvService {
         if (!sourceOk) {
             abortSetup("Cannot continue without source code. Aborting.",
                     "Cannot continue without source code. Aborting.");
-            return;
+            return ExitCodes.IO_ERROR;
         }
 
         // Step 2: Build source
@@ -118,7 +119,7 @@ public class SetupDevEnvService {
                 if (abortIfStepFailed(buildOk, config,
                         "Build failed. Aborting.",
                         "Build failed. Aborting. Use --continue-on-error to proceed anyway.")) {
-                    return;
+                    return ExitCodes.IO_ERROR;
                 }
             }
 
@@ -134,7 +135,7 @@ public class SetupDevEnvService {
                 if (abortIfStepFailed(jythonOk, config,
                         "Jython download failed. Aborting.",
                         "Jython download failed. Aborting. Use --continue-on-error to proceed anyway.")) {
-                    return;
+                    return ExitCodes.IO_ERROR;
                 }
             }
         }
@@ -153,7 +154,7 @@ public class SetupDevEnvService {
                 if (abortIfStepFailed(eclipseOk, config,
                         "Eclipse installation failed. Aborting.",
                         "Eclipse installation failed. Aborting. Use --continue-on-error to proceed anyway.")) {
-                    return;
+                    return ExitCodes.IO_ERROR;
                 }
             }
 
@@ -170,7 +171,7 @@ public class SetupDevEnvService {
                     if (abortIfStepFailed(pluginsOk, config,
                             "Eclipse plugins installation failed. Aborting.",
                             "Eclipse plugins installation failed. Aborting. Use --continue-on-error to proceed anyway.")) {
-                        return;
+                        return ExitCodes.IO_ERROR;
                     }
                 }
 
@@ -186,7 +187,7 @@ public class SetupDevEnvService {
                     if (abortIfStepFailed(workspaceOk, config,
                             "Workspace configuration failed. Aborting.",
                             "Workspace configuration failed. Aborting. Use --continue-on-error to proceed anyway.")) {
-                        return;
+                        return ExitCodes.IO_ERROR;
                     }
                 }
             }
@@ -205,13 +206,14 @@ public class SetupDevEnvService {
                 if (abortIfStepFailed(dbOk, config,
                         "Database setup failed. Aborting.",
                         "Database setup failed. Aborting. Use --continue-on-error to proceed anyway.")) {
-                    return;
+                    return ExitCodes.IO_ERROR;
                 }
             }
         }
 
         // Summary
         printSummary(config, hadErrors);
+        return hadErrors ? ExitCodes.IO_ERROR : ExitCodes.SUCCESS;
     }
 
     private void printConfiguration(SetupConfig config) {

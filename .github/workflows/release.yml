@@ -13,9 +13,33 @@ on:
 env:
   JAVA_VERSION: '21'
   MANDREL_VERSION: '23.1.6.0-Final'
+  CORE_ONLY_ARGS: '-Didempiere.experimental.ai.enabled=false -Dquarkus.profile=prod'
 
 jobs:
+  core-release-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Core contract gate
+        run: ./scripts/run-core-contract-check.sh
+
+      - name: Core smoke gate (AI disabled)
+        run: |
+          CLI_MODE=jar \
+          RUN_AI_STEPS=0 \
+          SMOKE_FAIL_ON_REGRESSION=1 \
+          ./scripts/run-cli-prebuild-smoke.sh
+
   build-linux-amd64:
+    needs: [core-release-gate]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,7 +62,7 @@ jobs:
           fi
 
       - name: Build native image
-        run: mvn -B package -Pnative -DskipTests -Dquarkus.application.version=${{ steps.version.outputs.version }} -Dquarkus.native.additional-build-args=--initialize-at-run-time=org.postgresql.sspi.SSPIClient,--enable-url-protocols=https,-march=compatibility
+        run: ./mvnw -B package -Pnative -DskipTests -Dquarkus.application.version=${{ steps.version.outputs.version }} ${{ env.CORE_ONLY_ARGS }} -Dquarkus.native.additional-build-args=--initialize-at-run-time=org.postgresql.sspi.SSPIClient,--enable-url-protocols=https,-march=compatibility
 
       - name: Rename binary
         run: mv target/*-runner target/idempiere-cli-linux-amd64
@@ -50,6 +74,7 @@ jobs:
           path: target/idempiere-cli-linux-amd64
 
   build-linux-arm64:
+    needs: [core-release-gate]
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
@@ -72,7 +97,7 @@ jobs:
           fi
 
       - name: Build native image
-        run: mvn -B package -Pnative -DskipTests -Dquarkus.application.version=${{ steps.version.outputs.version }} -Dquarkus.native.additional-build-args=--initialize-at-run-time=org.postgresql.sspi.SSPIClient,--enable-url-protocols=https,-march=compatibility
+        run: ./mvnw -B package -Pnative -DskipTests -Dquarkus.application.version=${{ steps.version.outputs.version }} ${{ env.CORE_ONLY_ARGS }} -Dquarkus.native.additional-build-args=--initialize-at-run-time=org.postgresql.sspi.SSPIClient,--enable-url-protocols=https,-march=compatibility
 
       - name: Rename binary
         run: mv target/*-runner target/idempiere-cli-linux-arm64
@@ -84,6 +109,7 @@ jobs:
           path: target/idempiere-cli-linux-arm64
 
   build-macos-arm64:
+    needs: [core-release-gate]
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -105,7 +131,7 @@ jobs:
           fi
 
       - name: Build native image
-        run: mvn -B package -Pnative -DskipTests -Dquarkus.application.version=${{ steps.version.outputs.version }}
+        run: ./mvnw -B package -Pnative -DskipTests -Dquarkus.application.version=${{ steps.version.outputs.version }} ${{ env.CORE_ONLY_ARGS }}
 
       - name: Rename binary
         run: mv target/*-runner target/idempiere-cli-darwin-arm64
@@ -117,6 +143,7 @@ jobs:
           path: target/idempiere-cli-darwin-arm64
 
   build-macos-amd64:
+    needs: [core-release-gate]
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -138,7 +165,7 @@ jobs:
           fi
 
       - name: Build native image
-        run: mvn -B package -Pnative -DskipTests -Dquarkus.application.version=${{ steps.version.outputs.version }}
+        run: ./mvnw -B package -Pnative -DskipTests -Dquarkus.application.version=${{ steps.version.outputs.version }} ${{ env.CORE_ONLY_ARGS }}
 
       - name: Rename binary
         run: mv target/*-runner target/idempiere-cli-darwin-amd64
@@ -150,6 +177,7 @@ jobs:
           path: target/idempiere-cli-darwin-amd64
 
   build-windows:
+    needs: [core-release-gate]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -177,7 +205,8 @@ jobs:
           fi
 
       - name: Build native image
-        run: mvn -B package -Pnative -DskipTests "-Dquarkus.application.version=${{ steps.version.outputs.version }}"
+        shell: cmd
+        run: mvnw.cmd -B package -Pnative -DskipTests -Dquarkus.application.version=${{ steps.version.outputs.version }} -Didempiere.experimental.ai.enabled=false -Dquarkus.profile=prod
 
       - name: Rename binary
         run: move target\*-runner.exe target\idempiere-cli-windows-amd64.exe

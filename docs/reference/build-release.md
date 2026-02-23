@@ -42,3 +42,4 @@ git push --tags
 ```
 
 Tag push triggers GitHub Actions release build for supported platforms.
+The workflow enforces a core-only gate before native builds (`run-core-contract-check.sh` + smoke with `RUN_AI_STEPS=0`).

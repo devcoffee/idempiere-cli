@@ -90,3 +90,9 @@ A release is core-compatible only if:
 2. core exit-code tests pass
 3. command docs match implemented core behavior
 4. this contract remains valid or is versioned with explicit change notes
+
+Recommended command:
+
+```bash
+./scripts/run-core-contract-check.sh
+```

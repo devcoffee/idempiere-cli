@@ -2,6 +2,25 @@
 
 Utility scripts for local development and pre-release validation.
 
+## `run-core-contract-check.sh`
+
+Runs a focused contract gate for stable/core behavior:
+- builds core/default flavor (`./mvnw -DskipTests package`)
+- executes the core contract test suite (command surface + core exit-code checks)
+
+Usage:
+
+```bash
+./scripts/run-core-contract-check.sh
+```
+
+Optional override:
+
+```bash
+CORE_CONTRACT_TESTS="CoreContractCommandSurfaceTest,CommandExitCodeContractTest" \
+./scripts/run-core-contract-check.sh
+```
+
 ## `run-cli-prebuild-smoke.sh`
 
 Runs a practical smoke suite for `idempiere-cli`, captures stdout/stderr for each step, and generates a report bundle.

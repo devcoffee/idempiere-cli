@@ -9,6 +9,12 @@ Use this before tagging a new version.
 ./mvnw -DskipTests package
 ```
 
+Core contract gate:
+
+```bash
+./scripts/run-core-contract-check.sh
+```
+
 ## 2. Run Pre-Release Smoke
 
 Deterministic core + AI phase:

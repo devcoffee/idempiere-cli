@@ -41,13 +41,14 @@ Interpretation:
 - `XFAIL`: known failure, tracked but not blocking
 - `FAIL`: unexpected regression (should block release)
 
-AI steps are non-blocking by default. To make them blocking:
+Core release gate keeps AI phase disabled by default (`RUN_AI_STEPS=0`).
+If you explicitly enable AI diagnostics, they are non-blocking by default. To make them blocking:
 
 ```bash
-CLI_MODE=jar AI_BLOCKING=1 SMOKE_FAIL_ON_REGRESSION=1 ./scripts/run-cli-prebuild-smoke.sh
+CLI_MODE=jar RUN_AI_STEPS=1 AI_BLOCKING=1 SMOKE_FAIL_ON_REGRESSION=1 ./scripts/run-cli-prebuild-smoke.sh
 ```
 
-To skip AI phase completely:
+Core-only run (explicit):
 
 ```bash
 CLI_MODE=jar RUN_AI_STEPS=0 SMOKE_FAIL_ON_REGRESSION=1 ./scripts/run-cli-prebuild-smoke.sh

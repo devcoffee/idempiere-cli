@@ -21,7 +21,7 @@ Core contract gate:
 
 ## 2. Run Pre-Release Smoke
 
-Deterministic core + AI phase:
+Deterministic core-only gate:
 
 ```bash
 CLI_MODE=jar SMOKE_FAIL_ON_REGRESSION=1 ./scripts/run-cli-prebuild-smoke.sh
@@ -36,6 +36,12 @@ Full environment path (heavy):
 
 ```bash
 CLI_MODE=jar RUN_SETUP_DEV_ENV_FULL=1 SMOKE_FAIL_ON_REGRESSION=1 ./scripts/run-cli-prebuild-smoke.sh
+```
+
+Optional experimental extension (non-release signal):
+
+```bash
+CLI_MODE=jar RUN_AI_STEPS=1 ./scripts/run-cli-prebuild-smoke.sh
 ```
 
 ## 3. Review Smoke Artifacts

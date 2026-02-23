@@ -15,7 +15,7 @@
 #   RUN_COMMAND_MATRIX 1|0 validate full command/subcommand tree with --help (default: 1)
 #   RUN_FUNCTIONAL_MATRIX 1|0 run safe functional checks for config/skills/completion (default: 1)
 #   RUN_STANDALONE_MATRIX 1|0 run standalone plugin flow checks (default: 1)
-#   RUN_AI_STEPS 1|0 include AI generation add steps (default: 1)
+#   RUN_AI_STEPS 1|0 include AI generation add steps (default: 0)
 #   AI_BLOCKING  1|0 make AI step failures block the run (default: 0)
 #   RUN_SETUP_DEV_ENV_DRY_RUN 1|0 include setup-dev-env dry-run step (default: 1)
 #   RUN_SETUP_DEV_ENV_FULL    1|0 include setup-dev-env full run step (default: 0)
@@ -46,7 +46,7 @@ PROMPT_TEXT="${PROMPT_TEXT:-Define Description as Name + Name2 when leaving thos
 RUN_COMMAND_MATRIX="${RUN_COMMAND_MATRIX:-1}"
 RUN_FUNCTIONAL_MATRIX="${RUN_FUNCTIONAL_MATRIX:-1}"
 RUN_STANDALONE_MATRIX="${RUN_STANDALONE_MATRIX:-1}"
-RUN_AI_STEPS="${RUN_AI_STEPS:-1}"
+RUN_AI_STEPS="${RUN_AI_STEPS:-0}"
 AI_BLOCKING="${AI_BLOCKING:-0}"
 RUN_SETUP_DEV_ENV_DRY_RUN="${RUN_SETUP_DEV_ENV_DRY_RUN:-1}"
 RUN_SETUP_DEV_ENV_FULL="${RUN_SETUP_DEV_ENV_FULL:-0}"

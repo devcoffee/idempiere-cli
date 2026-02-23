@@ -38,9 +38,9 @@ Runs a practical smoke suite for `idempiere-cli`, captures stdout/stderr for eac
 - `setup-dev-env` profile validation (`--dry-run`, docker+rest args)
 - `init` (non-interactive, multi-module)
 - `info`, `validate`, `deps`, plugin `doctor`
-- `add` flow with AI prompt
-- `add` flow with AI prompt audit flags (`--show-ai-prompt`, `--save-ai-debug`)
-- AI debug artifact validation (`.idempiere-cli/ai-debug/*.log` with prompt/result markers)
+- optional `add` flow with AI prompt (`RUN_AI_STEPS=1`)
+- optional `add` flow with AI prompt audit flags (`--show-ai-prompt`, `--save-ai-debug`)
+- optional AI debug artifact validation (`.idempiere-cli/ai-debug/*.log` with prompt/result markers)
 - plugin build (`mvnw verify`)
 - `build`, `package` (`zip` and `p2`) and `deploy` from multi-module project root
 - standalone plugin flow (`init --standalone`, `add`, `validate`, `build`, `package zip`, `deploy`)
@@ -49,7 +49,7 @@ Runs a practical smoke suite for `idempiere-cli`, captures stdout/stderr for eac
 - functional command matrix (`config`, `skills source`, `skills which`, `generate-completion`) in isolated HOME
 
 Build/package validation runs before AI prompt steps, so compile/package gates stay deterministic.
-AI steps run in a dedicated phase and are non-blocking by default (`AI_BLOCKING=0`).
+AI steps are opt-in (`RUN_AI_STEPS=1`) and non-blocking by default (`AI_BLOCKING=0`).
 In core/default build, AI steps fall back to deterministic templates (experimental generators are not loaded).
 
 ### Output artifacts
@@ -104,7 +104,7 @@ CLI_MODE=auto ./scripts/run-cli-prebuild-smoke.sh
 - `RUN_COMMAND_MATRIX` default: `1` (validates all discovered command/subcommand combinations with `--help`)
 - `RUN_FUNCTIONAL_MATRIX` default: `1` (runs safe functional checks for config/skills/completion using isolated HOME)
 - `RUN_STANDALONE_MATRIX` default: `1` (runs standalone plugin flow checks)
-- `RUN_AI_STEPS` default: `1` (runs AI add steps in dedicated phase)
+- `RUN_AI_STEPS` default: `0` (AI phase disabled unless explicitly enabled)
 - `AI_BLOCKING` default: `0` (AI step failures become `XFAIL` instead of `FAIL`)
 - `RUN_SETUP_DEV_ENV_DRY_RUN` default: `1` (adds `setup-dev-env --dry-run` smoke step)
 - `RUN_SETUP_DEV_ENV_FULL` default: `0` (runs real `setup-dev-env`, heavy and stateful)
@@ -154,16 +154,16 @@ Run a faster smoke without standalone matrix:
 CLI_MODE=jar RUN_STANDALONE_MATRIX=0 ./scripts/run-cli-prebuild-smoke.sh
 ```
 
-Skip AI phase entirely:
+Enable AI phase (experimental):
 
 ```bash
-CLI_MODE=jar RUN_AI_STEPS=0 ./scripts/run-cli-prebuild-smoke.sh
+CLI_MODE=jar RUN_AI_STEPS=1 ./scripts/run-cli-prebuild-smoke.sh
 ```
 
 Make AI failures blocking:
 
 ```bash
-CLI_MODE=jar AI_BLOCKING=1 ./scripts/run-cli-prebuild-smoke.sh
+CLI_MODE=jar RUN_AI_STEPS=1 AI_BLOCKING=1 ./scripts/run-cli-prebuild-smoke.sh
 ```
 
 Mark known issues as expected failures (without hiding real regressions):
@@ -175,7 +175,7 @@ CLI_MODE=jar ./scripts/run-cli-prebuild-smoke.sh
 
 ### Release standard
 
-Before publishing a release, run both gates:
+Before publishing a release, run both gates (core-only default):
 
 Fast gate:
 
@@ -187,6 +187,12 @@ Full gate (includes full `setup-dev-env` path):
 
 ```bash
 CLI_MODE=jar RUN_SETUP_DEV_ENV_FULL=1 SMOKE_FAIL_ON_REGRESSION=1 ./scripts/run-cli-prebuild-smoke.sh
+```
+
+Optional experimental extension (not part of release gate):
+
+```bash
+CLI_MODE=jar RUN_AI_STEPS=1 ./scripts/run-cli-prebuild-smoke.sh
 ```
 
 ### Notes

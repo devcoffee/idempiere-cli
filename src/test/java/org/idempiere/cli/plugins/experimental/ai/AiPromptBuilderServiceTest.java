@@ -1,4 +1,4 @@
-package org.idempiere.cli.service;
+package org.idempiere.cli.plugins.experimental.ai;
 
 import org.idempiere.cli.model.ProjectContext;
 import org.junit.jupiter.api.Test;

@@ -130,6 +130,12 @@
 
     <profiles>
         <profile>
+            <id>exp</id>
+            <properties>
+                <quarkus.profile>exp</quarkus.profile>
+            </properties>
+        </profile>
+        <profile>
             <id>native</id>
             <activation>
                 <property>

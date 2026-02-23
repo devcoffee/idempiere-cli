@@ -25,6 +25,7 @@ Runs a practical smoke suite for `idempiere-cli`, captures stdout/stderr for eac
 
 Build/package validation runs before AI prompt steps, so compile/package gates stay deterministic.
 AI steps run in a dedicated phase and are non-blocking by default (`AI_BLOCKING=0`).
+In core/default build, AI steps fall back to deterministic templates (experimental generators are not loaded).
 
 ### Output artifacts
 

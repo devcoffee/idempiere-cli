@@ -1,5 +1,6 @@
-package org.idempiere.cli.service;
+package org.idempiere.cli.plugins.experimental.ai;
 
+import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.idempiere.cli.model.ProjectContext;
 
@@ -9,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 @ApplicationScoped
+@IfBuildProperty(name = "idempiere.experimental.ai.enabled", stringValue = "true")
 public class AiPromptBuilderService {
 
     /** Built-in component descriptions used when no SKILL.md is available. */

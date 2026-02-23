@@ -1,8 +1,9 @@
-package org.idempiere.cli.service;
+package org.idempiere.cli.plugins.experimental.skills;
 
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import org.idempiere.cli.model.CliConfig;
+import org.idempiere.cli.service.CliConfigService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

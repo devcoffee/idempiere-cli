@@ -1,8 +1,12 @@
-package org.idempiere.cli.service;
+package org.idempiere.cli.plugins.experimental.skills;
 
+import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.idempiere.cli.model.CliConfig;
+import org.idempiere.cli.service.CliConfigService;
+import org.idempiere.cli.service.ProcessRunner;
+import org.idempiere.cli.service.skills.SkillsService;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -10,7 +14,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -20,24 +23,10 @@ import java.util.stream.Stream;
  * specific iDempiere component types.
  */
 @ApplicationScoped
-public class SkillManager {
+@IfBuildProperty(name = "idempiere.experimental.ai.enabled", stringValue = "true")
+public class SkillManager implements SkillsService {
     public static final String ROOT_SKILL_DIR = "<root>";
     private static final String SKILL_FILE_NAME = "SKILL.md";
-
-    /** Maps CLI component type to the skill directory name in hengsin/idempiere-skills. */
-    public static final Map<String, String> TYPE_TO_SKILL = Map.ofEntries(
-            Map.entry("callout", "idempiere-callout-generator"),
-            Map.entry("process", "idempiere-annotation-process"),
-            Map.entry("process-mapped", "idempiere-mapped-process"),
-            Map.entry("event-handler", "idempiere-event-annotation"),
-            Map.entry("zk-form", "idempiere-zul-form"),
-            Map.entry("zk-form-zul", "idempiere-zul-form"),
-            Map.entry("rest-extension", "idempiere-rest-resource"),
-            Map.entry("window-validator", "idempiere-window-validator"),
-            Map.entry("listbox-group", "idempiere-grouped-listbox"),
-            Map.entry("wlistbox-editor", "idempiere-wlistbox-custom-editor"),
-            Map.entry("report", "idempiere-osgi-event-handler")
-    );
 
     @Inject
     CliConfigService configService;
@@ -52,6 +41,7 @@ public class SkillManager {
      * @param componentType the CLI component type (e.g., "callout", "process")
      * @return the skill content, or empty if no skill found
      */
+    @Override
     public Optional<String> loadSkill(String componentType) {
         Optional<SkillResolution> resolution = resolveSkill(componentType);
         if (resolution.isEmpty()) {
@@ -74,6 +64,7 @@ public class SkillManager {
      *
      * Sources are checked in priority order (0 = highest).
      */
+    @Override
     public Optional<SkillResolution> resolveSkill(String componentType) {
         CliConfig config = configService.loadConfig();
         List<CliConfig.SkillSource> sources = new ArrayList<>(config.getSkills().getSources());
@@ -137,6 +128,7 @@ public class SkillManager {
     /**
      * Synchronizes remote skill sources (git clone/pull).
      */
+    @Override
     public SyncResult syncSkills() {
         CliConfig config = configService.loadConfig();
         List<CliConfig.SkillSource> sources = config.getSkills().getSources();
@@ -194,6 +186,7 @@ public class SkillManager {
     /**
      * Lists all configured sources and their available skills.
      */
+    @Override
     public List<SkillSourceInfo> listSources() {
         CliConfig config = configService.loadConfig();
         List<SkillSourceInfo> result = new ArrayList<>();
@@ -226,6 +219,7 @@ public class SkillManager {
      * Lists all available component types, combining hardcoded aliases with dynamically discovered skills.
      * Dynamically discovered skills are named by their directory (stripped of "idempiere-" prefix if present).
      */
+    @Override
     public List<String> listAvailableTypes() {
         List<String> types = new ArrayList<>(TYPE_TO_SKILL.keySet());
 
@@ -279,9 +273,8 @@ public class SkillManager {
 
     // Records for return types
 
-    public record SyncResult(int updated, int unchanged, int failed, List<String> errors) {}
-
-    public record SkillSourceInfo(String name, String location, boolean isRemote, List<String> availableSkills) {}
-
-    public record SkillResolution(String sourceName, String skillDir, Path skillMdPath) {}
+    @Override
+    public boolean enabled() {
+        return true;
+    }
 }

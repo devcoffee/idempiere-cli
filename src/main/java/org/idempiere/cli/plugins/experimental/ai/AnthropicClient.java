@@ -1,9 +1,10 @@
-package org.idempiere.cli.service.ai;
+package org.idempiere.cli.plugins.experimental.ai;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.idempiere.cli.model.CliConfig;
@@ -17,15 +18,17 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 
 /**
- * OpenAI Chat Completions API client.
- * POST https://api.openai.com/v1/chat/completions
+ * Anthropic Claude API client.
+ * POST https://api.anthropic.com/v1/messages
  */
 @ApplicationScoped
-public class OpenAiClient implements AiClient {
+@IfBuildProperty(name = "idempiere.experimental.ai.enabled", stringValue = "true")
+public class AnthropicClient implements AiClient {
 
-    private static final String API_URL = "https://api.openai.com/v1/chat/completions";
+    private static final String API_URL = "https://api.anthropic.com/v1/messages";
+    private static final String API_VERSION = "2023-06-01";
     private static final Duration TIMEOUT = Duration.ofSeconds(60);
-    private static final String DEFAULT_MODEL = "gpt-4o";
+    private static final String DEFAULT_MODEL = "claude-sonnet-4-20250514";
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private volatile HttpClient httpClient;
 
@@ -48,7 +51,7 @@ public class OpenAiClient implements AiClient {
 
     @Override
     public String providerName() {
-        return "openai";
+        return "anthropic";
     }
 
     @Override
@@ -107,10 +110,10 @@ public class OpenAiClient implements AiClient {
                 if (content != null) {
                     return AiResponse.ok(content);
                 }
-                return AiResponse.fail("Failed to parse OpenAI response");
+                return AiResponse.fail("Failed to parse Anthropic response");
             }
 
-            return AiResponse.fail("OpenAI API error " + response.statusCode() + ": " + response.body());
+            return AiResponse.fail("Anthropic API error " + response.statusCode() + ": " + response.body());
         } catch (IOException e) {
             return AiResponse.fail("Network error: " + e.getMessage());
         } catch (InterruptedException e) {
@@ -123,7 +126,8 @@ public class OpenAiClient implements AiClient {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(API_URL))
                 .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + apiKey)
+                .header("x-api-key", apiKey)
+                .header("anthropic-version", API_VERSION)
                 .timeout(TIMEOUT)
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
@@ -135,10 +139,13 @@ public class OpenAiClient implements AiClient {
         try {
             ObjectNode root = objectMapper.createObjectNode();
             root.put("model", model);
+            root.put("max_tokens", 4096);
+
             ArrayNode messages = root.putArray("messages");
             ObjectNode msg = messages.addObject();
             msg.put("role", "user");
             msg.put("content", prompt);
+
             return objectMapper.writeValueAsString(root);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to build request body", e);
@@ -146,15 +153,18 @@ public class OpenAiClient implements AiClient {
     }
 
     /**
-     * Extracts text from OpenAI response.
-     * Format: { "choices": [{ "message": { "content": "..." } }] }
+     * Extracts the text content from an Anthropic API response.
+     * Response format: { "content": [{ "type": "text", "text": "..." }] }
      */
     String extractContent(String responseBody) {
         try {
             JsonNode root = objectMapper.readTree(responseBody);
-            JsonNode choices = root.path("choices");
-            if (choices.isArray() && !choices.isEmpty()) {
-                return choices.get(0).path("message").path("content").asText(null);
+            JsonNode content = root.path("content");
+            if (content.isArray() && !content.isEmpty()) {
+                JsonNode firstBlock = content.get(0);
+                if ("text".equals(firstBlock.path("type").asText())) {
+                    return firstBlock.path("text").asText(null);
+                }
             }
             return null;
         } catch (Exception e) {
@@ -164,7 +174,7 @@ public class OpenAiClient implements AiClient {
 
     private String getApiKey() {
         CliConfig config = configService.loadConfig();
-        return config.getAi().resolveApiKey("OPENAI_API_KEY");
+        return config.getAi().resolveApiKey("ANTHROPIC_API_KEY");
     }
 
     private String getModel() {

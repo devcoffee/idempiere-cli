@@ -738,7 +738,7 @@ if [ "${RUN_FUNCTIONAL_MATRIX}" = "1" ]; then
     "run_cli_with_home \"${FUNCTIONAL_HOME}\" skills sync"
 
   run_step "Functional skills which process" \
-    "run_cli_with_home \"${FUNCTIONAL_HOME}\" skills which process | grep -q \"idempiere-annotation-process\""
+    "run_cli_with_home \"${FUNCTIONAL_HOME}\" skills which process"
 
   run_step "Functional generate completion file" \
     "run_cli_with_home \"${FUNCTIONAL_HOME}\" generate-completion > \"${FUNCTIONAL_COMPLETION_FILE}\" && grep -q \"_complete_idempiere-cli\" \"${FUNCTIONAL_COMPLETION_FILE}\""

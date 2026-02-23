@@ -2,6 +2,13 @@
 
 Use this loop to keep AI-generated code reliable in real projects.
 
+Note: AI generation is part of the experimental build flavor (`./mvnw -Pexp ...`).
+
+Recommended default strategy:
+- keep generation deterministic with templates (`init/add` without `--prompt`)
+- use external agents to implement/refine business logic
+- use this page when you explicitly choose to exercise the embedded experimental AI path
+
 ## 1. Configure AI Once
 
 ```bash

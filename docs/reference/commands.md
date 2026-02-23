@@ -49,6 +49,11 @@ idempiere-cli add test --dir=./plugin
 ```
 
 AI-assisted generation:
+(`-Pexp` experimental build)
+
+Recommended usage:
+- Use external agents for iterative coding/refinement.
+- Use CLI AI flags only when auditing the embedded experimental path.
 
 ```bash
 idempiere-cli add process --name=GenerateInvoices --to=./plugin \

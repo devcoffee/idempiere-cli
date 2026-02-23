@@ -17,8 +17,10 @@ Out of scope:
 ```text
 src/main/java/org/idempiere/cli/
   commands/
+  plugin/
+  plugins/experimental/
   service/
-  service/ai/
+  service/skills/
   model/
 
 src/main/resources/templates/
@@ -30,6 +32,16 @@ src/test/java/
 
 - CLI handles local engineering workflows.
 - Runtime operation and AD-level AI workflows are complementary concerns.
+- Core CLI is deterministic by design; experimental generation features are isolated behind build flavor/profile.
+- External AI agents are the primary place for iterative code authoring; CLI remains the quality/integrity layer.
+
+## Extension Direction
+
+The codebase now exposes internal plugin extension points for generation workflows:
+- `plugin/add/AddGenerationPlugin` for optional non-template generation providers
+- `service/skills/SkillsService` abstraction with core fallback implementation
+
+This keeps core commands stable while allowing optional feature modules.
 
 See: [Ecosystem Complementarity Analysis](../strategy/ECOSYSTEM.md)
 
@@ -45,4 +57,3 @@ Medium-term:
 
 Long-term:
 - stronger ecosystem integrations and workflow automation
-

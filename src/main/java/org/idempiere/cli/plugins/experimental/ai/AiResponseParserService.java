@@ -1,6 +1,7 @@
-package org.idempiere.cli.service;
+package org.idempiere.cli.plugins.experimental.ai;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.idempiere.cli.model.GeneratedCode;
 
@@ -8,6 +9,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @ApplicationScoped
+@IfBuildProperty(name = "idempiere.experimental.ai.enabled", stringValue = "true")
 public class AiResponseParserService {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();

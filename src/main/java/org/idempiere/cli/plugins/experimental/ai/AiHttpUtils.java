@@ -1,4 +1,4 @@
-package org.idempiere.cli.service.ai;
+package org.idempiere.cli.plugins.experimental.ai;
 
 import java.io.IOException;
 import java.net.http.HttpClient;

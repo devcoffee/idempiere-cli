@@ -1,4 +1,4 @@
-package org.idempiere.cli.service.ai;
+package org.idempiere.cli.plugins.experimental.ai;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;

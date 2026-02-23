@@ -1,9 +1,10 @@
-package org.idempiere.cli.service.ai;
+package org.idempiere.cli.plugins.experimental.ai;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.idempiere.cli.model.CliConfig;
@@ -17,15 +18,16 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 
 /**
- * Google Generative AI (Gemini) client.
- * POST https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent
+ * OpenAI Chat Completions API client.
+ * POST https://api.openai.com/v1/chat/completions
  */
 @ApplicationScoped
-public class GoogleAiClient implements AiClient {
+@IfBuildProperty(name = "idempiere.experimental.ai.enabled", stringValue = "true")
+public class OpenAiClient implements AiClient {
 
-    private static final String API_BASE = "https://generativelanguage.googleapis.com/v1beta/models/";
+    private static final String API_URL = "https://api.openai.com/v1/chat/completions";
     private static final Duration TIMEOUT = Duration.ofSeconds(60);
-    private static final String DEFAULT_MODEL = "gemini-2.5-flash";
+    private static final String DEFAULT_MODEL = "gpt-4o";
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private volatile HttpClient httpClient;
 
@@ -48,7 +50,7 @@ public class GoogleAiClient implements AiClient {
 
     @Override
     public String providerName() {
-        return "google";
+        return "openai";
     }
 
     @Override
@@ -59,19 +61,15 @@ public class GoogleAiClient implements AiClient {
         }
         try {
             ObjectNode root = objectMapper.createObjectNode();
-            ArrayNode contents = root.putArray("contents");
-            ObjectNode content = contents.addObject();
-            ArrayNode parts = content.putArray("parts");
-            ObjectNode part = parts.addObject();
-            part.put("text", "hi");
-            // Set maxOutputTokens to 1 for minimal cost
-            ObjectNode genConfig = root.putObject("generationConfig");
-            genConfig.put("maxOutputTokens", 1);
+            root.put("model", getModel());
+            root.put("max_tokens", 1);
+            ArrayNode messages = root.putArray("messages");
+            ObjectNode msg = messages.addObject();
+            msg.put("role", "user");
+            msg.put("content", "hi");
             String body = objectMapper.writeValueAsString(root);
 
-            String model = getModel();
-            String url = API_BASE + model + ":generateContent?key=" + apiKey;
-            HttpResponse<String> response = sendRequest(url, body);
+            HttpResponse<String> response = sendRequest(apiKey, body);
             if (response.statusCode() == 200) {
                 return AiResponse.ok("OK");
             }
@@ -101,21 +99,20 @@ public class GoogleAiClient implements AiClient {
         }
 
         String model = getModel();
-        String requestBody = buildRequestBody(prompt);
-        String url = API_BASE + model + ":generateContent?key=" + apiKey;
+        String requestBody = buildRequestBody(model, prompt);
 
         try {
-            HttpResponse<String> response = sendRequest(url, requestBody);
+            HttpResponse<String> response = sendRequest(apiKey, requestBody);
 
             if (response.statusCode() == 200) {
                 String content = extractContent(response.body());
                 if (content != null) {
                     return AiResponse.ok(content);
                 }
-                return AiResponse.fail("Failed to parse Google AI response");
+                return AiResponse.fail("Failed to parse OpenAI response");
             }
 
-            return AiResponse.fail("Google AI API error " + response.statusCode() + ": " + response.body());
+            return AiResponse.fail("OpenAI API error " + response.statusCode() + ": " + response.body());
         } catch (IOException e) {
             return AiResponse.fail("Network error: " + e.getMessage());
         } catch (InterruptedException e) {
@@ -124,10 +121,11 @@ public class GoogleAiClient implements AiClient {
         }
     }
 
-    HttpResponse<String> sendRequest(String url, String body) throws IOException, InterruptedException {
+    HttpResponse<String> sendRequest(String apiKey, String body) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
+                .uri(URI.create(API_URL))
                 .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + apiKey)
                 .timeout(TIMEOUT)
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
@@ -135,14 +133,14 @@ public class GoogleAiClient implements AiClient {
         return AiHttpUtils.sendWithRetry(getHttpClient(), request);
     }
 
-    private String buildRequestBody(String prompt) {
+    private String buildRequestBody(String model, String prompt) {
         try {
             ObjectNode root = objectMapper.createObjectNode();
-            ArrayNode contents = root.putArray("contents");
-            ObjectNode content = contents.addObject();
-            ArrayNode parts = content.putArray("parts");
-            ObjectNode part = parts.addObject();
-            part.put("text", prompt);
+            root.put("model", model);
+            ArrayNode messages = root.putArray("messages");
+            ObjectNode msg = messages.addObject();
+            msg.put("role", "user");
+            msg.put("content", prompt);
             return objectMapper.writeValueAsString(root);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to build request body", e);
@@ -150,18 +148,15 @@ public class GoogleAiClient implements AiClient {
     }
 
     /**
-     * Extracts text from Google AI response.
-     * Format: { "candidates": [{ "content": { "parts": [{ "text": "..." }] } }] }
+     * Extracts text from OpenAI response.
+     * Format: { "choices": [{ "message": { "content": "..." } }] }
      */
     String extractContent(String responseBody) {
         try {
             JsonNode root = objectMapper.readTree(responseBody);
-            JsonNode candidates = root.path("candidates");
-            if (candidates.isArray() && !candidates.isEmpty()) {
-                JsonNode parts = candidates.get(0).path("content").path("parts");
-                if (parts.isArray() && !parts.isEmpty()) {
-                    return parts.get(0).path("text").asText(null);
-                }
+            JsonNode choices = root.path("choices");
+            if (choices.isArray() && !choices.isEmpty()) {
+                return choices.get(0).path("message").path("content").asText(null);
             }
             return null;
         } catch (Exception e) {
@@ -171,7 +166,7 @@ public class GoogleAiClient implements AiClient {
 
     private String getApiKey() {
         CliConfig config = configService.loadConfig();
-        return config.getAi().resolveApiKey("GOOGLE_API_KEY");
+        return config.getAi().resolveApiKey("OPENAI_API_KEY");
     }
 
     private String getModel() {

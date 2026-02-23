@@ -1,12 +1,13 @@
-package org.idempiere.cli.service;
+package org.idempiere.cli.plugins.experimental.ai;
 
+import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.idempiere.cli.model.GeneratedCode;
 import org.idempiere.cli.model.ProjectContext;
-import org.idempiere.cli.service.ai.AiClient;
-import org.idempiere.cli.service.ai.AiClientFactory;
-import org.idempiere.cli.service.ai.AiResponse;
+import org.idempiere.cli.service.ProjectAnalyzer;
+import org.idempiere.cli.service.SessionLogger;
+import org.idempiere.cli.service.skills.SkillsService;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -25,13 +26,14 @@ import java.util.Optional;
  * Returns empty if AI is not configured or generation fails.
  */
 @ApplicationScoped
+@IfBuildProperty(name = "idempiere.experimental.ai.enabled", stringValue = "true")
 public class SmartScaffoldService {
 
     @Inject
     AiClientFactory aiClientFactory;
 
     @Inject
-    SkillManager skillManager;
+    SkillsService skillsService;
 
     @Inject
     ProjectAnalyzer projectAnalyzer;
@@ -73,7 +75,7 @@ public class SmartScaffoldService {
         boolean saveAiDebug = optionEnabled(extraData, "saveAiDebug");
         String userPrompt = extractUserPrompt(extraData);
 
-        Optional<String> skill = skillManager.loadSkill(type);
+        Optional<String> skill = skillsService.loadSkill(type);
 
         // If no skill file and no user prompt, skip AI generation
         boolean hasUserPrompt = userPrompt != null && !userPrompt.isBlank();

@@ -4,11 +4,15 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import org.idempiere.cli.model.GeneratedCode;
+import org.idempiere.cli.model.ProjectContext;
+import org.idempiere.cli.plugin.add.AddGenerationPlugin;
 import org.idempiere.cli.service.generator.ComponentGenerator;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -22,7 +26,10 @@ public class AddComponentService {
     Instance<ComponentGenerator> generators;
 
     @Inject
-    SmartScaffoldService smartScaffoldService;
+    Instance<AddGenerationPlugin> generationPlugins;
+
+    @Inject
+    ProjectAnalyzer projectAnalyzer;
 
     @Inject
     SessionLogger sessionLogger;
@@ -41,13 +48,18 @@ public class AddComponentService {
         System.out.println();
 
         try {
-            // 1. Try AI generation (if configured)
-            Optional<GeneratedCode> aiResult = smartScaffoldService.generate(type, name, pluginDir, pluginId, extraData);
+            // 1. Try non-template generation plugins (experimental/optional)
+            boolean generatedByPlugin = tryGenerationPlugins(type, name, pluginDir, pluginId, extraData);
 
-            if (aiResult.isPresent()) {
-                // AI generation succeeded (files already written by SmartScaffoldService)
-            } else {
-                // 2. Fallback to template
+            if (!generatedByPlugin) {
+                // 2. Deterministic template fallback (core default)
+                if (extraData != null && extraData.get("prompt") instanceof String prompt && !prompt.isBlank()) {
+                    if (generationPlugins.isUnsatisfied()) {
+                        System.out.println("  AI/experimental generation is not enabled in this build. Using deterministic template.");
+                    } else {
+                        System.out.println("  No experimental generator produced output. Using deterministic template.");
+                    }
+                }
                 ScaffoldResult templateResult = templateGeneration(type, name, pluginDir, pluginId, extraData);
                 if (!templateResult.success()) {
                     return templateResult;
@@ -66,6 +78,39 @@ public class AddComponentService {
                 sessionLogger.endSession(success);
             }
         }
+    }
+
+    private boolean tryGenerationPlugins(String type,
+                                         String name,
+                                         Path pluginDir,
+                                         String pluginId,
+                                         Map<String, Object> extraData) throws IOException {
+        List<AddGenerationPlugin> plugins = generationPlugins.stream()
+                .sorted(Comparator.comparingInt(AddGenerationPlugin::order))
+                .toList();
+        if (plugins.isEmpty()) {
+            return false;
+        }
+
+        ProjectContext ctx = projectAnalyzer.analyze(pluginDir);
+        for (AddGenerationPlugin plugin : plugins) {
+            Optional<AddGenerationPlugin.AddGenerationResult> result = plugin.tryGenerate(
+                    type, name, pluginDir, pluginId, ctx, extraData
+            );
+            if (result.isEmpty()) {
+                continue;
+            }
+            if (!result.get().generated()) {
+                continue;
+            }
+            GeneratedCode code = result.get().generatedCode();
+            if (code == null) {
+                continue;
+            }
+            code.writeTo(pluginDir);
+            return true;
+        }
+        return false;
     }
 
     private String buildAddCommandLine(String type, String name, Path pluginDir, Map<String, Object> extraData) {

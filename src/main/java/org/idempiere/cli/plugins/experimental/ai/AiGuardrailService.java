@@ -1,5 +1,6 @@
-package org.idempiere.cli.service;
+package org.idempiere.cli.plugins.experimental.ai;
 
+import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.idempiere.cli.model.GeneratedCode;
 import org.idempiere.cli.util.PluginUtils;
@@ -22,6 +23,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 @ApplicationScoped
+@IfBuildProperty(name = "idempiere.experimental.ai.enabled", stringValue = "true")
 public class AiGuardrailService {
 
     private static final ConcurrentHashMap<Path, Optional<ClasspathIndex>> CLASSPATH_INDEX_CACHE = new ConcurrentHashMap<>();

@@ -1,4 +1,4 @@
-package org.idempiere.cli.service;
+package org.idempiere.cli.plugins.experimental.ai;
 
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;

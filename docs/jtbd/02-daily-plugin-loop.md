@@ -32,6 +32,11 @@ idempiere-cli add callout --name=OrderDateCallout \
   --prompt="Reject future order dates and show a user-friendly message"
 ```
 
+Recommended for team/agent workflows:
+- run deterministic `init/add` first
+- let your external agent implement domain logic in generated classes
+- keep CLI commands as the objective validation/build gate
+
 Audit prompt/response when tuning:
 
 ```bash

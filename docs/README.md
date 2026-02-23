@@ -22,6 +22,7 @@ Use this hub by scenario.
 ## AI-Assisted Generation
 
 - [AI Generation Cycle](jtbd/05-ai-generation-cycle.md)
+- Recommended model: external agent writes logic, CLI enforces structure/build integrity
 
 ## Reference Details
 

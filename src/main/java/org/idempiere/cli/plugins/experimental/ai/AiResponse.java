@@ -1,4 +1,4 @@
-package org.idempiere.cli.service.ai;
+package org.idempiere.cli.plugins.experimental.ai;
 
 /**
  * Response from an AI generation request.

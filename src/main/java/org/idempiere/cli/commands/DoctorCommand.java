@@ -5,14 +5,12 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.inject.Inject;
 import org.idempiere.cli.model.CliConfig;
+import org.idempiere.cli.service.AiStatusService;
 import org.idempiere.cli.service.CliConfigService;
 import org.idempiere.cli.service.DoctorService;
 import org.idempiere.cli.service.DoctorService.CheckEntry;
 import org.idempiere.cli.service.DoctorService.EnvironmentResult;
 import org.idempiere.cli.service.DoctorService.PluginCheckResult;
-import org.idempiere.cli.service.ai.AiClient;
-import org.idempiere.cli.service.ai.AiClientFactory;
-import org.idempiere.cli.service.ai.AiResponse;
 import org.idempiere.cli.service.check.CheckResult;
 import org.idempiere.cli.service.check.EnvironmentCheck;
 import org.idempiere.cli.util.CliOutput;
@@ -89,7 +87,7 @@ public class DoctorCommand implements Callable<Integer> {
     CliConfigService configService;
 
     @Inject
-    AiClientFactory aiClientFactory;
+    AiStatusService aiStatusService;
 
     @Override
     public Integer call() {
@@ -220,23 +218,20 @@ public class DoctorCommand implements Callable<Integer> {
             boolean hasEnvKey = apiKeyEnv != null && System.getenv(apiKeyEnv) != null;
             boolean hasConfigKey = config.getAi().hasApiKey();
             if (hasEnvKey || hasConfigKey) {
-                // Validate AI connection by sending a minimal request
-                java.util.Optional<AiClient> client = aiClientFactory.getClient();
-                if (client.isPresent()) {
-                    String modelInfo = model != null && !model.isEmpty() ? " (" + model + ")" : "";
-                    String progressMsg = "  [ ] AI provider:    " + provider + modelInfo + " - validating...";
-                    System.out.print(progressMsg);
-                    System.out.flush();
-                    AiResponse validation = client.get().validate();
-                    // Clear entire line: \r + overwrite with spaces + \r
-                    System.out.print("\r" + " ".repeat(progressMsg.length()) + "\r");
-                    if (validation.success()) {
-                        System.out.println("  " + CliOutput.ok("AI provider:    " + provider + modelInfo));
-                    } else {
-                        System.out.println("  " + CliOutput.fail("AI provider:    " + provider + modelInfo + " - " + validation.error()));
-                    }
+                String modelInfo = model != null && !model.isEmpty() ? " (" + model + ")" : "";
+                String progressMsg = "  [ ] AI provider:    " + provider + modelInfo + " - validating...";
+                System.out.print(progressMsg);
+                System.out.flush();
+                AiStatusService.ValidationResult validation = aiStatusService.validateConfiguredProvider();
+                // Clear entire line: \r + overwrite with spaces + \r
+                System.out.print("\r" + " ".repeat(progressMsg.length()) + "\r");
+
+                if (!validation.supported() || !validation.available()) {
+                    System.out.println("  " + CliOutput.warn("AI provider:    " + provider + modelInfo + " - " + validation.errorMessage()));
+                } else if (validation.passed()) {
+                    System.out.println("  " + CliOutput.ok("AI provider:    " + provider + modelInfo));
                 } else {
-                    System.out.println("  " + CliOutput.warn("AI provider:    " + provider + " (client not found)"));
+                    System.out.println("  " + CliOutput.fail("AI provider:    " + provider + modelInfo + " - " + validation.errorMessage()));
                 }
             } else {
                 System.out.println("  " + CliOutput.warn("AI provider:    " + provider + " (no API key)"));

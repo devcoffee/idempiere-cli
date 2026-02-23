@@ -3,7 +3,7 @@ package org.idempiere.cli.commands;
 import jakarta.inject.Inject;
 import org.idempiere.cli.model.CliConfig;
 import org.idempiere.cli.service.CliConfigService;
-import org.idempiere.cli.service.SkillManager;
+import org.idempiere.cli.service.skills.SkillsService;
 import org.idempiere.cli.util.ExitCodes;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -36,11 +36,17 @@ public class SkillsCommand {
     static class ListCmd implements Callable<Integer> {
 
         @Inject
-        SkillManager skillManager;
+        SkillsService skillsService;
 
         @Override
         public Integer call() {
-            List<SkillManager.SkillSourceInfo> sources = skillManager.listSources();
+            if (!skillsService.enabled()) {
+                System.out.println("Skills feature is not enabled in this build.");
+                System.out.println("  " + skillsService.disabledReason());
+                return ExitCodes.SUCCESS;
+            }
+
+            List<SkillsService.SkillSourceInfo> sources = skillsService.listSources();
 
             if (sources.isEmpty()) {
                 System.out.println("No skill sources configured.");
@@ -55,7 +61,7 @@ public class SkillsCommand {
 
             System.out.println("Skill Sources:");
             System.out.println();
-            for (SkillManager.SkillSourceInfo source : sources) {
+            for (SkillsService.SkillSourceInfo source : sources) {
                 String type = source.isRemote() ? "remote" : "local";
                 System.out.println("  " + source.name() + " (" + type + ")");
                 System.out.println("    Location: " + source.location());
@@ -74,14 +80,20 @@ public class SkillsCommand {
     static class SyncCmd implements Callable<Integer> {
 
         @Inject
-        SkillManager skillManager;
+        SkillsService skillsService;
 
         @Override
         public Integer call() {
             System.out.println("Synchronizing skill sources...");
             System.out.println();
 
-            SkillManager.SyncResult result = skillManager.syncSkills();
+            if (!skillsService.enabled()) {
+                System.out.println("Skills feature is not enabled in this build.");
+                System.out.println("  " + skillsService.disabledReason());
+                return ExitCodes.SUCCESS;
+            }
+
+            SkillsService.SyncResult result = skillsService.syncSkills();
 
             System.out.println("Sync complete: " + result.updated() + " updated, "
                     + result.unchanged() + " unchanged, " + result.failed() + " failed");
@@ -102,22 +114,28 @@ public class SkillsCommand {
         String componentType;
 
         @Inject
-        SkillManager skillManager;
+        SkillsService skillsService;
 
         @Override
         public Integer call() {
-            var resolution = skillManager.resolveSkill(componentType);
+            if (!skillsService.enabled()) {
+                System.out.println("Skills feature is not enabled in this build.");
+                System.out.println("  " + skillsService.disabledReason());
+                return ExitCodes.SUCCESS;
+            }
+
+            var resolution = skillsService.resolveSkill(componentType);
 
             if (resolution.isEmpty()) {
                 System.out.println("No skill found for: " + componentType);
-                String skillDir = SkillManager.TYPE_TO_SKILL.get(componentType);
+                String skillDir = SkillsService.TYPE_TO_SKILL.get(componentType);
                 if (skillDir != null) {
                     System.out.println("  Expected skill directory: " + skillDir);
                     System.out.println("  Make sure a source contains this directory with a SKILL.md file.");
                 } else {
                     System.out.println("  No matching skill directory found.");
                     System.out.println("  Looked for: " + componentType + ", idempiere-" + componentType);
-                    List<String> available = skillManager.listAvailableTypes();
+                    List<String> available = skillsService.listAvailableTypes();
                     if (!available.isEmpty()) {
                         System.out.println("  Available types:");
                         available.forEach(t -> System.out.println("    - " + t));

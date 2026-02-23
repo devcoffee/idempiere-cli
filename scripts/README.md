@@ -15,6 +15,7 @@ Runs a practical smoke suite for `idempiere-cli`, captures stdout/stderr for eac
 - `info`, `validate`, `deps`, plugin `doctor`
 - `add` flow with AI prompt
 - `add` flow with AI prompt audit flags (`--show-ai-prompt`, `--save-ai-debug`)
+- AI debug artifact validation (`.idempiere-cli/ai-debug/*.log` with prompt/result markers)
 - plugin build (`mvnw verify`)
 - `build`, `package` (`zip` and `p2`) and `deploy` from multi-module project root
 - session log markers (`ai-prompt`, `ai-response`, parse diagnostics)

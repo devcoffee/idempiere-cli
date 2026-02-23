@@ -367,7 +367,7 @@ is_ai_soft_failure_step() {
     return 1
   fi
   case "${step}" in
-    "Add callout with AI prompt"|"Add process with AI prompt"|"Add callout with AI audit flags")
+    "Add callout with AI prompt"|"Add process with AI prompt"|"Add callout with AI audit flags"|"AI debug artifact check")
       return 0
       ;;
     *)
@@ -635,6 +635,11 @@ if [ "${RUN_AI_STEPS}" = "1" ]; then
 
   run_step "Add callout with AI audit flags" \
     "run_cli add callout --to=\"${BASE_MODULE}\" --name=SetBPDescriptionAudit --prompt=\"${PROMPT_TEXT}\" --show-ai-prompt --save-ai-debug"
+
+  run_step "AI debug artifact check" \
+    "debug_dir=\"${BASE_MODULE}/.idempiere-cli/ai-debug\"; \
+     [ -d \"${debug_dir}\" ] && latest_debug=\$(ls -t \"${debug_dir}\"/*.log 2>/dev/null | head -n1) && [ -n \"\${latest_debug}\" ] && \
+     grep -q \"### AI PROMPT\" \"\${latest_debug}\" && grep -q \"### RESULT\" \"\${latest_debug}\""
 fi
 
 run_step "Latest session log markers" \

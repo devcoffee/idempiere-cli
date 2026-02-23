@@ -16,12 +16,11 @@ A command-line tool for iDempiere plugin engineering, built with [Quarkus](https
 
 It complements iDempiere runtime/Application Dictionary tooling; it does not replace them.
 
-## AI Positioning
+## Operating Model
 
 - Default/core build is deterministic and template-first.
-- Embedded AI generation remains internal/experimental and is not a published release target.
-- Recommended day-to-day flow: use external agents (Claude Code, Codex, Gemini CLI, etc.) to implement business logic on top of CLI-generated templates.
-- Keep `idempiere-cli` as the engineering integrity layer: scaffold, validate, build, package, deploy.
+- `idempiere-cli` is the engineering integrity layer: scaffold, validate, build, package, deploy.
+- External agents (Claude Code, Codex, Gemini CLI, etc.) are the recommended path for iterative business logic authoring.
 
 ## Install
 
@@ -61,13 +60,15 @@ Practical guides:
 - [Daily Plugin Development Loop](docs/jtbd/02-daily-plugin-loop.md)
 - [Troubleshooting Guide](docs/jtbd/03-troubleshooting.md)
 - [Automation and Exit Codes](docs/jtbd/04-automation-exit-codes.md)
-- [AI Generation Cycle](docs/jtbd/05-ai-generation-cycle.md)
 - [Pre-Release Smoke Validation](docs/jtbd/06-pre-release-smoke.md)
+
+Internal/experimental (optional):
+- [AI Generation Cycle](docs/jtbd/05-ai-generation-cycle.md)
 
 Reference:
 - [Core Contract (v1)](docs/reference/core-contract.md)
 - [Command Reference](docs/reference/commands.md)
-- [Configuration and AI](docs/reference/configuration.md)
+- [Configuration](docs/reference/configuration.md)
 - [Build and Release](docs/reference/build-release.md)
 - [Release Checklist](docs/reference/release-checklist.md)
 - [Known Limitations](docs/reference/known-limitations.md)

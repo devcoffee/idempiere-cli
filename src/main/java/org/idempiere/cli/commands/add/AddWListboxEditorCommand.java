@@ -23,7 +23,7 @@ public class AddWListboxEditorCommand implements Callable<Integer> {
     @Option(names = {"--to"}, description = "Target plugin directory")
     String pluginDir;
 
-    @Option(names = {"--prompt"}, description = "Describe what this component should do (used for AI generation)")
+    @Option(names = {"--prompt"}, description = "Describe what this component should do (used for AI generation)", hidden = true)
     String prompt;
 
     @Mixin

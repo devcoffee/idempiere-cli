@@ -49,25 +49,8 @@ idempiere-cli add process --name=MyProcess --to=./plugin
 idempiere-cli add test --dir=./plugin
 ```
 
-AI-assisted generation:
-(internal/dev-only path; not part of released core contract)
-
-Recommended usage:
-- Use external agents for iterative coding/refinement.
-- Use CLI AI flags only when auditing the embedded experimental path.
-
-```bash
-idempiere-cli add process --name=GenerateInvoices --to=./plugin \
-  --prompt="Generate invoices for confirmed orders"
-
-idempiere-cli add process --name=GenerateInvoices --to=./plugin \
-  --prompt="Generate invoices for confirmed orders" \
-  --show-ai-prompt --save-ai-debug
-```
-
-Audit flags:
-- `--show-ai-prompt` prints the full prompt sent to the provider
-- `--save-ai-debug` writes prompt/response diagnostics under `.idempiere-cli/ai-debug/`
+Internal AI flags (`--prompt`, `--show-ai-prompt`, `--save-ai-debug`) are hidden from public help.
+Use them only for internal/dev diagnostics; they are not part of the released core contract.
 
 ## Quality and Analysis
 
@@ -155,17 +138,18 @@ idempiere-cli dist --source-dir=./idempiere --output=./dist
 ## Utilities
 
 ### `config`
-Manage CLI config (including AI provider settings).
+Manage CLI config.
 
 ```bash
 idempiere-cli config init
 idempiere-cli config show
-idempiere-cli config get ai.provider
-idempiere-cli config set ai.model claude-sonnet-4-20250514
+idempiere-cli config get defaults.vendor
+idempiere-cli config set defaults.vendor MyCompany
 ```
 
 ### `skills`
-Manage skill sources.
+Internal/experimental command (hidden from default help).
+Manage skill sources when explicitly working on experimental AI path.
 
 ```bash
 idempiere-cli skills list

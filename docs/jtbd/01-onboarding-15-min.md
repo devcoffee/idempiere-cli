@@ -27,13 +27,13 @@ If required tools are missing:
 idempiere-cli doctor --fix
 ```
 
-## 3. Optional: Configure AI
+## 3. Optional: Configure Defaults
 
 ```bash
 idempiere-cli config init
 ```
 
-If you skip this, code generation still works with templates.
+If you skip this, scaffolding still works with built-in templates.
 
 ## 4. Setup Development Environment (Recommended)
 
@@ -70,4 +70,3 @@ For standalone projects, run `validate`/`build` directly in the plugin directory
 - `init` generated plugin structure
 - `validate` returns success
 - `build` produced a JAR in `target/`
-

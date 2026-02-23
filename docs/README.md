@@ -19,16 +19,16 @@ Use this hub by scenario.
 - [Automation and Exit Codes](jtbd/04-automation-exit-codes.md)
 - [Pre-Release Smoke Validation](jtbd/06-pre-release-smoke.md)
 
-## AI-Assisted Generation
+## Internal/Experimental (Optional)
 
 - [AI Generation Cycle](jtbd/05-ai-generation-cycle.md)
-- Recommended model: external agent writes logic, CLI enforces structure/build integrity
+- Embedded AI path is internal/dev-only and not part of core release contract.
 
 ## Reference Details
 
 - [Core Contract (v1)](reference/core-contract.md)
 - [Command Reference](reference/commands.md)
-- [Configuration and AI](reference/configuration.md)
+- [Configuration](reference/configuration.md)
 - [Build and Release](reference/build-release.md)
 - [Release Checklist](reference/release-checklist.md)
 - [Known Limitations](reference/known-limitations.md)

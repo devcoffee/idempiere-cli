@@ -1,7 +1,7 @@
-# Configuration and AI
+# Configuration
 
-Core build is deterministic and does not include AI generation plugins by default.
-AI-related config keys (`ai.*`, skills sync/which resolution) are internal/dev-only and not part of released core behavior.
+Core build is deterministic and does not require AI-related settings.
+AI-related keys (`ai.*`, `skills.*`) are internal/dev-only and are not part of released core behavior.
 
 Recommended operational model:
 - Use core build for normal development pipelines.
@@ -22,14 +22,13 @@ Configuration is loaded in this precedence order (highest first):
 defaults:
   vendor: "My Company Inc."
   idempiereVersion: 13
-
-ai:
-  provider: anthropic
-  model: claude-sonnet-4-20250514
-  fallback: templates
 ```
 
-## AI Provider Setup
+## Internal/Experimental Keys (Optional)
+
+Only configure this section when explicitly evaluating internal AI/skills paths.
+
+### AI Provider Setup
 
 Recommended:
 
@@ -48,7 +47,7 @@ API key resolution order:
 - environment variable (`ai.apiKeyEnv`)
 - config file (`ai.apiKey`)
 
-## Skills Sources
+### Skills Sources
 
 `skills.sources` can be managed directly in YAML or through `skills source` commands.
 

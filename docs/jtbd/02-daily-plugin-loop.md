@@ -24,27 +24,13 @@ idempiere-cli add process --name=GenerateInvoices --to=./orderext/org.mycompany.
 idempiere-cli add test --dir=./orderext/org.mycompany.orderext.base
 ```
 
-Optional AI prompt:
-
-```bash
-idempiere-cli add callout --name=OrderDateCallout \
-  --to=./orderext/org.mycompany.orderext.base \
-  --prompt="Reject future order dates and show a user-friendly message"
-```
-
 Recommended for team/agent workflows:
 - run deterministic `init/add` first
 - let your external agent implement domain logic in generated classes
 - keep CLI commands as the objective validation/build gate
 
-Audit prompt/response when tuning:
-
-```bash
-idempiere-cli add callout --name=OrderDateCallout \
-  --to=./orderext/org.mycompany.orderext.base \
-  --prompt="Reject future order dates and show a user-friendly message" \
-  --show-ai-prompt --save-ai-debug
-```
+If you are evaluating internal AI diagnostics, see:
+- [AI Generation Cycle](05-ai-generation-cycle.md)
 
 ## 3. Validate Early
 

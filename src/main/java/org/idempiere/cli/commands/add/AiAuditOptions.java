@@ -13,10 +13,10 @@ public class AiAuditOptions {
     static final String EXTRA_SHOW_AI_PROMPT = "showAiPrompt";
     static final String EXTRA_SAVE_AI_DEBUG = "saveAiDebug";
 
-    @Option(names = "--show-ai-prompt", description = "Print the full AI prompt before generation")
+    @Option(names = "--show-ai-prompt", description = "Print the full AI prompt before generation", hidden = true)
     boolean showAiPrompt;
 
-    @Option(names = "--save-ai-debug", description = "Save AI prompt/response debug artifact under .idempiere-cli/ai-debug")
+    @Option(names = "--save-ai-debug", description = "Save AI prompt/response debug artifact under .idempiere-cli/ai-debug", hidden = true)
     boolean saveAiDebug;
 
     Map<String, Object> createExtraData(String prompt) {

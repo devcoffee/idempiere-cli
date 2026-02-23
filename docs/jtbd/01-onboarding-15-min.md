@@ -21,6 +21,10 @@ curl -fsSL https://raw.githubusercontent.com/devcoffee/idempiere-cli/main/instal
 idempiere-cli doctor
 ```
 
+Java compatibility by iDempiere line:
+- iDempiere `release-12`: Java 17
+- iDempiere `master` / `release-13+`: Java 21
+
 If required tools are missing:
 
 ```bash

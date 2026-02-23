@@ -18,6 +18,10 @@ idempiere-cli doctor --json
 ### `setup-dev-env`
 Bootstrap source, DB, and (optionally) Eclipse workspace.
 
+Java preflight is branch-aware:
+- `--branch=release-12` requires Java 17
+- `--branch=master` and `release-13+` require Java 21
+
 ```bash
 idempiere-cli setup-dev-env --with-docker
 idempiere-cli setup-dev-env --db=oracle --with-docker

@@ -8,12 +8,16 @@ import org.idempiere.cli.util.CliOutput;
 import org.idempiere.cli.util.ExitCodes;
 
 import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Orchestrates complete development environment setup (source, database, Eclipse).
  */
 @ApplicationScoped
 public class SetupDevEnvService {
+    private static final Pattern JAVA_VERSION_PATTERN = Pattern.compile("version \"(\\d+)");
+    private static final Pattern RELEASE_BRANCH_PATTERN = Pattern.compile("release-(\\d+)");
 
     @Inject
     SourceManager sourceManager;
@@ -57,6 +61,36 @@ public class SetupDevEnvService {
             }
 
         System.out.println();
+
+        // Pre-flight checks: enforce branch-specific Java compatibility before long operations
+        Integer requiredJava = resolveRequiredJavaMajor(config.getBranch());
+        Integer currentJava = detectJavaMajor();
+        if (requiredJava != null) {
+            if (currentJava == null) {
+                sessionLogger.logError("Could not determine Java version for compatibility preflight.");
+                System.err.println("Error: Could not determine Java version.");
+                System.err.println("Required: Java " + requiredJava + "+ for branch '" + config.getBranch() + "'.");
+                System.err.println("Fix: install/select a compatible JDK and retry.");
+                System.err.println("Try: idempiere-cli doctor --fix");
+                sessionLogger.endSession(false);
+                return ExitCodes.STATE_ERROR;
+            }
+            if (currentJava < requiredJava) {
+                sessionLogger.logError("Java compatibility preflight failed (required " + requiredJava
+                        + "+, detected " + currentJava + ", branch " + config.getBranch() + ").");
+                System.err.println("Error: Java " + requiredJava + "+ required for branch '" + config.getBranch()
+                        + "'; detected Java " + currentJava + ".");
+                if (requiredJava >= 21) {
+                    System.err.println("Fix: iDempiere 13+ requires Java 21.");
+                    System.err.println("Alternative: use --branch=release-12 with Java 17.");
+                } else {
+                    System.err.println("Fix: use Java 17+ for this branch.");
+                }
+                System.err.println("Try: idempiere-cli doctor --fix");
+                sessionLogger.endSession(false);
+                return ExitCodes.STATE_ERROR;
+            }
+        }
 
         // Pre-flight checks: verify database is reachable before starting long operations
         if (!config.isSkipDb()) {
@@ -250,6 +284,37 @@ public class SetupDevEnvService {
         }
         String firstLine = result.output().lines().findFirst().orElse("").trim();
         return firstLine.isEmpty() ? "Unknown" : firstLine;
+    }
+
+    private Integer detectJavaMajor() {
+        ProcessRunner.RunResult result = processRunner.run("java", "-version");
+        if (result.exitCode() != 0 || result.output() == null) {
+            return null;
+        }
+        Matcher matcher = JAVA_VERSION_PATTERN.matcher(result.output());
+        if (matcher.find()) {
+            return Integer.parseInt(matcher.group(1));
+        }
+        return null;
+    }
+
+    private Integer resolveRequiredJavaMajor(String branch) {
+        if (branch == null || branch.isBlank()) {
+            return null;
+        }
+
+        String normalized = branch.trim().toLowerCase();
+        if ("master".equals(normalized) || "main".equals(normalized)) {
+            return 21;
+        }
+
+        Matcher matcher = RELEASE_BRANCH_PATTERN.matcher(normalized);
+        if (matcher.find()) {
+            int major = Integer.parseInt(matcher.group(1));
+            return major >= 13 ? 21 : 17;
+        }
+
+        return null;
     }
 
     private void printStep(int current, int total, String description) {

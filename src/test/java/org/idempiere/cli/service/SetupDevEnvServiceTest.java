@@ -112,6 +112,65 @@ class SetupDevEnvServiceTest {
         assertTrue(errContent.toString().contains("Build failed. Aborting."));
     }
 
+    @Test
+    void testSetupAbortsOnJavaCompatibilityMismatchForMaster() {
+        SetupDevEnvService service = new SetupDevEnvService();
+        StubSourceManager sourceManager = new StubSourceManager();
+        StubEclipseManager eclipseManager = new StubEclipseManager();
+        StubDatabaseManager databaseManager = new StubDatabaseManager();
+        StubSessionLogger sessionLogger = new StubSessionLogger();
+        StubProcessRunner processRunner = new StubProcessRunner();
+        processRunner.javaVersionOutput = "openjdk version \"17.0.8\"";
+
+        service.sourceManager = sourceManager;
+        service.eclipseManager = eclipseManager;
+        service.databaseManager = databaseManager;
+        service.processRunner = processRunner;
+        service.sessionLogger = sessionLogger;
+
+        SetupConfig config = baseConfig();
+        config.setBranch("master");
+        config.setSkipDb(true);
+        config.setSkipWorkspace(true);
+        config.setSkipBuild(true);
+
+        int exitCode = service.setup(config);
+
+        assertEquals(ExitCodes.STATE_ERROR, exitCode);
+        assertFalse(sourceManager.cloneCalled);
+        assertTrue(sessionLogger.endCalled);
+        assertFalse(sessionLogger.endSuccess);
+        assertTrue(errContent.toString().contains("Java 21+ required for branch 'master'"));
+    }
+
+    @Test
+    void testSetupAllowsRelease12WithJava17() {
+        SetupDevEnvService service = new SetupDevEnvService();
+        StubSourceManager sourceManager = new StubSourceManager();
+        StubEclipseManager eclipseManager = new StubEclipseManager();
+        StubDatabaseManager databaseManager = new StubDatabaseManager();
+        StubSessionLogger sessionLogger = new StubSessionLogger();
+        StubProcessRunner processRunner = new StubProcessRunner();
+        processRunner.javaVersionOutput = "openjdk version \"17.0.10\"";
+
+        service.sourceManager = sourceManager;
+        service.eclipseManager = eclipseManager;
+        service.databaseManager = databaseManager;
+        service.processRunner = processRunner;
+        service.sessionLogger = sessionLogger;
+
+        SetupConfig config = baseConfig();
+        config.setBranch("release-12");
+        config.setSkipDb(true);
+        config.setSkipWorkspace(true);
+        config.setSkipBuild(true);
+
+        int exitCode = service.setup(config);
+
+        assertEquals(ExitCodes.SUCCESS, exitCode);
+        assertTrue(sourceManager.cloneCalled);
+    }
+
     private SetupConfig baseConfig() {
         SetupConfig config = new SetupConfig();
         config.setSourceDir(tempDir.resolve("idempiere"));
@@ -189,9 +248,12 @@ class SetupDevEnvServiceTest {
     }
 
     private static class StubProcessRunner extends ProcessRunner {
+        int javaExitCode = 0;
+        String javaVersionOutput = "openjdk version \"21\"";
+
         @Override
         public RunResult run(String... command) {
-            return new RunResult(0, "openjdk version \"21\"");
+            return new RunResult(javaExitCode, javaVersionOutput);
         }
     }
 

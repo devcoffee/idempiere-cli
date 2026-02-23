@@ -96,3 +96,7 @@ Recommended command:
 ```bash
 ./scripts/run-core-contract-check.sh
 ```
+
+Implementation note:
+- contract tests are marked with JUnit tag `core-contract`
+- the script runs this tag set by default

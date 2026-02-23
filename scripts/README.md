@@ -6,7 +6,7 @@ Utility scripts for local development and pre-release validation.
 
 Runs a focused contract gate for stable/core behavior:
 - builds core/default flavor (`./mvnw -DskipTests package`)
-- executes the core contract test suite (command surface + core exit-code checks)
+- executes tests tagged `core-contract` (command surface + core exit-code checks)
 
 Usage:
 
@@ -19,6 +19,12 @@ Optional override:
 ```bash
 CORE_CONTRACT_TESTS="CoreContractCommandSurfaceTest,CommandExitCodeContractTest" \
 ./scripts/run-core-contract-check.sh
+```
+
+Optional tag override:
+
+```bash
+CORE_CONTRACT_GROUP=core-contract ./scripts/run-core-contract-check.sh
 ```
 
 ## `run-cli-prebuild-smoke.sh`

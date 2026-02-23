@@ -80,3 +80,18 @@ The smoke script also runs a dynamic command/subcommand `--help` matrix (safe, n
 Keep it enabled (`RUN_COMMAND_MATRIX=1`) for release validation unless you are doing a quick local debug loop.
 
 Exit code `2` is accepted only for command paths in the explicit matrix allowlist.
+
+## 7. Optional Functional Matrix Pass
+
+The smoke script also runs a functional matrix in an isolated HOME directory:
+- `config show` + `config set/get` roundtrip
+- `skills source add/list/remove` (local source)
+- `skills sync`, `skills which process`
+- `generate-completion` output file validation
+
+Keep it enabled (`RUN_FUNCTIONAL_MATRIX=1`) for release validation.
+For faster local loops:
+
+```bash
+CLI_MODE=jar RUN_FUNCTIONAL_MATRIX=0 ./scripts/run-cli-prebuild-smoke.sh
+```

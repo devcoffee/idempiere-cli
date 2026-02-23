@@ -13,6 +13,7 @@
 #   PROJECT_NAME Project folder name (default: smoke-demo)
 #   PROMPT_TEXT  Prompt used in add command (default: predefined sentence)
 #   RUN_COMMAND_MATRIX 1|0 validate full command/subcommand tree with --help (default: 1)
+#   RUN_FUNCTIONAL_MATRIX 1|0 run safe functional checks for config/skills/completion (default: 1)
 #   RUN_AI_STEPS 1|0 include AI generation add steps (default: 1)
 #   AI_BLOCKING  1|0 make AI step failures block the run (default: 0)
 #   RUN_SETUP_DEV_ENV_DRY_RUN 1|0 include setup-dev-env dry-run step (default: 1)
@@ -42,6 +43,7 @@ PLUGIN_ID="${PLUGIN_ID:-org.smoke.demo}"
 PROJECT_NAME="${PROJECT_NAME:-smoke-demo}"
 PROMPT_TEXT="${PROMPT_TEXT:-Define Description as Name + Name2 when leaving those fields.}"
 RUN_COMMAND_MATRIX="${RUN_COMMAND_MATRIX:-1}"
+RUN_FUNCTIONAL_MATRIX="${RUN_FUNCTIONAL_MATRIX:-1}"
 RUN_AI_STEPS="${RUN_AI_STEPS:-1}"
 AI_BLOCKING="${AI_BLOCKING:-0}"
 RUN_SETUP_DEV_ENV_DRY_RUN="${RUN_SETUP_DEV_ENV_DRY_RUN:-1}"
@@ -57,6 +59,9 @@ SETUP_SOURCE_DIR="${SETUP_SOURCE_DIR:-${WORK_DIR}/idempiere}"
 SETUP_ECLIPSE_DIR="${SETUP_ECLIPSE_DIR:-${WORK_DIR}/eclipse}"
 SMOKE_MAVEN_REPO="${SMOKE_MAVEN_REPO:-${WORK_DIR}/.m2-repo}"
 DEPLOY_TARGET_HOME="${DEPLOY_TARGET_HOME:-${WORK_DIR}/idempiere-home}"
+FUNCTIONAL_HOME="${WORK_DIR}/functional-home"
+FUNCTIONAL_SKILLS_SOURCE="${WORK_DIR}/functional-skills-source"
+FUNCTIONAL_COMPLETION_FILE="${WORK_DIR}/idempiere-cli-functional-completion.bash"
 EXPECTED_FAILURE_STEPS="${EXPECTED_FAILURE_STEPS:-}"
 HELP_MATRIX_ACCEPT_EXIT2_PATHS="${HELP_MATRIX_ACCEPT_EXIT2_PATHS:-init;generate-completion;upgrade;add plugin;add fragment;add feature;config show;config get;config set;skills list;skills sync;skills which;skills source add;skills source remove}"
 SMOKE_FAIL_ON_REGRESSION="${SMOKE_FAIL_ON_REGRESSION:-0}"
@@ -153,6 +158,26 @@ run_cli() {
   else
     "${CLI_BIN}" "$@"
   fi
+}
+
+run_cli_with_home() {
+  local custom_home="$1"
+  shift
+  mkdir -p "${custom_home}"
+  if [ "${CLI_MODE_EFFECTIVE}" = "jar" ]; then
+    HOME="${custom_home}" java -Duser.home="${custom_home}" -jar "${JAR_PATH}" "$@"
+  else
+    HOME="${custom_home}" "${CLI_BIN}" "$@"
+  fi
+}
+
+prepare_functional_matrix_context() {
+  mkdir -p "${FUNCTIONAL_HOME}" "${FUNCTIONAL_SKILLS_SOURCE}/idempiere-annotation-process"
+  cat > "${FUNCTIONAL_SKILLS_SOURCE}/idempiere-annotation-process/SKILL.md" <<'EOF'
+# Smoke Skill - Process
+
+Use this as a local smoke-test skill source entry.
+EOF
 }
 
 latest_session_log_markers() {
@@ -526,6 +551,7 @@ printf "step\traw_exit_code\teffective_exit_code\toutcome\texpected_failure\tlog
   echo "- Plugin ID: \`${PLUGIN_ID}\`"
   echo "- Project name: \`${PROJECT_NAME}\`"
   echo "- command matrix step: \`${RUN_COMMAND_MATRIX}\`"
+  echo "- functional matrix step: \`${RUN_FUNCTIONAL_MATRIX}\`"
   echo "- AI steps: \`${RUN_AI_STEPS}\`"
   echo "- AI blocking mode: \`${AI_BLOCKING}\`"
   echo "- setup-dev-env dry-run step: \`${RUN_SETUP_DEV_ENV_DRY_RUN}\`"
@@ -654,6 +680,41 @@ if [ "${RUN_COMMAND_MATRIX}" = "1" ]; then
   for path in "${COMMAND_MATRIX_PATHS[@]}"; do
     run_command_matrix_step "${path}"
   done
+fi
+
+if [ "${RUN_FUNCTIONAL_MATRIX}" = "1" ]; then
+  run_step "Functional matrix phase header" \
+    "echo \"Running functional command checks (config, skills source, completion) in isolated HOME...\""
+
+  run_step "Functional matrix setup" \
+    "prepare_functional_matrix_context"
+
+  run_step "Functional config show" \
+    "run_cli_with_home \"${FUNCTIONAL_HOME}\" config show"
+
+  run_step "Functional config set/get roundtrip" \
+    "run_cli_with_home \"${FUNCTIONAL_HOME}\" config set defaults.vendor SmokeVendor && [ \"\$(run_cli_with_home \"${FUNCTIONAL_HOME}\" config get defaults.vendor | tr -d '\\r' | tail -n1)\" = \"SmokeVendor\" ]"
+
+  run_step "Functional skills source add local" \
+    "run_cli_with_home \"${FUNCTIONAL_HOME}\" skills source add --name=smoke-local --path=\"${FUNCTIONAL_SKILLS_SOURCE}\" --priority=0"
+
+  run_step "Functional skills source list local" \
+    "run_cli_with_home \"${FUNCTIONAL_HOME}\" skills source list | grep -q \"smoke-local\""
+
+  run_step "Functional skills sync local" \
+    "run_cli_with_home \"${FUNCTIONAL_HOME}\" skills sync"
+
+  run_step "Functional skills which process" \
+    "run_cli_with_home \"${FUNCTIONAL_HOME}\" skills which process | grep -q \"idempiere-annotation-process\""
+
+  run_step "Functional generate completion file" \
+    "run_cli_with_home \"${FUNCTIONAL_HOME}\" generate-completion > \"${FUNCTIONAL_COMPLETION_FILE}\" && grep -q \"_complete_idempiere-cli\" \"${FUNCTIONAL_COMPLETION_FILE}\""
+
+  run_step "Functional skills source remove local" \
+    "run_cli_with_home \"${FUNCTIONAL_HOME}\" skills source remove --name=smoke-local"
+
+  run_step "Functional skills source list empty" \
+    "run_cli_with_home \"${FUNCTIONAL_HOME}\" skills source list | grep -q \"No skill sources configured.\""
 fi
 
 if ls "${HOME}/.idempiere-cli/logs/session-"*.log >/dev/null 2>&1; then

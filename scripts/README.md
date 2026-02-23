@@ -20,6 +20,7 @@ Runs a practical smoke suite for `idempiere-cli`, captures stdout/stderr for eac
 - `build`, `package` (`zip` and `p2`) and `deploy` from multi-module project root
 - session log markers (`ai-prompt`, `ai-response`, parse diagnostics)
 - full command/subcommand matrix via `--help` (dynamic discovery, executed after core flow)
+- functional command matrix (`config`, `skills source`, `skills which`, `generate-completion`) in isolated HOME
 
 Build/package validation runs before AI prompt steps, so compile/package gates stay deterministic.
 AI steps run in a dedicated phase and are non-blocking by default (`AI_BLOCKING=0`).
@@ -74,6 +75,7 @@ CLI_MODE=auto ./scripts/run-cli-prebuild-smoke.sh
 - `PROJECT_NAME` default: `smoke-demo`
 - `PROMPT_TEXT` default: predefined callout prompt
 - `RUN_COMMAND_MATRIX` default: `1` (validates all discovered command/subcommand combinations with `--help`)
+- `RUN_FUNCTIONAL_MATRIX` default: `1` (runs safe functional checks for config/skills/completion using isolated HOME)
 - `RUN_AI_STEPS` default: `1` (runs AI add steps in dedicated phase)
 - `AI_BLOCKING` default: `0` (AI step failures become `XFAIL` instead of `FAIL`)
 - `RUN_SETUP_DEV_ENV_DRY_RUN` default: `1` (adds `setup-dev-env --dry-run` smoke step)
@@ -109,6 +111,12 @@ Run a faster smoke without command matrix:
 CLI_MODE=jar RUN_COMMAND_MATRIX=0 ./scripts/run-cli-prebuild-smoke.sh
 ```
 
+Run a faster smoke without functional matrix:
+
+```bash
+CLI_MODE=jar RUN_FUNCTIONAL_MATRIX=0 ./scripts/run-cli-prebuild-smoke.sh
+```
+
 Skip AI phase entirely:
 
 ```bash
@@ -126,6 +134,22 @@ Mark known issues as expected failures (without hiding real regressions):
 ```bash
 EXPECTED_FAILURE_STEPS="Build with plugin mvnw;Build command at project root;Package zip;Package p2;Deploy copy at project root" \
 CLI_MODE=jar ./scripts/run-cli-prebuild-smoke.sh
+```
+
+### Release standard
+
+Before publishing a release, run both gates:
+
+Fast gate:
+
+```bash
+CLI_MODE=jar SMOKE_FAIL_ON_REGRESSION=1 ./scripts/run-cli-prebuild-smoke.sh
+```
+
+Full gate (includes full `setup-dev-env` path):
+
+```bash
+CLI_MODE=jar RUN_SETUP_DEV_ENV_FULL=1 SMOKE_FAIL_ON_REGRESSION=1 ./scripts/run-cli-prebuild-smoke.sh
 ```
 
 ### Notes

@@ -22,6 +22,7 @@ import java.util.concurrent.Callable;
 @Command(
         name = "skills",
         description = "Manage AI skill sources for code generation",
+        hidden = true,
         mixinStandardHelpOptions = true,
         subcommands = {
                 SkillsCommand.ListCmd.class,

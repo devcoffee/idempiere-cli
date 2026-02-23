@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.inject.Inject;
 import org.idempiere.cli.model.CliConfig;
-import org.idempiere.cli.service.AiStatusService;
 import org.idempiere.cli.service.CliConfigService;
 import org.idempiere.cli.service.DoctorService;
 import org.idempiere.cli.service.DoctorService.CheckEntry;
@@ -85,9 +84,6 @@ public class DoctorCommand implements Callable<Integer> {
 
     @Inject
     CliConfigService configService;
-
-    @Inject
-    AiStatusService aiStatusService;
 
     @Override
     public Integer call() {
@@ -197,7 +193,6 @@ public class DoctorCommand implements Callable<Integer> {
 
         if (!hasGlobal && projectConfig == null) {
             System.out.println("  " + CliOutput.warn("No config file found"));
-            System.out.println("    AI-powered features are disabled.");
             System.out.println("    Run: idempiere-cli config init");
             return;
         }
@@ -210,36 +205,11 @@ public class DoctorCommand implements Callable<Integer> {
         }
 
         CliConfig config = configService.loadConfig();
-        if (config.getAi().isEnabled()) {
-            String provider = config.getAi().getProvider();
-            String model = config.getAi().getModel();
-            // Check if API key is available (env var or config file)
-            String apiKeyEnv = config.getAi().getApiKeyEnv();
-            boolean hasEnvKey = apiKeyEnv != null && System.getenv(apiKeyEnv) != null;
-            boolean hasConfigKey = config.getAi().hasApiKey();
-            if (hasEnvKey || hasConfigKey) {
-                String modelInfo = model != null && !model.isEmpty() ? " (" + model + ")" : "";
-                String progressMsg = "  [ ] AI provider:    " + provider + modelInfo + " - validating...";
-                System.out.print(progressMsg);
-                System.out.flush();
-                AiStatusService.ValidationResult validation = aiStatusService.validateConfiguredProvider();
-                // Clear entire line: \r + overwrite with spaces + \r
-                System.out.print("\r" + " ".repeat(progressMsg.length()) + "\r");
-
-                if (!validation.supported() || !validation.available()) {
-                    System.out.println("  " + CliOutput.warn("AI provider:    " + provider + modelInfo + " - " + validation.errorMessage()));
-                } else if (validation.passed()) {
-                    System.out.println("  " + CliOutput.ok("AI provider:    " + provider + modelInfo));
-                } else {
-                    System.out.println("  " + CliOutput.fail("AI provider:    " + provider + modelInfo + " - " + validation.errorMessage()));
-                }
-            } else {
-                System.out.println("  " + CliOutput.warn("AI provider:    " + provider + " (no API key)"));
-                System.out.println("    Run: idempiere-cli config init");
-            }
-        } else {
-            System.out.println("  " + CliOutput.warn("AI provider:    not configured"));
-            System.out.println("    Run: idempiere-cli config init");
+        if (config.getDefaults().hasVendor()) {
+            System.out.println("  " + CliOutput.ok("Vendor default: " + config.getDefaults().getVendor()));
+        }
+        if (config.getDefaults().hasIdempiereVersion()) {
+            System.out.println("  " + CliOutput.ok("iDempiere:      " + config.getDefaults().getIdempiereVersion()));
         }
     }
 
@@ -501,8 +471,8 @@ public class DoctorCommand implements Callable<Integer> {
             configNode.put("globalConfigFound", configService.hasGlobalConfig());
             configNode.put("projectConfigFound", configService.findConfigInHierarchy() != null);
             CliConfig config = configService.loadConfig();
-            configNode.put("aiEnabled", config.getAi().isEnabled());
-            configNode.put("aiProvider", config.getAi().getProvider());
+            configNode.put("vendorConfigured", config.getDefaults().hasVendor());
+            configNode.put("idempiereVersionConfigured", config.getDefaults().hasIdempiereVersion());
 
             System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root));
             return ExitCodes.SUCCESS;

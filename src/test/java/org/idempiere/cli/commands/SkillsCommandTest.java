@@ -6,6 +6,7 @@ import io.quarkus.test.junit.main.QuarkusMainTest;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @QuarkusMainTest
@@ -74,10 +75,10 @@ class SkillsCommandTest {
 
     @Test
     @Launch({"--help"})
-    void testMainHelpIncludesSkillsAndConfig(LaunchResult result) {
+    void testMainHelpHidesSkillsButIncludesConfig(LaunchResult result) {
         assertEquals(0, result.exitCode());
         String output = result.getOutput();
-        assertTrue(output.contains("skills"));
+        assertFalse(output.contains("skills"));
         assertTrue(output.contains("config"));
     }
 }

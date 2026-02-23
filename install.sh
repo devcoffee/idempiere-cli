@@ -2,7 +2,7 @@
 set -e
 
 # iDempiere CLI Installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/idempiere/idempiere-cli/main/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/devcoffee/idempiere-cli/main/install.sh | bash
 
 REPO="devcoffee/idempiere-cli"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"

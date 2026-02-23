@@ -8,8 +8,11 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,8 +31,30 @@ public class AiGuardrailService {
     private static final Pattern FQCN_PATTERN = Pattern.compile("\\b(?:[a-z_][a-z0-9_]*\\.)+[A-Z][A-Za-z0-9_$]*\\b");
     private static final List<String> CRITICAL_PREFIXES = List.of("org.idempiere.", "org.compiere.", "org.adempiere.");
     private static final List<String> JDK_PREFIXES = List.of("java.", "jdk.", "sun.", "com.sun.", "org.w3c.", "org.xml.", "org.ietf.");
+    private static final Set<String> QUERY_STOP_WORDS = Set.of(
+            "the", "and", "for", "with", "that", "this", "from", "into", "when",
+            "where", "what", "which", "using", "used", "should", "would", "could",
+            "can", "set", "get", "add", "new", "class", "plugin", "component",
+            "field", "value", "name", "table", "column", "process", "callout"
+    );
+    private static final Map<String, List<String>> TYPE_PACKAGE_HINTS = Map.ofEntries(
+            Map.entry("callout", List.of("org.idempiere.callout", "org.compiere.model", "org.compiere.util")),
+            Map.entry("process", List.of("org.compiere.process", "org.compiere.model", "org.compiere.util")),
+            Map.entry("process-mapped", List.of("org.compiere.process", "org.compiere.model", "org.compiere.util")),
+            Map.entry("event-handler", List.of("org.osgi.service.event", "org.compiere.model", "org.compiere.util")),
+            Map.entry("zk-form", List.of("org.adempiere.webui", "org.zkoss", "org.compiere.util")),
+            Map.entry("zk-form-zul", List.of("org.adempiere.webui", "org.zkoss", "org.compiere.util")),
+            Map.entry("window-validator", List.of("org.compiere.model", "org.compiere.util")),
+            Map.entry("rest-extension", List.of("org.idempiere.rest", "jakarta.ws.rs", "org.compiere.util")),
+            Map.entry("facts-validator", List.of("org.compiere.acct", "org.compiere.model", "org.compiere.util")),
+            Map.entry("report", List.of("org.compiere.process", "org.compiere.model", "org.compiere.util")),
+            Map.entry("jasper-report", List.of("org.compiere.process", "net.sf.jasperreports", "org.compiere.util")),
+            Map.entry("base-test", List.of("org.idempiere.test", "org.junit", "org.compiere.util"))
+    );
 
     private record ClasspathIndex(Set<String> classes, Set<String> packages) {}
+
+    public record TargetPlatformPromptContext(Path repositoryPath, List<String> packages, List<String> classes) {}
 
     public List<String> validateGeneratedCode(GeneratedCode code, String pluginId) {
         return validateGeneratedCode(code, pluginId, null);
@@ -65,6 +90,33 @@ public class AiGuardrailService {
         }
 
         return issues;
+    }
+
+    public Optional<TargetPlatformPromptContext> buildPromptContext(Path pluginDir,
+                                                                     String componentType,
+                                                                     String userPrompt,
+                                                                     int maxPackages,
+                                                                     int maxClasses) {
+        Optional<Path> repository = findP2Repository(pluginDir);
+        Optional<ClasspathIndex> classpathIndex = resolveClasspathIndex(pluginDir);
+        if (repository.isEmpty() || classpathIndex.isEmpty()) {
+            return Optional.empty();
+        }
+
+        List<String> preferredPrefixes = TYPE_PACKAGE_HINTS.getOrDefault(componentType, List.of(
+                "org.idempiere.", "org.compiere.", "org.adempiere."
+        ));
+        Set<String> queryTokens = extractQueryTokens(componentType, userPrompt);
+        List<String> packages = selectRelevantPackages(
+                classpathIndex.get().packages(), preferredPrefixes, queryTokens, Math.max(1, maxPackages));
+        List<String> classes = selectRelevantClasses(
+                classpathIndex.get().classes(), packages, preferredPrefixes, queryTokens, Math.max(1, maxClasses));
+
+        return Optional.of(new TargetPlatformPromptContext(
+                repository.get().toAbsolutePath().normalize(),
+                packages,
+                classes
+        ));
     }
 
     public boolean hasBlockingIssue(List<String> issues) {
@@ -168,6 +220,121 @@ public class AiGuardrailService {
         }
         Path sourceDir = pluginDir.resolve("src").resolve(pkg.replace('.', '/'));
         return java.nio.file.Files.isDirectory(sourceDir);
+    }
+
+    private Set<String> extractQueryTokens(String componentType, String userPrompt) {
+        Set<String> tokens = new HashSet<>();
+        addTokens(tokens, componentType);
+        addTokens(tokens, userPrompt);
+        return tokens;
+    }
+
+    private void addTokens(Set<String> target, String text) {
+        if (text == null || text.isBlank()) {
+            return;
+        }
+        for (String token : text.toLowerCase(Locale.ROOT).split("[^a-z0-9]+")) {
+            if (token.length() < 3) {
+                continue;
+            }
+            if (QUERY_STOP_WORDS.contains(token)) {
+                continue;
+            }
+            target.add(token);
+        }
+    }
+
+    private List<String> selectRelevantPackages(Set<String> allPackages,
+                                                List<String> preferredPrefixes,
+                                                Set<String> queryTokens,
+                                                int maxPackages) {
+        return allPackages.stream()
+                .filter(pkg -> packageLikelyRelevant(pkg, preferredPrefixes, queryTokens))
+                .sorted(Comparator.<String>comparingInt(
+                                pkg -> scorePackage(pkg, preferredPrefixes, queryTokens))
+                        .reversed()
+                        .thenComparing(pkg -> pkg))
+                .limit(maxPackages)
+                .toList();
+    }
+
+    private boolean packageLikelyRelevant(String pkg, List<String> preferredPrefixes, Set<String> queryTokens) {
+        if (preferredPrefixes.stream().anyMatch(pkg::startsWith)) {
+            return true;
+        }
+        if (pkg.startsWith("org.idempiere.") || pkg.startsWith("org.compiere.") || pkg.startsWith("org.adempiere.")) {
+            return true;
+        }
+        return queryTokens.stream().anyMatch(pkg::contains);
+    }
+
+    private int scorePackage(String pkg, List<String> preferredPrefixes, Set<String> queryTokens) {
+        int score = 0;
+        for (int i = 0; i < preferredPrefixes.size(); i++) {
+            if (pkg.startsWith(preferredPrefixes.get(i))) {
+                score += 200 - (i * 10);
+            }
+        }
+        if (pkg.startsWith("org.idempiere.")) {
+            score += 80;
+        } else if (pkg.startsWith("org.compiere.")) {
+            score += 70;
+        } else if (pkg.startsWith("org.adempiere.")) {
+            score += 60;
+        }
+        for (String token : queryTokens) {
+            if (pkg.contains(token)) {
+                score += 15;
+            }
+        }
+        return score;
+    }
+
+    private List<String> selectRelevantClasses(Set<String> allClasses,
+                                               List<String> selectedPackages,
+                                               List<String> preferredPrefixes,
+                                               Set<String> queryTokens,
+                                               int maxClasses) {
+        Set<String> packageSet = Set.copyOf(selectedPackages);
+        List<String> preferredClasses = allClasses.stream()
+                .filter(fqcn -> packageSet.contains(classPackage(fqcn)))
+                .sorted(Comparator.<String>comparingInt(
+                                fqcn -> scoreClass(fqcn, preferredPrefixes, queryTokens))
+                        .reversed()
+                        .thenComparing(fqcn -> fqcn))
+                .limit(maxClasses)
+                .toList();
+        if (!preferredClasses.isEmpty()) {
+            return preferredClasses;
+        }
+        return allClasses.stream()
+                .filter(fqcn -> packageLikelyRelevant(classPackage(fqcn), preferredPrefixes, queryTokens))
+                .sorted(Comparator.<String>comparingInt(
+                                fqcn -> scoreClass(fqcn, preferredPrefixes, queryTokens))
+                        .reversed()
+                        .thenComparing(fqcn -> fqcn))
+                .limit(maxClasses)
+                .toList();
+    }
+
+    private int scoreClass(String fqcn, List<String> preferredPrefixes, Set<String> queryTokens) {
+        String pkg = classPackage(fqcn);
+        int score = scorePackage(pkg, preferredPrefixes, queryTokens);
+        String simpleName = fqcn.substring(fqcn.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
+        for (String token : queryTokens) {
+            if (simpleName.contains(token)) {
+                score += 20;
+            }
+        }
+        return score;
+    }
+
+    private String classPackage(String fqcn) {
+        int dot = fqcn.lastIndexOf('.');
+        if (dot <= 0) {
+            return "";
+        }
+        return fqcn.substring(0, dot);
     }
 
     private void collectGeneratedTypes(GeneratedCode code, Set<String> generatedClasses, Set<String> generatedPackages) {

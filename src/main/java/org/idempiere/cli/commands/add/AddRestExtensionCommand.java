@@ -5,6 +5,7 @@ import jakarta.inject.Inject;
 import org.idempiere.cli.service.ProjectDetector;
 import org.idempiere.cli.service.ScaffoldService;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Option;
 
 import java.nio.file.Path;
@@ -31,6 +32,9 @@ public class AddRestExtensionCommand implements Callable<Integer> {
     @Option(names = {"--prompt"}, description = "Describe what this component should do (used for AI generation)")
     String prompt;
 
+    @Mixin
+    AiAuditOptions aiAuditOptions = new AiAuditOptions();
+
     @Inject
     ScaffoldService scaffoldService;
 
@@ -47,7 +51,10 @@ public class AddRestExtensionCommand implements Callable<Integer> {
         }
         Map<String, Object> extraData = new HashMap<>();
         extraData.put("resourcePath", resourcePath);
-        if (prompt != null) extraData.put("prompt", prompt);
+        if (prompt != null && !prompt.isBlank()) {
+            extraData.put("prompt", prompt);
+        }
+        aiAuditOptions.applyAuditFlags(extraData);
         return ExitCodeMapper.fromScaffold(scaffoldService.addComponent("rest-extension", name, dir, pluginId, extraData));
     }
 }

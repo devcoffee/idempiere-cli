@@ -32,6 +32,8 @@ class AddSubcommandTest {
         String output = result.getOutput();
         assertTrue(output.contains("--name"));
         assertTrue(output.contains("--to"));
+        assertTrue(output.contains("--show-ai-prompt"));
+        assertTrue(output.contains("--save-ai-debug"));
         assertTrue(output.contains("process"));
     }
 

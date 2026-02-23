@@ -50,4 +50,54 @@ class AiPromptBuilderServiceTest {
         assertTrue(prompt.contains("Has Activator: true"));
         assertTrue(prompt.contains("Additional parameters: {tableName=C_Order}"));
     }
+
+    @Test
+    void testBuildPromptIncludesTargetPlatformContextSection() {
+        ProjectContext ctx = ProjectContext.builder()
+                .pluginId("org.example.myplugin")
+                .basePackage("org.example.myplugin")
+                .version("1.0.0")
+                .build();
+
+        String prompt = service.buildAiPrompt(
+                null, ctx, "process", "MyProcess",
+                Map.of(
+                        "prompt", "Generate process logic",
+                        "_targetContextRepo", "/tmp/ws/idempiere/org.idempiere.p2/target/repository",
+                        "_targetContextPackages", java.util.List.of("org.compiere.process", "org.compiere.model"),
+                        "_targetContextClasses", java.util.List.of(
+                                "org.compiere.process.SvrProcess",
+                                "org.compiere.model.MBPartner")
+                )
+        );
+
+        assertTrue(prompt.contains("Target Platform Context (local)"));
+        assertTrue(prompt.contains("Allowed/available packages (sample)"));
+        assertTrue(prompt.contains("org.compiere.process"));
+        assertTrue(prompt.contains("Example classes found (sample)"));
+        assertTrue(prompt.contains("org.compiere.process.SvrProcess"));
+    }
+
+    @Test
+    void testBuildPromptHidesInternalKeysFromAdditionalParameters() {
+        ProjectContext ctx = ProjectContext.builder()
+                .pluginId("org.example.myplugin")
+                .basePackage("org.example.myplugin")
+                .version("1.0.0")
+                .build();
+
+        String prompt = service.buildAiPrompt(
+                null, ctx, "process", "MyProcess",
+                Map.of(
+                        "prompt", "Generate process logic",
+                        "tableName", "C_Order",
+                        "showAiPrompt", true,
+                        "_targetContextRepo", "/tmp/repo"
+                )
+        );
+
+        assertTrue(prompt.contains("Additional parameters: {tableName=C_Order}"));
+        assertFalse(prompt.contains("showAiPrompt"));
+        assertFalse(prompt.contains("_targetContextRepo"));
+    }
 }

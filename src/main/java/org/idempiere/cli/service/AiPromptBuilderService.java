@@ -3,7 +3,9 @@ package org.idempiere.cli.service;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.idempiere.cli.model.ProjectContext;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @ApplicationScoped
@@ -64,6 +66,8 @@ public class AiPromptBuilderService {
             prompt.append("\n## Current MANIFEST.MF\n```\n").append(ctx.getManifestContent()).append("\n```\n");
         }
 
+        appendTargetPlatformContext(prompt, extraData);
+
         prompt.append("\n## Task\n");
         prompt.append("Generate a ").append(type).append(" named ").append(name).append(".\n");
 
@@ -75,6 +79,11 @@ public class AiPromptBuilderService {
             }
             Map<String, Object> params = new HashMap<>(extraData);
             params.remove("prompt");
+            params.remove("_targetContextRepo");
+            params.remove("_targetContextPackages");
+            params.remove("_targetContextClasses");
+            params.remove("showAiPrompt");
+            params.remove("saveAiDebug");
             if (!params.isEmpty()) {
                 prompt.append("Additional parameters: ").append(params).append("\n");
             }
@@ -100,5 +109,51 @@ public class AiPromptBuilderService {
                 """);
 
         return prompt.toString();
+    }
+
+    private void appendTargetPlatformContext(StringBuilder prompt, Map<String, Object> extraData) {
+        if (extraData == null) {
+            return;
+        }
+
+        List<String> packages = extractStringList(extraData.get("_targetContextPackages"));
+        List<String> classes = extractStringList(extraData.get("_targetContextClasses"));
+        String repository = extraData.get("_targetContextRepo") instanceof String s ? s : null;
+
+        if (packages.isEmpty() && classes.isEmpty()) {
+            return;
+        }
+
+        prompt.append("\n## Target Platform Context (local)\n");
+        if (repository != null && !repository.isBlank()) {
+            prompt.append("- Source repository: ").append(repository).append("\n");
+        }
+        if (!packages.isEmpty()) {
+            prompt.append("- Allowed/available packages (sample):\n");
+            for (String pkg : packages) {
+                prompt.append("  - ").append(pkg).append("\n");
+            }
+        }
+        if (!classes.isEmpty()) {
+            prompt.append("- Example classes found (sample):\n");
+            for (String fqcn : classes) {
+                prompt.append("  - ").append(fqcn).append("\n");
+            }
+        }
+        prompt.append("- Use only APIs/classes that exist in the target platform context above.\n");
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> extractStringList(Object value) {
+        if (!(value instanceof List<?> list) || list.isEmpty()) {
+            return List.of();
+        }
+        List<String> result = new ArrayList<>();
+        for (Object item : list) {
+            if (item instanceof String str && !str.isBlank()) {
+                result.add(str);
+            }
+        }
+        return result;
     }
 }

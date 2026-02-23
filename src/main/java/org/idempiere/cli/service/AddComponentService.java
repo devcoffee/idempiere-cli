@@ -76,6 +76,12 @@ public class AddComponentService {
         if (extraData != null && extraData.get("prompt") instanceof String prompt && !prompt.isBlank()) {
             cmd.append(" --prompt=<provided>");
         }
+        if (extraData != null && Boolean.TRUE.equals(extraData.get("showAiPrompt"))) {
+            cmd.append(" --show-ai-prompt");
+        }
+        if (extraData != null && Boolean.TRUE.equals(extraData.get("saveAiDebug"))) {
+            cmd.append(" --save-ai-debug");
+        }
         return cmd.toString();
     }
 

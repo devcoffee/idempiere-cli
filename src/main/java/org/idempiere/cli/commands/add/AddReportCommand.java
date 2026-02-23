@@ -6,8 +6,8 @@ import org.idempiere.cli.service.ProjectDetector;
 import org.idempiere.cli.service.ScaffoldService;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
+import picocli.CommandLine.Mixin;
 import java.nio.file.Path;
-import java.util.Map;
 import java.util.concurrent.Callable;
 
 @Command(
@@ -26,6 +26,9 @@ public class AddReportCommand implements Callable<Integer> {
     @Option(names = {"--prompt"}, description = "Describe what this component should do (used for AI generation)")
     String prompt;
 
+    @Mixin
+    AiAuditOptions aiAuditOptions = new AiAuditOptions();
+
     @Inject
     ScaffoldService scaffoldService;
 
@@ -41,6 +44,6 @@ public class AddReportCommand implements Callable<Integer> {
             return 1;
         }
         return ExitCodeMapper.fromScaffold(scaffoldService.addComponent("report", name, dir, pluginId,
-                prompt != null ? Map.of("prompt", prompt) : null));
+                aiAuditOptions.createExtraData(prompt)));
     }
 }

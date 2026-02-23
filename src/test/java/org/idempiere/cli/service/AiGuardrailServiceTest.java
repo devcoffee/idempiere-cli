@@ -13,6 +13,7 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AiGuardrailServiceTest {
@@ -60,6 +61,21 @@ class AiGuardrailServiceTest {
 
         List<String> issues = service.validateGeneratedCode(code, "org.example.plugin", pluginDir);
         assertFalse(service.hasBlockingIssue(issues));
+    }
+
+    @Test
+    void testBuildPromptContextFromLocalTargetRepository(@TempDir Path tempDir) throws IOException {
+        Path pluginDir = setupPluginWithP2Repo(tempDir);
+
+        var context = service.buildPromptContext(pluginDir, "process",
+                "generate process for business partner", 10, 20);
+
+        assertTrue(context.isPresent());
+        assertNotNull(context.get().repositoryPath());
+        assertFalse(context.get().packages().isEmpty());
+        assertFalse(context.get().classes().isEmpty());
+        assertTrue(context.get().classes().stream()
+                .anyMatch(c -> c.equals("org.compiere.process.SvrProcess")));
     }
 
     private Path setupPluginWithP2Repo(Path tempDir) throws IOException {

@@ -164,18 +164,9 @@ public class SetupDevEnvCommand implements Callable<Integer> {
 
         // Check for headless environment BEFORE doing any work
         if (!skipWorkspace && isHeadlessEnvironment()) {
-            System.err.println("Error: setup-dev-env requires a graphical environment (display).");
-            System.err.println();
-            System.err.println("This command installs Eclipse plugins and configures the workspace,");
-            System.err.println("which requires a display to run the Eclipse P2 director.");
-            System.err.println();
-            System.err.println("Options:");
-            System.err.println("  - Run this command on a machine with a display (macOS, Linux desktop, Windows)");
-            System.err.println("  - Use a VM with GUI (UTM, VirtualBox, Parallels)");
-            System.err.println("  - On Linux server: use X11 forwarding (ssh -X) or VNC");
-            System.err.println();
-            System.err.println("For testing CLI commands that don't require Eclipse, use Docker:");
-            System.err.println("  ./test-cli.sh");
+            System.err.println("Error: Graphical environment not available.");
+            System.err.println("Impact: Eclipse setup/import will be skipped; this run is suitable for build/automation only.");
+            System.err.println("Try: idempiere-cli setup-dev-env --skip-workspace --non-interactive");
             return ExitCodes.STATE_ERROR;
         }
 

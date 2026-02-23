@@ -693,27 +693,13 @@ public class DatabaseManager {
      */
     public void printDockerError(DockerStatus status) {
         if (status == DockerStatus.PERMISSION_DENIED) {
-            System.err.println("  Docker permission denied.");
-            System.err.println();
-            System.err.println("  Your user is not in the 'docker' group. To fix:");
-            System.err.println("    sudo usermod -aG docker $USER");
-            System.err.println("    newgrp docker");
-            System.err.println();
-            System.err.println("  Then run this command again.");
+            System.err.println("Error: Docker permission denied for current user.");
+            System.err.println("Fix: add user to docker group and reload session.");
+            System.err.println("Try: sudo usermod -aG docker $USER && newgrp docker");
         } else {
-            System.err.println("  Docker is not running.");
-            System.err.println();
-            if (OS_NAME.contains("mac")) {
-                System.err.println("  Start Docker Desktop:");
-                System.err.println("    open -a Docker");
-            } else if (IS_LINUX) {
-                System.err.println("  Start Docker daemon:");
-                System.err.println("    sudo systemctl start docker");
-            } else {
-                System.err.println("  Start Docker Desktop and wait for it to finish starting.");
-            }
-            System.err.println();
-            System.err.println("  Then run this command again.");
+            System.err.println("Error: Docker daemon is not running.");
+            System.err.println("Fix: start Docker daemon/Desktop and wait until ready.");
+            System.err.println("Try: idempiere-cli doctor --fix");
         }
         System.err.println();
     }

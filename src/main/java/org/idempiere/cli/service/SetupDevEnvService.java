@@ -63,13 +63,10 @@ public class SetupDevEnvService {
                 DatabaseManager.DockerStatus dockerStatus = databaseManager.getDockerStatus();
                 if (dockerStatus != DatabaseManager.DockerStatus.RUNNING) {
                     if (dockerStatus == DatabaseManager.DockerStatus.PERMISSION_DENIED) {
-                        System.err.println("Error: Docker permission denied.");
                         sessionLogger.logError("Docker permission denied (user not in docker group). Aborting.");
                     } else {
-                        System.err.println("Error: Docker is not running.");
                         sessionLogger.logError("Docker is not running. Aborting.");
                     }
-                    System.err.println();
                     databaseManager.printDockerError(dockerStatus);
                     sessionLogger.endSession(false);
                     return;
@@ -82,11 +79,8 @@ public class SetupDevEnvService {
                     System.err.println("Error: Cannot connect to database at "
                             + config.getDbHost() + ":" + config.getDbPort()
                             + " (user: " + checkUser + ").");
-                    System.err.println();
-                    printDbFixSuggestion(config);
-                    System.err.println("  After fixing the database, run this command again.");
-                    System.err.println("  Or use --skip-db to skip database setup.");
-                    System.err.println("  Or use --with-docker to use a Docker container instead.");
+                    System.err.println("Fix: verify host/port and credentials, or use Docker.");
+                    System.err.println("Try: idempiere-cli setup-dev-env --with-docker");
                     abortSetup("Database not reachable. Aborting.", null);
                     return;
                 }
@@ -268,29 +262,6 @@ public class SetupDevEnvService {
         } else {
             System.out.println("  " + CliOutput.fail(component + " had issues (see above)."));
         }
-    }
-
-    private void printDbFixSuggestion(SetupConfig config) {
-        String os = System.getProperty("os.name", "").toLowerCase();
-        if ("oracle".equals(config.getDbType())) {
-            System.err.println("  Ensure Oracle is running and accessible at "
-                    + config.getDbHost() + ":" + config.getDbPort());
-        } else {
-            System.err.println("  Ensure PostgreSQL is running and accessible:");
-            if (os.contains("win")) {
-                System.err.println("    Check Services (services.msc) for 'postgresql' service.");
-                System.err.println("    Or install: winget install --id PostgreSQL.PostgreSQL --source winget");
-            } else if (os.contains("mac")) {
-                System.err.println("    brew services start postgresql@16");
-            } else {
-                System.err.println("    sudo systemctl start postgresql");
-            }
-            System.err.println();
-            System.err.println("  Verify connection manually:");
-            System.err.println("    psql -h " + config.getDbHost()
-                    + " -p " + config.getDbPort() + " -U postgres");
-        }
-        System.err.println();
     }
 
     private int calculateSteps(SetupConfig config) {

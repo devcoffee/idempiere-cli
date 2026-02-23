@@ -220,6 +220,7 @@ public class EclipseManager {
             }
 
             // Step 2: Load target platform using loadtargetplatform.xml
+            System.out.println("  Info: first run may take longer due dependency downloads.");
             System.out.println("  Loading target platform (this may take a while, timeout: "
                     + formatTimeout(LOAD_TARGET_PLATFORM_TIMEOUT_SECONDS) + ")...");
             boolean targetOk = runAntRunner(eclipseExe, vmArg, sourceDir,

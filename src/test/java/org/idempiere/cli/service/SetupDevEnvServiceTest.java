@@ -72,7 +72,7 @@ class SetupDevEnvServiceTest {
         assertFalse(databaseManager.setupCalled);
         assertTrue(sessionLogger.endCalled);
         assertFalse(sessionLogger.endSuccess);
-        assertTrue(errContent.toString().contains("Docker is not running"));
+        assertTrue(errContent.toString().contains("Docker daemon is not running"));
     }
 
     @Test

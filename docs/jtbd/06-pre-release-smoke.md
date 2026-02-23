@@ -95,3 +95,20 @@ For faster local loops:
 ```bash
 CLI_MODE=jar RUN_FUNCTIONAL_MATRIX=0 ./scripts/run-cli-prebuild-smoke.sh
 ```
+
+## 8. Optional Standalone Matrix Pass
+
+The smoke script also runs a standalone plugin flow:
+- `init --standalone`
+- `add callout` (template path)
+- `validate --strict`
+- `build`
+- `package --format=zip`
+- `deploy` to fake target
+
+Keep it enabled (`RUN_STANDALONE_MATRIX=1`) for release validation.
+For faster local loops:
+
+```bash
+CLI_MODE=jar RUN_STANDALONE_MATRIX=0 ./scripts/run-cli-prebuild-smoke.sh
+```

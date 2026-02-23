@@ -14,6 +14,7 @@
 #   PROMPT_TEXT  Prompt used in add command (default: predefined sentence)
 #   RUN_COMMAND_MATRIX 1|0 validate full command/subcommand tree with --help (default: 1)
 #   RUN_FUNCTIONAL_MATRIX 1|0 run safe functional checks for config/skills/completion (default: 1)
+#   RUN_STANDALONE_MATRIX 1|0 run standalone plugin flow checks (default: 1)
 #   RUN_AI_STEPS 1|0 include AI generation add steps (default: 1)
 #   AI_BLOCKING  1|0 make AI step failures block the run (default: 0)
 #   RUN_SETUP_DEV_ENV_DRY_RUN 1|0 include setup-dev-env dry-run step (default: 1)
@@ -44,21 +45,26 @@ PROJECT_NAME="${PROJECT_NAME:-smoke-demo}"
 PROMPT_TEXT="${PROMPT_TEXT:-Define Description as Name + Name2 when leaving those fields.}"
 RUN_COMMAND_MATRIX="${RUN_COMMAND_MATRIX:-1}"
 RUN_FUNCTIONAL_MATRIX="${RUN_FUNCTIONAL_MATRIX:-1}"
+RUN_STANDALONE_MATRIX="${RUN_STANDALONE_MATRIX:-1}"
 RUN_AI_STEPS="${RUN_AI_STEPS:-1}"
 AI_BLOCKING="${AI_BLOCKING:-0}"
 RUN_SETUP_DEV_ENV_DRY_RUN="${RUN_SETUP_DEV_ENV_DRY_RUN:-1}"
 RUN_SETUP_DEV_ENV_FULL="${RUN_SETUP_DEV_ENV_FULL:-0}"
 SETUP_DEV_ENV_ARGS="${SETUP_DEV_ENV_ARGS:---with-docker --include-rest}"
+STANDALONE_PLUGIN_ID="${STANDALONE_PLUGIN_ID:-org.smoke.standalone}"
+STANDALONE_PROJECT_NAME="${STANDALONE_PROJECT_NAME:-smoke-standalone}"
 
 SMOKE_ROOT="${1:-/tmp/idempiere-cli-smoke-$(date +%Y%m%d-%H%M%S)}"
 WORK_DIR="${SMOKE_ROOT}/work"
 REPORT_DIR="${SMOKE_ROOT}/reports"
 PLUGIN_ROOT="${WORK_DIR}/${PROJECT_NAME}"
 BASE_MODULE="${PLUGIN_ROOT}/${PLUGIN_ID}.base"
+STANDALONE_ROOT="${WORK_DIR}/${STANDALONE_PROJECT_NAME}"
 SETUP_SOURCE_DIR="${SETUP_SOURCE_DIR:-${WORK_DIR}/idempiere}"
 SETUP_ECLIPSE_DIR="${SETUP_ECLIPSE_DIR:-${WORK_DIR}/eclipse}"
 SMOKE_MAVEN_REPO="${SMOKE_MAVEN_REPO:-${WORK_DIR}/.m2-repo}"
 DEPLOY_TARGET_HOME="${DEPLOY_TARGET_HOME:-${WORK_DIR}/idempiere-home}"
+DEPLOY_TARGET_HOME_STANDALONE="${DEPLOY_TARGET_HOME_STANDALONE:-${WORK_DIR}/idempiere-home-standalone}"
 FUNCTIONAL_HOME="${WORK_DIR}/functional-home"
 FUNCTIONAL_SKILLS_SOURCE="${WORK_DIR}/functional-skills-source"
 FUNCTIONAL_COMPLETION_FILE="${WORK_DIR}/idempiere-cli-functional-completion.bash"
@@ -552,6 +558,7 @@ printf "step\traw_exit_code\teffective_exit_code\toutcome\texpected_failure\tlog
   echo "- Project name: \`${PROJECT_NAME}\`"
   echo "- command matrix step: \`${RUN_COMMAND_MATRIX}\`"
   echo "- functional matrix step: \`${RUN_FUNCTIONAL_MATRIX}\`"
+  echo "- standalone matrix step: \`${RUN_STANDALONE_MATRIX}\`"
   echo "- AI steps: \`${RUN_AI_STEPS}\`"
   echo "- AI blocking mode: \`${AI_BLOCKING}\`"
   echo "- setup-dev-env dry-run step: \`${RUN_SETUP_DEV_ENV_DRY_RUN}\`"
@@ -648,6 +655,32 @@ run_step "Package p2" \
 
 run_step "Deploy copy at project root" \
   "mkdir -p \"${DEPLOY_TARGET_HOME}/plugins\" && run_cli deploy --dir=\"${PLUGIN_ROOT}\" --target=\"${DEPLOY_TARGET_HOME}\""
+
+if [ "${RUN_STANDALONE_MATRIX}" = "1" ]; then
+  run_step "Standalone phase header" \
+    "echo \"Running standalone plugin flow (init -> add -> validate -> build -> package -> deploy)...\""
+
+  run_step "Init standalone plugin" \
+    "( cd \"${WORK_DIR}\" && run_cli init \"${STANDALONE_PLUGIN_ID}\" --name=\"${STANDALONE_PROJECT_NAME}\" --standalone --no-interactive )"
+
+  run_step "Standalone info text" \
+    "run_cli info --dir=\"${STANDALONE_ROOT}\""
+
+  run_step "Standalone add callout template" \
+    "run_cli add callout --to=\"${STANDALONE_ROOT}\" --name=StandaloneOrderDateCallout"
+
+  run_step "Standalone validate strict" \
+    "run_cli validate --strict \"${STANDALONE_ROOT}\""
+
+  run_step "Standalone build" \
+    "build_base_module_with_cli \"${STANDALONE_ROOT}\""
+
+  run_step "Standalone package zip" \
+    "run_cli package --dir=\"${STANDALONE_ROOT}\" --format=zip --output=dist-standalone-smoke"
+
+  run_step "Standalone deploy copy" \
+    "mkdir -p \"${DEPLOY_TARGET_HOME_STANDALONE}/plugins\" && run_cli deploy --dir=\"${STANDALONE_ROOT}\" --target=\"${DEPLOY_TARGET_HOME_STANDALONE}\""
+fi
 
 if [ "${RUN_AI_STEPS}" = "1" ]; then
   run_step "AI phase header" \

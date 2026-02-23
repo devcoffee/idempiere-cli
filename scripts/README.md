@@ -18,6 +18,7 @@ Runs a practical smoke suite for `idempiere-cli`, captures stdout/stderr for eac
 - AI debug artifact validation (`.idempiere-cli/ai-debug/*.log` with prompt/result markers)
 - plugin build (`mvnw verify`)
 - `build`, `package` (`zip` and `p2`) and `deploy` from multi-module project root
+- standalone plugin flow (`init --standalone`, `add`, `validate`, `build`, `package zip`, `deploy`)
 - session log markers (`ai-prompt`, `ai-response`, parse diagnostics)
 - full command/subcommand matrix via `--help` (dynamic discovery, executed after core flow)
 - functional command matrix (`config`, `skills source`, `skills which`, `generate-completion`) in isolated HOME
@@ -76,6 +77,7 @@ CLI_MODE=auto ./scripts/run-cli-prebuild-smoke.sh
 - `PROMPT_TEXT` default: predefined callout prompt
 - `RUN_COMMAND_MATRIX` default: `1` (validates all discovered command/subcommand combinations with `--help`)
 - `RUN_FUNCTIONAL_MATRIX` default: `1` (runs safe functional checks for config/skills/completion using isolated HOME)
+- `RUN_STANDALONE_MATRIX` default: `1` (runs standalone plugin flow checks)
 - `RUN_AI_STEPS` default: `1` (runs AI add steps in dedicated phase)
 - `AI_BLOCKING` default: `0` (AI step failures become `XFAIL` instead of `FAIL`)
 - `RUN_SETUP_DEV_ENV_DRY_RUN` default: `1` (adds `setup-dev-env --dry-run` smoke step)
@@ -87,6 +89,9 @@ CLI_MODE=auto ./scripts/run-cli-prebuild-smoke.sh
 - `SETUP_ECLIPSE_DIR` default: `<smoke-root>/work/eclipse`
 - `SMOKE_MAVEN_REPO` default: `<smoke-root>/work/.m2-repo` (isolates Maven cache/locks per run)
 - `DEPLOY_TARGET_HOME` default: `<smoke-root>/work/idempiere-home` (fake target with `plugins/` for deploy smoke)
+- `DEPLOY_TARGET_HOME_STANDALONE` default: `<smoke-root>/work/idempiere-home-standalone` (fake target for standalone deploy smoke)
+- `STANDALONE_PLUGIN_ID` default: `org.smoke.standalone`
+- `STANDALONE_PROJECT_NAME` default: `smoke-standalone`
 - `EXPECTED_FAILURE_STEPS` default: empty; semicolon-separated step names treated as expected failure (`XFAIL`)
 - `HELP_MATRIX_ACCEPT_EXIT2_PATHS` default: fixed allowlist of command paths that may legitimately return exit `2` for `--help`
 - `SMOKE_FAIL_ON_REGRESSION` default: `0`; when `1`, script exits non-zero if any unexpected failure (`FAIL`) occurs
@@ -115,6 +120,12 @@ Run a faster smoke without functional matrix:
 
 ```bash
 CLI_MODE=jar RUN_FUNCTIONAL_MATRIX=0 ./scripts/run-cli-prebuild-smoke.sh
+```
+
+Run a faster smoke without standalone matrix:
+
+```bash
+CLI_MODE=jar RUN_STANDALONE_MATRIX=0 ./scripts/run-cli-prebuild-smoke.sh
 ```
 
 Skip AI phase entirely:

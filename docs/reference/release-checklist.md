@@ -20,6 +20,7 @@ CLI_MODE=jar SMOKE_FAIL_ON_REGRESSION=1 ./scripts/run-cli-prebuild-smoke.sh
 This run already includes:
 - command help matrix (`RUN_COMMAND_MATRIX=1`)
 - functional matrix (`RUN_FUNCTIONAL_MATRIX=1`)
+- standalone matrix (`RUN_STANDALONE_MATRIX=1`)
 
 Full environment path (heavy):
 

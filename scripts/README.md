@@ -51,6 +51,8 @@ Runs a practical smoke suite for `idempiere-cli`, captures stdout/stderr for eac
 Build/package validation runs before AI prompt steps, so compile/package gates stay deterministic.
 AI steps are opt-in (`RUN_AI_STEPS=1`) and non-blocking by default (`AI_BLOCKING=0`).
 In core/default build, AI steps fall back to deterministic templates (experimental generators are not loaded).
+Build/package/deploy steps run only when an iDempiere p2 repository is available at
+`<smoke-root>/work/idempiere/org.idempiere.p2/target/repository` (or when you run `RUN_SETUP_DEV_ENV_FULL=1`).
 
 ### Output artifacts
 
@@ -121,6 +123,7 @@ CLI_MODE=auto ./scripts/run-cli-prebuild-smoke.sh
 - `EXPECTED_FAILURE_STEPS` default: empty; semicolon-separated step names treated as expected failure (`XFAIL`)
 - `HELP_MATRIX_ACCEPT_EXIT2_PATHS` default: fixed allowlist of command paths that may legitimately return exit `2` for `--help`
 - `SMOKE_FAIL_ON_REGRESSION` default: `0`; when `1`, script exits non-zero if any unexpected failure (`FAIL`) occurs
+- `RUN_BUILD_PIPELINE` default: `1`; when `0`, skips build/package/deploy steps even if p2 repository exists
 
 Fail-fast behavior:
 - if `RUN_SETUP_DEV_ENV_FULL=1` and that step fails, the script aborts downstream deterministic/build/package/deploy phases
@@ -204,6 +207,7 @@ CLI_MODE=jar RUN_AI_STEPS=1 ./scripts/run-cli-prebuild-smoke.sh
 - This script is a **developer smoke harness**. It does not replace CI.
 - The script executes in a natural developer order first, then runs the full command matrix as a coverage pass.
 - Core flow is designed to be deterministic; failures should indicate an actionable regression or environment issue.
+- If full setup is not enabled and p2 repository is missing, build/package/deploy steps are skipped by design.
 - First run with isolated Maven repo may download dependencies again; expect longer runtime and required network access.
 - Use `reports/index.md` + step logs for triage.
 - The command matrix uses `--help` only (safe, no side effects). It does not run `doctor --fix` or `doctor --fix-optional`.

@@ -459,7 +459,11 @@ public class ValidateService {
 
                 // Verify package matches directory structure
                 String expectedPath = packageName.replace('.', '/');
-                String actualPath = relativePath.substring(0, relativePath.lastIndexOf('/'));
+                Path parentDir = javaFile.getParent();
+                String actualPath = "";
+                if (parentDir != null) {
+                    actualPath = srcDir.relativize(parentDir).toString().replace('\\', '/');
+                }
                 if (!actualPath.equals(expectedPath)) {
                     issues.add(new ValidationIssue(Severity.ERROR, relativePath,
                             "Package '" + packageName + "' doesn't match directory structure"));

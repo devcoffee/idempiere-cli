@@ -68,9 +68,11 @@ DEPLOY_TARGET_HOME_STANDALONE="${DEPLOY_TARGET_HOME_STANDALONE:-${WORK_DIR}/idem
 FUNCTIONAL_HOME="${WORK_DIR}/functional-home"
 FUNCTIONAL_SKILLS_SOURCE="${WORK_DIR}/functional-skills-source"
 FUNCTIONAL_COMPLETION_FILE="${WORK_DIR}/idempiere-cli-functional-completion.bash"
+IDEMPIERE_P2_REPO="${WORK_DIR}/idempiere/org.idempiere.p2/target/repository"
 EXPECTED_FAILURE_STEPS="${EXPECTED_FAILURE_STEPS:-}"
 HELP_MATRIX_ACCEPT_EXIT2_PATHS="${HELP_MATRIX_ACCEPT_EXIT2_PATHS:-init;generate-completion;upgrade;add plugin;add fragment;add feature;config show;config get;config set;skills list;skills sync;skills which;skills source add;skills source remove}"
 SMOKE_FAIL_ON_REGRESSION="${SMOKE_FAIL_ON_REGRESSION:-0}"
+RUN_BUILD_PIPELINE="${RUN_BUILD_PIPELINE:-1}"
 MAVEN_REPO_ARG=""
 SUMMARY_FILE="${REPORT_DIR}/summary.tsv"
 INDEX_FILE="${REPORT_DIR}/index.md"
@@ -108,6 +110,30 @@ fi
 
 slugify() {
   printf "%s" "$1" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '_' | sed 's/^_//; s/_$//'
+}
+
+strip_ansi_and_cr() {
+  sed -E $'s/\x1B\\[[0-9;]*[[:alpha:]]//g' | tr -d '\r'
+}
+
+functional_config_roundtrip_check() {
+  local custom_home="$1"
+  run_cli_with_home "${custom_home}" config set defaults.vendor SmokeVendor || return $?
+
+  local value=""
+  value="$(run_cli_with_home "${custom_home}" config get defaults.vendor \
+    | strip_ansi_and_cr \
+    | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
+    | tail -n1)"
+
+  [ "${value}" = "SmokeVendor" ]
+}
+
+functional_skills_source_list_empty_check() {
+  local custom_home="$1"
+  run_cli_with_home "${custom_home}" skills source list \
+    | strip_ansi_and_cr \
+    | grep -q "No skill sources configured"
 }
 
 resolve_cli_mode() {
@@ -318,10 +344,10 @@ list_subcommands_for_path() {
     return 0
   fi
 
-  printf '%s\n' "${help_output}" | awk '
+  printf '%s\n' "${help_output}" | strip_ansi_and_cr | awk '
     /^Commands:/ {in_commands=1; next}
     in_commands && /^[^[:space:]]/ {in_commands=0}
-    in_commands && $0 ~ /^[[:space:]][[:space:]][a-z0-9][a-z0-9-]*[[:space:]][[:space:]]/ {print $1}
+    in_commands && $0 ~ /^[[:space:]]+[a-z0-9][a-z0-9-]*[[:space:]]{2,}/ {print $1}
   '
 }
 
@@ -661,20 +687,28 @@ if [ "${ABORT_AFTER_SETUP_FULL_FAILURE}" != "1" ]; then
   run_step "Doctor plugin check" \
     "run_cli doctor --dir=\"${BASE_MODULE}\""
 
-  run_step "Build with plugin mvnw" \
-    "( cd \"${PLUGIN_ROOT}\" && build_multimodule_verify )"
+  if [ "${RUN_BUILD_PIPELINE}" = "1" ] && [ ! -d "${IDEMPIERE_P2_REPO}" ]; then
+    run_step "Build pipeline prerequisites" \
+      "echo \"Skipping build/package/deploy: missing iDempiere p2 repository at ${IDEMPIERE_P2_REPO}. Run with RUN_SETUP_DEV_ENV_FULL=1 to include build pipeline steps.\""
+    RUN_BUILD_PIPELINE="0"
+  fi
 
-  run_step "Build command at project root" \
-    "build_base_module_with_cli \"${PLUGIN_ROOT}\""
+  if [ "${RUN_BUILD_PIPELINE}" = "1" ]; then
+    run_step "Build with plugin mvnw" \
+      "( cd \"${PLUGIN_ROOT}\" && build_multimodule_verify )"
 
-  run_step "Package zip" \
-    "run_cli package --dir=\"${PLUGIN_ROOT}\" --format=zip --output=dist-smoke"
+    run_step "Build command at project root" \
+      "build_base_module_with_cli \"${PLUGIN_ROOT}\""
 
-  run_step "Package p2" \
-    "run_cli package --dir=\"${PLUGIN_ROOT}\" --format=p2 --output=dist-smoke"
+    run_step "Package zip" \
+      "run_cli package --dir=\"${PLUGIN_ROOT}\" --format=zip --output=dist-smoke"
 
-  run_step "Deploy copy at project root" \
-    "mkdir -p \"${DEPLOY_TARGET_HOME}/plugins\" && run_cli deploy --dir=\"${PLUGIN_ROOT}\" --target=\"${DEPLOY_TARGET_HOME}\""
+    run_step "Package p2" \
+      "run_cli package --dir=\"${PLUGIN_ROOT}\" --format=p2 --output=dist-smoke"
+
+    run_step "Deploy copy at project root" \
+      "mkdir -p \"${DEPLOY_TARGET_HOME}/plugins\" && run_cli deploy --dir=\"${PLUGIN_ROOT}\" --target=\"${DEPLOY_TARGET_HOME}\""
+  fi
 
   if [ "${RUN_STANDALONE_MATRIX}" = "1" ]; then
     run_step "Standalone phase header" \
@@ -692,14 +726,16 @@ if [ "${ABORT_AFTER_SETUP_FULL_FAILURE}" != "1" ]; then
     run_step "Standalone validate strict" \
       "run_cli validate --strict \"${STANDALONE_ROOT}\""
 
-    run_step "Standalone build" \
-      "build_base_module_with_cli \"${STANDALONE_ROOT}\""
+    if [ "${RUN_BUILD_PIPELINE}" = "1" ]; then
+      run_step "Standalone build" \
+        "build_base_module_with_cli \"${STANDALONE_ROOT}\""
 
-    run_step "Standalone package zip" \
-      "run_cli package --dir=\"${STANDALONE_ROOT}\" --format=zip --output=dist-standalone-smoke"
+      run_step "Standalone package zip" \
+        "run_cli package --dir=\"${STANDALONE_ROOT}\" --format=zip --output=dist-standalone-smoke"
 
-    run_step "Standalone deploy copy" \
-      "mkdir -p \"${DEPLOY_TARGET_HOME_STANDALONE}/plugins\" && run_cli deploy --dir=\"${STANDALONE_ROOT}\" --target=\"${DEPLOY_TARGET_HOME_STANDALONE}\""
+      run_step "Standalone deploy copy" \
+        "mkdir -p \"${DEPLOY_TARGET_HOME_STANDALONE}/plugins\" && run_cli deploy --dir=\"${STANDALONE_ROOT}\" --target=\"${DEPLOY_TARGET_HOME_STANDALONE}\""
+    fi
   fi
 
   if [ "${RUN_AI_STEPS}" = "1" ]; then
@@ -747,7 +783,7 @@ if [ "${RUN_FUNCTIONAL_MATRIX}" = "1" ]; then
     "run_cli_with_home \"${FUNCTIONAL_HOME}\" config show"
 
   run_step "Functional config set/get roundtrip" \
-    "run_cli_with_home \"${FUNCTIONAL_HOME}\" config set defaults.vendor SmokeVendor && [ \"\$(run_cli_with_home \"${FUNCTIONAL_HOME}\" config get defaults.vendor | tr -d '\\r' | tail -n1)\" = \"SmokeVendor\" ]"
+    "functional_config_roundtrip_check \"${FUNCTIONAL_HOME}\""
 
   run_step "Functional skills source add local" \
     "run_cli_with_home \"${FUNCTIONAL_HOME}\" skills source add --name=smoke-local --path=\"${FUNCTIONAL_SKILLS_SOURCE}\" --priority=0"
@@ -768,7 +804,7 @@ if [ "${RUN_FUNCTIONAL_MATRIX}" = "1" ]; then
     "run_cli_with_home \"${FUNCTIONAL_HOME}\" skills source remove --name=smoke-local"
 
   run_step "Functional skills source list empty" \
-    "run_cli_with_home \"${FUNCTIONAL_HOME}\" skills source list | grep -q \"No skill sources configured.\""
+    "functional_skills_source_list_empty_check \"${FUNCTIONAL_HOME}\""
 fi
 
 if ls "${HOME}/.idempiere-cli/logs/session-"*.log >/dev/null 2>&1; then

@@ -187,4 +187,41 @@ class ValidateServiceTest {
         assertTrue(result.issues().stream()
                 .anyMatch(i -> i.message().contains("org.adempiere.base")));
     }
+
+    @Test
+    void testValidateJavaFileDirectlyUnderSrcDoesNotCrash() throws IOException {
+        Files.createDirectories(tempDir.resolve("META-INF"));
+        Files.writeString(tempDir.resolve("META-INF/MANIFEST.MF"),
+                "Manifest-Version: 1.0\n" +
+                "Bundle-ManifestVersion: 2\n" +
+                "Bundle-SymbolicName: org.test.path\n" +
+                "Bundle-Version: 1.0.0\n" +
+                "Bundle-RequiredExecutionEnvironment: JavaSE-17\n" +
+                "Require-Bundle: org.adempiere.base\n");
+
+        Files.writeString(tempDir.resolve("build.properties"),
+                "source.. = src/\n" +
+                        "output.. = bin/\n" +
+                        "bin.includes = META-INF/,\\\n" +
+                        "               plugin.xml\n");
+
+        Files.writeString(tempDir.resolve("pom.xml"),
+                "<?xml version=\"1.0\"?>\n" +
+                        "<project>\n" +
+                        "  <artifactId>org.test.path</artifactId>\n" +
+                        "  <packaging>eclipse-plugin</packaging>\n" +
+                        "  <properties><tycho.version>4.0.8</tycho.version></properties>\n" +
+                        "</project>\n");
+
+        Files.writeString(tempDir.resolve("plugin.xml"), "<?xml version=\"1.0\"?>\n<plugin/>\n");
+
+        Files.createDirectories(tempDir.resolve("src"));
+        Files.writeString(tempDir.resolve("src/MyClass.java"),
+                "package org.test.path;\n\npublic class MyClass {}\n");
+
+        ValidateService.ValidationResult result = validateService.validate(tempDir);
+
+        assertTrue(result.issues().stream()
+                .anyMatch(i -> i.message().contains("doesn't match directory structure")));
+    }
 }

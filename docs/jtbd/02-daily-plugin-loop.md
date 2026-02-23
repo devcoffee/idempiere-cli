@@ -32,6 +32,15 @@ idempiere-cli add callout --name=OrderDateCallout \
   --prompt="Reject future order dates and show a user-friendly message"
 ```
 
+Audit prompt/response when tuning:
+
+```bash
+idempiere-cli add callout --name=OrderDateCallout \
+  --to=./orderext/org.mycompany.orderext.base \
+  --prompt="Reject future order dates and show a user-friendly message" \
+  --show-ai-prompt --save-ai-debug
+```
+
 ## 3. Validate Early
 
 ```bash

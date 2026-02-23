@@ -367,7 +367,7 @@ is_ai_soft_failure_step() {
     return 1
   fi
   case "${step}" in
-    "Add callout with AI prompt"|"Add process with AI prompt")
+    "Add callout with AI prompt"|"Add process with AI prompt"|"Add callout with AI audit flags")
       return 0
       ;;
     *)
@@ -632,6 +632,9 @@ if [ "${RUN_AI_STEPS}" = "1" ]; then
 
   run_step "Add process with AI prompt" \
     "run_cli add process --to=\"${BASE_MODULE}\" --name=SyncPartnerName --prompt=\"${PROMPT_TEXT}\""
+
+  run_step "Add callout with AI audit flags" \
+    "run_cli add callout --to=\"${BASE_MODULE}\" --name=SetBPDescriptionAudit --prompt=\"${PROMPT_TEXT}\" --show-ai-prompt --save-ai-debug"
 fi
 
 run_step "Latest session log markers" \

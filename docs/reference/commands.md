@@ -53,7 +53,15 @@ AI-assisted generation:
 ```bash
 idempiere-cli add process --name=GenerateInvoices --to=./plugin \
   --prompt="Generate invoices for confirmed orders"
+
+idempiere-cli add process --name=GenerateInvoices --to=./plugin \
+  --prompt="Generate invoices for confirmed orders" \
+  --show-ai-prompt --save-ai-debug
 ```
+
+Audit flags:
+- `--show-ai-prompt` prints the full prompt sent to the provider
+- `--save-ai-debug` writes prompt/response diagnostics under `.idempiere-cli/ai-debug/`
 
 ## Quality and Analysis
 

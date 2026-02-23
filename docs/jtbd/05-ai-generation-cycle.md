@@ -25,6 +25,15 @@ idempiere-cli add process --name=GenerateInvoices \
   --prompt="Generate invoices for confirmed sales orders in the current month, skip already invoiced records"
 ```
 
+For prompt tuning and diagnostics:
+
+```bash
+idempiere-cli add process --name=GenerateInvoices \
+  --to=./orderext/org.mycompany.orderext.base \
+  --prompt="Generate invoices for confirmed sales orders in the current month, skip already invoiced records" \
+  --show-ai-prompt --save-ai-debug
+```
+
 Use prompts that describe:
 - business rule
 - data scope
@@ -36,7 +45,9 @@ Use prompts that describe:
 When `--prompt` is used:
 - if AI output is valid, generated code is applied normally
 - `manifest_additions` and `build_properties_additions` from AI output are merged into `META-INF/MANIFEST.MF` and `build.properties` (deduplicated)
-- if AI output is malformed/incompatible, CLI keeps deterministic scaffold output and preserves AI material for review in logs/comments instead of silently losing it
+- if AI output cannot be parsed, CLI falls back to deterministic template generation
+- if AI output has compatibility blockers, CLI prints warnings but keeps generated output (manual review required before build/deploy)
+- with `--save-ai-debug`, prompt/response diagnostics are written to `.idempiere-cli/ai-debug/`
 
 Always check latest logs when output is not as expected:
 

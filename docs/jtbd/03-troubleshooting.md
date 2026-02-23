@@ -131,5 +131,11 @@ idempiere-cli validate --strict /path/to/plugin
 idempiere-cli deps --dir /path/to/plugin
 ```
 
-2. inspect the latest session log for AI prompt/response details
-3. rerun with a tighter prompt (explicit package/API constraints), or regenerate without `--prompt` and implement logic manually
+2. rerun with AI audit flags to inspect exact prompt/response:
+
+```bash
+idempiere-cli add <component> --prompt="..." --show-ai-prompt --save-ai-debug
+```
+
+3. inspect the latest session log and `.idempiere-cli/ai-debug/` artifact
+4. rerun with a tighter prompt (explicit package/API constraints), or regenerate without `--prompt` and implement logic manually

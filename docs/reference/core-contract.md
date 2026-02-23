@@ -65,7 +65,7 @@ Utilities:
 Core commands use this semantic convention:
 - `0`: success
 - `1`: validation/usage error
-- `2`: input or command-state issue (for command-specific semantics where documented)
+- `2`: I/O or command execution error
 - `3`: project/state error (for example: not in plugin directory, missing expected structure)
 
 Notes:

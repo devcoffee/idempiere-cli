@@ -122,6 +122,10 @@ CLI_MODE=auto ./scripts/run-cli-prebuild-smoke.sh
 - `HELP_MATRIX_ACCEPT_EXIT2_PATHS` default: fixed allowlist of command paths that may legitimately return exit `2` for `--help`
 - `SMOKE_FAIL_ON_REGRESSION` default: `0`; when `1`, script exits non-zero if any unexpected failure (`FAIL`) occurs
 
+Fail-fast behavior:
+- if `RUN_SETUP_DEV_ENV_FULL=1` and that step fails, the script aborts downstream deterministic/build/package/deploy phases
+- this keeps one root failure in the report instead of a cascade of derived failures
+
 ### Setup-dev-env examples
 
 Dry-run only (default behavior):

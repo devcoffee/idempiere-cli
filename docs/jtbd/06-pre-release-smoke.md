@@ -25,6 +25,7 @@ CLI_MODE=jar RUN_SETUP_DEV_ENV_FULL=1 ./scripts/run-cli-prebuild-smoke.sh
 ```
 
 This is slower and stateful, but validates the full `setup-dev-env` path.
+If this step fails, smoke aborts downstream build/package/deploy phases to keep a single root-cause failure.
 
 ## 3. Keep Failures Actionable
 

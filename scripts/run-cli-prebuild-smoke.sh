@@ -80,6 +80,7 @@ LAST_STEP_OUTCOME=""
 CLI_MODE_EFFECTIVE=""
 SETUP_DEV_ENV_EFFECTIVE_ARGS=""
 COMMAND_MATRIX_PATHS=()
+ABORT_AFTER_SETUP_FULL_FAILURE="0"
 
 generate_password() {
   LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 24
@@ -615,94 +616,114 @@ fi
 if [ "${RUN_SETUP_DEV_ENV_FULL}" = "1" ]; then
   run_step "Setup-dev-env full docker+rest profile" \
     "run_cli setup-dev-env --non-interactive --source-dir=\"${SETUP_SOURCE_DIR}\" --eclipse-dir=\"${SETUP_ECLIPSE_DIR}\" ${SETUP_DEV_ENV_EFFECTIVE_ARGS}"
+
+  if [ "${LAST_STEP_EFFECTIVE_RC}" -ne 0 ]; then
+    ABORT_AFTER_SETUP_FULL_FAILURE="1"
+    RUN_STANDALONE_MATRIX="0"
+    RUN_AI_STEPS="0"
+    RUN_COMMAND_MATRIX="0"
+    RUN_FUNCTIONAL_MATRIX="0"
+
+    {
+      echo
+      echo "## Abort"
+      echo
+      echo "- setup-dev-env full failed; downstream deterministic/build/package/deploy phases were skipped to avoid cascade failures."
+      echo "- Root cause log: \`${REPORT_DIR}/setup_dev_env_full_docker_rest_profile.log\`"
+    } >> "${INDEX_FILE}"
+
+    echo "Smoke abort gate: setup-dev-env full failed; skipping downstream phases to keep a single root failure."
+  fi
 fi
 
-run_step "Deterministic phase header" \
-  "echo \"Running deterministic developer flow (init -> validate -> build -> package -> deploy)...\""
+if [ "${ABORT_AFTER_SETUP_FULL_FAILURE}" != "1" ]; then
+  run_step "Deterministic phase header" \
+    "echo \"Running deterministic developer flow (init -> validate -> build -> package -> deploy)...\""
 
-run_step "Init non-interactive multi-module" \
-  "( cd \"${WORK_DIR}\" && run_cli init \"${PLUGIN_ID}\" --name=\"${PROJECT_NAME}\" --no-interactive --with-callout --with-test --with-fragment --with-feature )"
+  run_step "Init non-interactive multi-module" \
+    "( cd \"${WORK_DIR}\" && run_cli init \"${PLUGIN_ID}\" --name=\"${PROJECT_NAME}\" --no-interactive --with-callout --with-test --with-fragment --with-feature )"
 
-run_step "Info base module text" \
-  "run_cli info --dir=\"${BASE_MODULE}\""
+  run_step "Info base module text" \
+    "run_cli info --dir=\"${BASE_MODULE}\""
 
-run_step "Info base module json" \
-  "run_cli info --dir=\"${BASE_MODULE}\" --json"
+  run_step "Info base module json" \
+    "run_cli info --dir=\"${BASE_MODULE}\" --json"
 
-run_step "Validate base module" \
-  "run_cli validate --strict \"${BASE_MODULE}\""
+  run_step "Validate base module" \
+    "run_cli validate --strict \"${BASE_MODULE}\""
 
-run_step "Deps base module text" \
-  "run_cli deps --dir=\"${BASE_MODULE}\""
+  run_step "Deps base module text" \
+    "run_cli deps --dir=\"${BASE_MODULE}\""
 
-run_step "Deps base module json" \
-  "run_cli deps --dir=\"${BASE_MODULE}\" --json"
+  run_step "Deps base module json" \
+    "run_cli deps --dir=\"${BASE_MODULE}\" --json"
 
-run_step "Doctor plugin check" \
-  "run_cli doctor --dir=\"${BASE_MODULE}\""
+  run_step "Doctor plugin check" \
+    "run_cli doctor --dir=\"${BASE_MODULE}\""
 
-run_step "Build with plugin mvnw" \
-  "( cd \"${PLUGIN_ROOT}\" && build_multimodule_verify )"
+  run_step "Build with plugin mvnw" \
+    "( cd \"${PLUGIN_ROOT}\" && build_multimodule_verify )"
 
-run_step "Build command at project root" \
-  "build_base_module_with_cli \"${PLUGIN_ROOT}\""
+  run_step "Build command at project root" \
+    "build_base_module_with_cli \"${PLUGIN_ROOT}\""
 
-run_step "Package zip" \
-  "run_cli package --dir=\"${PLUGIN_ROOT}\" --format=zip --output=dist-smoke"
+  run_step "Package zip" \
+    "run_cli package --dir=\"${PLUGIN_ROOT}\" --format=zip --output=dist-smoke"
 
-run_step "Package p2" \
-  "run_cli package --dir=\"${PLUGIN_ROOT}\" --format=p2 --output=dist-smoke"
+  run_step "Package p2" \
+    "run_cli package --dir=\"${PLUGIN_ROOT}\" --format=p2 --output=dist-smoke"
 
-run_step "Deploy copy at project root" \
-  "mkdir -p \"${DEPLOY_TARGET_HOME}/plugins\" && run_cli deploy --dir=\"${PLUGIN_ROOT}\" --target=\"${DEPLOY_TARGET_HOME}\""
+  run_step "Deploy copy at project root" \
+    "mkdir -p \"${DEPLOY_TARGET_HOME}/plugins\" && run_cli deploy --dir=\"${PLUGIN_ROOT}\" --target=\"${DEPLOY_TARGET_HOME}\""
 
-if [ "${RUN_STANDALONE_MATRIX}" = "1" ]; then
-  run_step "Standalone phase header" \
-    "echo \"Running standalone plugin flow (init -> add -> validate -> build -> package -> deploy)...\""
+  if [ "${RUN_STANDALONE_MATRIX}" = "1" ]; then
+    run_step "Standalone phase header" \
+      "echo \"Running standalone plugin flow (init -> add -> validate -> build -> package -> deploy)...\""
 
-  run_step "Init standalone plugin" \
-    "( cd \"${WORK_DIR}\" && run_cli init \"${STANDALONE_PLUGIN_ID}\" --name=\"${STANDALONE_PROJECT_NAME}\" --standalone --no-interactive )"
+    run_step "Init standalone plugin" \
+      "( cd \"${WORK_DIR}\" && run_cli init \"${STANDALONE_PLUGIN_ID}\" --name=\"${STANDALONE_PROJECT_NAME}\" --standalone --no-interactive )"
 
-  run_step "Standalone info text" \
-    "run_cli info --dir=\"${STANDALONE_ROOT}\""
+    run_step "Standalone info text" \
+      "run_cli info --dir=\"${STANDALONE_ROOT}\""
 
-  run_step "Standalone add callout template" \
-    "run_cli add callout --to=\"${STANDALONE_ROOT}\" --name=StandaloneOrderDateCallout"
+    run_step "Standalone add callout template" \
+      "run_cli add callout --to=\"${STANDALONE_ROOT}\" --name=StandaloneOrderDateCallout"
 
-  run_step "Standalone validate strict" \
-    "run_cli validate --strict \"${STANDALONE_ROOT}\""
+    run_step "Standalone validate strict" \
+      "run_cli validate --strict \"${STANDALONE_ROOT}\""
 
-  run_step "Standalone build" \
-    "build_base_module_with_cli \"${STANDALONE_ROOT}\""
+    run_step "Standalone build" \
+      "build_base_module_with_cli \"${STANDALONE_ROOT}\""
 
-  run_step "Standalone package zip" \
-    "run_cli package --dir=\"${STANDALONE_ROOT}\" --format=zip --output=dist-standalone-smoke"
+    run_step "Standalone package zip" \
+      "run_cli package --dir=\"${STANDALONE_ROOT}\" --format=zip --output=dist-standalone-smoke"
 
-  run_step "Standalone deploy copy" \
-    "mkdir -p \"${DEPLOY_TARGET_HOME_STANDALONE}/plugins\" && run_cli deploy --dir=\"${STANDALONE_ROOT}\" --target=\"${DEPLOY_TARGET_HOME_STANDALONE}\""
+    run_step "Standalone deploy copy" \
+      "mkdir -p \"${DEPLOY_TARGET_HOME_STANDALONE}/plugins\" && run_cli deploy --dir=\"${STANDALONE_ROOT}\" --target=\"${DEPLOY_TARGET_HOME_STANDALONE}\""
+  fi
+
+  if [ "${RUN_AI_STEPS}" = "1" ]; then
+    run_step "AI phase header" \
+      "echo \"Running AI generation phase (non-blocking when AI_BLOCKING=0)...\""
+
+    run_step "Add callout with AI prompt" \
+      "run_cli add callout --to=\"${BASE_MODULE}\" --name=SetBPDescription --prompt=\"${PROMPT_TEXT}\""
+
+    run_step "Add process with AI prompt" \
+      "run_cli add process --to=\"${BASE_MODULE}\" --name=SyncPartnerName --prompt=\"${PROMPT_TEXT}\""
+
+    run_step "Add callout with AI audit flags" \
+      "run_cli add callout --to=\"${BASE_MODULE}\" --name=SetBPDescriptionAudit --prompt=\"${PROMPT_TEXT}\" --show-ai-prompt --save-ai-debug"
+
+    run_step "AI debug artifact check" \
+      "debug_dir=\"${BASE_MODULE}/.idempiere-cli/ai-debug\"; \
+       [ -d \"${debug_dir}\" ] && latest_debug=\$(ls -t \"${debug_dir}\"/*.log 2>/dev/null | head -n1) && [ -n \"\${latest_debug}\" ] && \
+       grep -q \"### AI PROMPT\" \"\${latest_debug}\" && grep -q \"### RESULT\" \"\${latest_debug}\""
+  fi
+
+  run_step "Latest session log markers" \
+    "latest_session_log_markers"
 fi
-
-if [ "${RUN_AI_STEPS}" = "1" ]; then
-  run_step "AI phase header" \
-    "echo \"Running AI generation phase (non-blocking when AI_BLOCKING=0)...\""
-
-  run_step "Add callout with AI prompt" \
-    "run_cli add callout --to=\"${BASE_MODULE}\" --name=SetBPDescription --prompt=\"${PROMPT_TEXT}\""
-
-  run_step "Add process with AI prompt" \
-    "run_cli add process --to=\"${BASE_MODULE}\" --name=SyncPartnerName --prompt=\"${PROMPT_TEXT}\""
-
-  run_step "Add callout with AI audit flags" \
-    "run_cli add callout --to=\"${BASE_MODULE}\" --name=SetBPDescriptionAudit --prompt=\"${PROMPT_TEXT}\" --show-ai-prompt --save-ai-debug"
-
-  run_step "AI debug artifact check" \
-    "debug_dir=\"${BASE_MODULE}/.idempiere-cli/ai-debug\"; \
-     [ -d \"${debug_dir}\" ] && latest_debug=\$(ls -t \"${debug_dir}\"/*.log 2>/dev/null | head -n1) && [ -n \"\${latest_debug}\" ] && \
-     grep -q \"### AI PROMPT\" \"\${latest_debug}\" && grep -q \"### RESULT\" \"\${latest_debug}\""
-fi
-
-run_step "Latest session log markers" \
-  "latest_session_log_markers"
 
 if [ "${RUN_COMMAND_MATRIX}" = "1" ]; then
   run_step "Command matrix phase header" \

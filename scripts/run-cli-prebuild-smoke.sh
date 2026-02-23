@@ -198,9 +198,11 @@ run_cli_with_home() {
   shift
   mkdir -p "${custom_home}"
   if [ "${CLI_MODE_EFFECTIVE}" = "jar" ]; then
-    HOME="${custom_home}" java -Duser.home="${custom_home}" -jar "${JAR_PATH}" "$@"
+    (cd "${custom_home}" && IDEMPIERE_CLI_CONFIG= HOME="${custom_home}" \
+      java -Duser.home="${custom_home}" -jar "${JAR_PATH}" "$@")
   else
-    HOME="${custom_home}" "${CLI_BIN}" "$@"
+    (cd "${custom_home}" && IDEMPIERE_CLI_CONFIG= HOME="${custom_home}" \
+      "${CLI_BIN}" "$@")
   fi
 }
 
@@ -503,8 +505,8 @@ command_matrix_help_is_valid() {
     if ! is_help_exit2_allowlisted "${path}"; then
       return 1
     fi
-    if grep -Fq "Usage: idempiere-cli ${path}" "${log_file}"; then
-      if grep -Eq "Unmatched argument|Unknown command" "${log_file}"; then
+    if grep -Fq "Usage: idempiere-cli ${path}" <(strip_ansi_and_cr < "${log_file}"); then
+      if grep -Eq "Unmatched argument|Unknown command" <(strip_ansi_and_cr < "${log_file}"); then
         return 1
       fi
       return 0

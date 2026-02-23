@@ -1,0 +1,10 @@
+# Templates and resources — always LF
+*.qute text eol=lf
+*.zul  text eol=lf
+
+# Shell scripts
+*.sh   text eol=lf
+
+# Batch files need CRLF
+*.bat  text eol=crlf
+*.cmd  text eol=crlf

@@ -69,7 +69,7 @@ public class TemplateRenderer {
         String rendered = instance.render();
 
         Files.createDirectories(outputFile.getParent());
-        Files.writeString(outputFile, rendered);
+        Files.writeString(outputFile, rendered.replace("\r\n", "\n").replace("\r", "\n"));
         System.out.println("  Created: " + outputFile);
     }
 

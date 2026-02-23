@@ -114,6 +114,22 @@ class TemplateRendererTest {
     }
 
     @Test
+    void testRenderedOutputContainsNoCarriageReturn() throws IOException {
+        Path outputFile = outputDir.resolve("NoCarriageReturn.java");
+
+        Map<String, Object> data = Map.of(
+                "pluginId", "com.example",
+                "className", "TestProcess"
+        );
+
+        templateRenderer.render("process/Process.java", data, outputFile);
+
+        String content = Files.readString(outputFile);
+        assertFalse(content.contains("\r"),
+                "Rendered output must not contain carriage-return characters");
+    }
+
+    @Test
     void testTemplateNotFoundThrowsException() {
         Path outputFile = outputDir.resolve("Test.java");
 

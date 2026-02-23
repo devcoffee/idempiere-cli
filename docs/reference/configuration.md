@@ -1,13 +1,13 @@
 # Configuration and AI
 
 Core build is deterministic and does not include AI generation plugins by default.
-AI-related config keys (`ai.*`, skills sync/which resolution) are active in the experimental build (`-Pexp`).
+AI-related config keys (`ai.*`, skills sync/which resolution) are internal/dev-only and not part of released core behavior.
 
 Recommended operational model:
 - Use core build for normal development pipelines.
 - Let external agents write/refine code in your workspace.
 - Use CLI as the enforcement layer (`init/add` templates, `validate`, `build`, `package`, `deploy`).
-- Enable `-Pexp` only when you intentionally want to test embedded AI behavior.
+- Treat embedded AI behavior as internal experimentation, not product contract.
 
 Configuration is loaded in this precedence order (highest first):
 

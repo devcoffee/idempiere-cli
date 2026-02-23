@@ -2,6 +2,10 @@
 
 Use this before tagging a new version.
 
+Release policy:
+- publish core artifacts only (deterministic/default build)
+- do not publish experimental artifacts
+
 ## 1. Build and Unit Test
 
 ```bash

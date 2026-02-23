@@ -17,7 +17,10 @@ Included in contract:
 Explicitly out of core contract:
 - embedded AI generation stack
 - `skills` source resolution behavior tied to experimental providers
-- any feature that requires `-Pexp`
+- any internal-only experimental feature
+
+Release targeting:
+- official releases publish core artifacts only
 
 ## Stability Promise
 
@@ -86,7 +89,7 @@ Core/default build guarantees:
 ## Release Gate
 
 A release is core-compatible only if:
-1. core smoke passes without requiring `-Pexp`
+1. core smoke passes using only released core paths
 2. core exit-code tests pass
 3. command docs match implemented core behavior
 4. this contract remains valid or is versioned with explicit change notes

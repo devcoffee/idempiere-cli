@@ -231,6 +231,8 @@ jobs:
           files: |
             release/*
           body: |
+            Core release (deterministic/default build artifacts only).
+
             ## Installation
 
             ```bash

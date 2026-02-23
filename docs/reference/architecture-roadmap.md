@@ -20,7 +20,6 @@ Contract reference: [Core Contract (v1)](core-contract.md).
 src/main/java/org/idempiere/cli/
   commands/
   plugin/
-  plugins/experimental/
   service/
   service/skills/
   model/
@@ -34,7 +33,7 @@ src/test/java/
 
 - CLI handles local engineering workflows.
 - Runtime operation and AD-level AI workflows are complementary concerns.
-- Core CLI is deterministic by design; experimental generation features are isolated behind build flavor/profile.
+- Core CLI is deterministic by design and is the only official release target.
 - External AI agents are the primary place for iterative code authoring; CLI remains the quality/integrity layer.
 
 ## Extension Direction
@@ -47,7 +46,7 @@ This keeps core commands stable while allowing optional feature modules.
 
 See: [Ecosystem Complementarity Analysis](../strategy/ECOSYSTEM.md)
 
-## Roadmap (pragmatic)
+## Roadmap (core-focused)
 
 Short-term:
 - keep hardening setup reliability and troubleshooting

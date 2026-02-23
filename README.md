@@ -19,7 +19,7 @@ It complements iDempiere runtime/Application Dictionary tooling; it does not rep
 ## AI Positioning
 
 - Default/core build is deterministic and template-first.
-- Embedded AI generation is experimental and only enabled in `-Pexp`.
+- Embedded AI generation remains internal/experimental and is not a published release target.
 - Recommended day-to-day flow: use external agents (Claude Code, Codex, Gemini CLI, etc.) to implement business logic on top of CLI-generated templates.
 - Keep `idempiere-cli` as the engineering integrity layer: scaffold, validate, build, package, deploy.
 
@@ -39,21 +39,18 @@ Windows prerequisite (if needed): [VC++ Redistributable](https://aka.ms/vs/17/re
 # 1) Check/fix local prerequisites
 idempiere-cli doctor --fix
 
-# 2) (optional, experimental build only) AI/provider setup
-idempiere-cli config init
-
-# 3) Bootstrap local environment (Docker path)
+# 2) Bootstrap local environment (Docker path)
 idempiere-cli setup-dev-env --with-docker
 
-# 4) Create and build first plugin
+# 3) Create and build first plugin
 idempiere-cli init org.mycompany.myplugin
 idempiere-cli build --dir ./myplugin/org.mycompany.myplugin.base
 ```
 
-## Build Flavors
+## Build
 
-- Core (default, deterministic): `./mvnw clean package`
-- Experimental (enables AI/skills generation stack): `./mvnw clean package -Pexp`
+- Official release target: core/default deterministic build
+- Command: `./mvnw clean package`
 
 ## Documentation
 

@@ -10,19 +10,13 @@ cd idempiere-cli
 
 Build variants:
 
-- Core/default (deterministic toolchain only): `./mvnw clean package`
-- Experimental (enables AI generation stack): `./mvnw clean package -Pexp`
+- Core/default (deterministic toolchain): `./mvnw clean package`
+- Release policy: publish core artifacts only
 
 ## Native Build (GraalVM Required)
 
 ```bash
 ./mvnw clean package -Pnative
-```
-
-Native + experimental:
-
-```bash
-./mvnw clean package -Pnative,exp
 ```
 
 Outputs:

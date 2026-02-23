@@ -2,7 +2,7 @@
 
 Use this loop to keep AI-generated code reliable in real projects.
 
-Note: AI generation is part of the experimental build flavor (`./mvnw -Pexp ...`).
+Note: AI generation is an internal/dev-only path and not part of the released core contract.
 
 Recommended default strategy:
 - keep generation deterministic with templates (`init/add` without `--prompt`)

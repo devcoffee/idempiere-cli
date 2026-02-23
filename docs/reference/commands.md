@@ -50,7 +50,7 @@ idempiere-cli add test --dir=./plugin
 ```
 
 AI-assisted generation:
-(`-Pexp` experimental build)
+(internal/dev-only path; not part of released core contract)
 
 Recommended usage:
 - Use external agents for iterative coding/refinement.

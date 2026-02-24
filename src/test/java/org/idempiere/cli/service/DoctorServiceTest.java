@@ -179,6 +179,111 @@ class DoctorServiceTest {
                 "Should attempt to start Docker Desktop even without winget");
     }
 
+    @Test
+    void testFixLinuxAptWithSudo() {
+        System.setProperty("os.name", "Linux");
+        processRunner.availableCommands = Set.of("apt", "sudo");
+        processRunner.runLiveExitCode = 0;
+
+        List<CheckEntry> entries = List.of(
+                failEntry("Git", "Not found",
+                        EnvironmentCheck.FixSuggestion.builder().apt("git").build())
+        );
+
+        doctorService.runAutoFix(entries, null, null);
+
+        String output = outContent.toString();
+        assertTrue(output.contains("Installing packages with apt"),
+                "Should install with apt when apt+sudo available");
+        assertTrue(output.contains("Installation complete"),
+                "Should report success on exit code 0");
+    }
+
+    @Test
+    void testFixMacWithBrew() {
+        System.setProperty("os.name", "Mac OS X");
+        processRunner.availableCommands = Set.of("brew");
+        processRunner.runLiveExitCode = 0;
+
+        List<CheckEntry> entries = List.of(
+                failEntry("Git", "Not found",
+                        EnvironmentCheck.FixSuggestion.builder().brew("git").build())
+        );
+
+        doctorService.runAutoFix(entries, null, null);
+
+        String output = outContent.toString();
+        assertTrue(output.contains("Installing packages with Homebrew"),
+                "Should install with Homebrew when brew available");
+        assertTrue(output.contains("Installation complete"),
+                "Should report success on exit code 0");
+    }
+
+    @Test
+    void testFixWindowsWithWinget() {
+        System.setProperty("os.name", "Windows 10");
+        processRunner.availableCommands = Set.of("winget");
+        processRunner.runLiveExitCode = 0;
+
+        List<CheckEntry> entries = List.of(
+                failEntry("Git", "Not found",
+                        EnvironmentCheck.FixSuggestion.builder().winget("Git.Git").build())
+        );
+
+        doctorService.runAutoFix(entries, null, null);
+
+        String output = outContent.toString();
+        assertTrue(output.contains("Installing packages with winget"),
+                "Should install with winget when available");
+        assertTrue(output.contains("Installation complete"),
+                "Should report success on exit code 0");
+    }
+
+    @Test
+    void testFixWindowsDockerOnlyNoPackages() {
+        System.setProperty("os.name", "Windows 10");
+        processRunner.availableCommands = Set.of();
+        processRunner.runLiveExitCode = 0;
+
+        List<CheckEntry> entries = List.of(
+                warnEntry("Docker", "Version 28.2.2, installed, but daemon is not running",
+                        EnvironmentCheck.FixSuggestion.builder().build())
+        );
+
+        doctorService.runAutoFix(entries, Set.of("docker"), null);
+
+        String output = outContent.toString();
+        assertTrue(output.contains("Fix attempt completed"),
+                "Should print summary even when no packages to install");
+        assertTrue(output.contains("Starting Docker Desktop"),
+                "Should attempt to start Docker Desktop");
+    }
+
+    @Test
+    void testCollectPackagesFiltersCorrectly() {
+        String os = "linux";
+
+        List<CheckEntry> entries = List.of(
+                failEntry("Git", "Not found",
+                        EnvironmentCheck.FixSuggestion.builder().apt("git").brew("git").build()),
+                entry("Maven", CheckResult.Status.OK, "Apache Maven 3.9.6"),
+                warnEntry("Docker", "daemon is not running",
+                        EnvironmentCheck.FixSuggestion.builder().apt("docker.io").build())
+        );
+
+        DoctorService.PackagePlan plan = DoctorService.collectPackages(
+                entries, e -> e.result().isFail(), os);
+
+        assertTrue(plan.aptPackages().contains("git"),
+                "Should include git from failed entry");
+        assertTrue(plan.brewPackages().contains("git"),
+                "Should include git brew from failed entry");
+        assertFalse(plan.aptPackages().contains("docker.io"),
+                "Should NOT include docker.io from warn entry");
+        assertTrue(plan.sdkmanPackages().isEmpty(),
+                "Should have no SDKMAN packages");
+    }
+
     // --- Helpers ---
 
     private CheckEntry entry(String tool, CheckResult.Status status, String message) {

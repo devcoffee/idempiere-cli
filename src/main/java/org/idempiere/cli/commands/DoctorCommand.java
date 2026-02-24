@@ -11,7 +11,6 @@ import org.idempiere.cli.service.DoctorService.CheckEntry;
 import org.idempiere.cli.service.DoctorService.EnvironmentResult;
 import org.idempiere.cli.service.DoctorService.PluginCheckResult;
 import org.idempiere.cli.service.check.CheckResult;
-import org.idempiere.cli.service.check.EnvironmentCheck;
 import org.idempiere.cli.util.CliOutput;
 import org.idempiere.cli.util.ExitCodes;
 import org.idempiere.cli.util.JsonOutput;
@@ -257,35 +256,24 @@ public class DoctorCommand implements Callable<Integer> {
         System.out.println("Fix Suggestions");
         System.out.println("---------------");
 
-        Set<String> sdkmanPackages = new LinkedHashSet<>();
-        Set<String> brewPackages = new LinkedHashSet<>();
-        Set<String> brewCasks = new LinkedHashSet<>();
-        Set<String> aptPackages = new LinkedHashSet<>();
-        Set<String> dnfPackages = new LinkedHashSet<>();
-        Set<String> pacmanPackages = new LinkedHashSet<>();
-        Set<String> zypperPackages = new LinkedHashSet<>();
-        Set<String> wingetPackages = new LinkedHashSet<>();
+        DoctorService.PackagePlan plan = DoctorService.collectPackages(
+                entries, e -> e.result().isFail(), os);
 
-        for (CheckEntry entry : failed) {
-            EnvironmentCheck.FixSuggestion fix = entry.check().getFixSuggestion(os);
-            if (fix == null) continue;
-
-            if (fix.sdkmanPackage() != null) sdkmanPackages.add(fix.sdkmanPackage());
-            if (fix.brewPackage() != null) brewPackages.add(fix.brewPackage());
-            if (fix.brewCask() != null) brewCasks.add(fix.brewCask());
-            if (fix.aptPackage() != null) aptPackages.add(fix.aptPackage());
-            if (fix.dnfPackage() != null) dnfPackages.add(fix.dnfPackage());
-            if (fix.pacmanPackage() != null) pacmanPackages.add(fix.pacmanPackage());
-            if (fix.zypperPackage() != null) zypperPackages.add(fix.zypperPackage());
-            if (fix.wingetPackage() != null) wingetPackages.add(fix.wingetPackage());
-        }
+        Set<String> sdkmanPackages = plan.sdkmanPackages();
+        Set<String> brewPackages = plan.brewPackages();
+        Set<String> brewCasks = plan.brewCasks();
+        Set<String> aptPackages = plan.aptPackages();
+        Set<String> dnfPackages = plan.dnfPackages();
+        Set<String> pacmanPackages = plan.pacmanPackages();
+        Set<String> zypperPackages = plan.zypperPackages();
+        Set<String> wingetPackages = plan.wingetPackages();
 
         if (!os.contains("win") && !sdkmanPackages.isEmpty()) {
-            removeJavaMavenPackages(brewPackages);
-            removeJavaMavenPackages(aptPackages);
-            removeJavaMavenPackages(dnfPackages);
-            removeJavaMavenPackages(pacmanPackages);
-            removeJavaMavenPackages(zypperPackages);
+            DoctorService.removeJavaMavenPackages(brewPackages);
+            DoctorService.removeJavaMavenPackages(aptPackages);
+            DoctorService.removeJavaMavenPackages(dnfPackages);
+            DoctorService.removeJavaMavenPackages(pacmanPackages);
+            DoctorService.removeJavaMavenPackages(zypperPackages);
 
             // Override default Java version with --java value
             if (sdkmanPackages.removeIf(pkg -> pkg.startsWith("java "))) {
@@ -485,15 +473,6 @@ public class DoctorCommand implements Callable<Integer> {
         }
 
         return selected;
-    }
-
-    private void removeJavaMavenPackages(Set<String> packages) {
-        packages.removeIf(pkg ->
-                pkg.contains("java") ||
-                pkg.contains("jdk") ||
-                pkg.contains("openjdk") ||
-                pkg.contains("maven") ||
-                pkg.contains("temurin"));
     }
 
     private Integer printEnvironmentJson(EnvironmentResult result) {

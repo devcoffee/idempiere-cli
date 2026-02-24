@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 
 /**
  * Validates development environment and plugin structure.
@@ -43,6 +44,53 @@ public class DoctorService {
             long warnings,
             long failed
     ) {}
+
+    /** Per-package-manager package sets collected from check entries. */
+    public record PackagePlan(
+            Set<String> sdkmanPackages,
+            Set<String> brewPackages,
+            Set<String> brewCasks,
+            Set<String> aptPackages,
+            Set<String> dnfPackages,
+            Set<String> pacmanPackages,
+            Set<String> zypperPackages,
+            Set<String> wingetPackages
+    ) {
+        public PackagePlan() {
+            this(new LinkedHashSet<>(), new LinkedHashSet<>(), new LinkedHashSet<>(),
+                    new LinkedHashSet<>(), new LinkedHashSet<>(), new LinkedHashSet<>(),
+                    new LinkedHashSet<>(), new LinkedHashSet<>());
+        }
+    }
+
+    /**
+     * Collects package names from check entries that match the given predicate.
+     *
+     * @param entries the check entries to evaluate
+     * @param filter  predicate determining which entries to include
+     * @param os      lowercase operating system name for fix suggestion resolution
+     * @return a PackagePlan with all collected package names
+     */
+    public static PackagePlan collectPackages(List<CheckEntry> entries,
+                                              Predicate<CheckEntry> filter, String os) {
+        PackagePlan plan = new PackagePlan();
+        for (CheckEntry entry : entries) {
+            if (!filter.test(entry)) continue;
+
+            EnvironmentCheck.FixSuggestion fix = entry.check().getFixSuggestion(os);
+            if (fix == null) continue;
+
+            if (fix.sdkmanPackage() != null) plan.sdkmanPackages().add(fix.sdkmanPackage());
+            if (fix.brewPackage() != null) plan.brewPackages().add(fix.brewPackage());
+            if (fix.brewCask() != null) plan.brewCasks().add(fix.brewCask());
+            if (fix.aptPackage() != null) plan.aptPackages().add(fix.aptPackage());
+            if (fix.dnfPackage() != null) plan.dnfPackages().add(fix.dnfPackage());
+            if (fix.pacmanPackage() != null) plan.pacmanPackages().add(fix.pacmanPackage());
+            if (fix.zypperPackage() != null) plan.zypperPackages().add(fix.zypperPackage());
+            if (fix.wingetPackage() != null) plan.wingetPackages().add(fix.wingetPackage());
+        }
+        return plan;
+    }
 
     @Inject
     ProcessRunner processRunner;
@@ -114,35 +162,22 @@ public class DoctorService {
         System.out.println("Attempting automatic fix...");
         System.out.println();
 
-        // Collect packages to install from FixSuggestion (use Set to avoid duplicates)
-        Set<String> sdkmanPackages = new LinkedHashSet<>();
-        Set<String> brewPackages = new LinkedHashSet<>();
-        Set<String> brewCasks = new LinkedHashSet<>();
-        Set<String> aptPackages = new LinkedHashSet<>();
-        Set<String> dnfPackages = new LinkedHashSet<>();
-        Set<String> pacmanPackages = new LinkedHashSet<>();
-        Set<String> zypperPackages = new LinkedHashSet<>();
-        Set<String> wingetPackages = new LinkedHashSet<>();
+        // Collect packages to install from FixSuggestion
+        PackagePlan plan = collectPackages(entries, entry -> {
+            CheckResult r = entry.result();
+            return r.isFail()
+                    || (optionalFilter != null && r.isWarn()
+                        && optionalFilter.contains(r.tool().toLowerCase()));
+        }, os);
 
-        for (CheckEntry entry : entries) {
-            CheckResult result = entry.result();
-            boolean shouldFix = result.isFail()
-                    || (optionalFilter != null && result.isWarn()
-                        && optionalFilter.contains(result.tool().toLowerCase()));
-            if (!shouldFix) continue;
-
-            EnvironmentCheck.FixSuggestion fix = entry.check().getFixSuggestion(os);
-            if (fix == null) continue;
-
-            if (fix.sdkmanPackage() != null) sdkmanPackages.add(fix.sdkmanPackage());
-            if (fix.brewPackage() != null) brewPackages.add(fix.brewPackage());
-            if (fix.brewCask() != null) brewCasks.add(fix.brewCask());
-            if (fix.aptPackage() != null) aptPackages.add(fix.aptPackage());
-            if (fix.dnfPackage() != null) dnfPackages.add(fix.dnfPackage());
-            if (fix.pacmanPackage() != null) pacmanPackages.add(fix.pacmanPackage());
-            if (fix.zypperPackage() != null) zypperPackages.add(fix.zypperPackage());
-            if (fix.wingetPackage() != null) wingetPackages.add(fix.wingetPackage());
-        }
+        Set<String> sdkmanPackages = plan.sdkmanPackages();
+        Set<String> brewPackages = plan.brewPackages();
+        Set<String> brewCasks = plan.brewCasks();
+        Set<String> aptPackages = plan.aptPackages();
+        Set<String> dnfPackages = plan.dnfPackages();
+        Set<String> pacmanPackages = plan.pacmanPackages();
+        Set<String> zypperPackages = plan.zypperPackages();
+        Set<String> wingetPackages = plan.wingetPackages();
 
         // Override default Java version with user-specified --java value
         if (javaVersion != null) {
@@ -221,10 +256,7 @@ public class DoctorService {
         }
 
         // Handle Docker daemon if stopped
-        CheckEntry dockerEntry = entries.stream()
-                .filter(e -> e.result().tool().equals("Docker"))
-                .findFirst().orElse(null);
-        if (fixDocker && isDockerDaemonNotRunning(dockerEntry)) {
+        if (fixDocker && isDockerDaemonNotRunning(findDockerEntry(entries))) {
             System.out.println("Starting Docker Desktop...");
             processRunner.runLive("open", "-a", "Docker");
         }
@@ -290,9 +322,7 @@ public class DoctorService {
         }
 
         // Handle Docker daemon
-        CheckEntry dockerEntry = entries.stream()
-                .filter(e -> e.result().tool().equals("Docker"))
-                .findFirst().orElse(null);
+        CheckEntry dockerEntry = findDockerEntry(entries);
         if (fixDocker && isDockerDaemonNotRunning(dockerEntry)) {
             if (!isRoot && !processRunner.isAvailable("sudo")) {
                 System.out.println("Start Docker manually as root:");
@@ -342,10 +372,7 @@ public class DoctorService {
             }
         }
 
-        CheckEntry dockerEntry = entries.stream()
-                .filter(e -> e.result().tool().equals("Docker"))
-                .findFirst().orElse(null);
-        if (fixDocker && isDockerDaemonNotRunning(dockerEntry)) {
+        if (fixDocker && isDockerDaemonNotRunning(findDockerEntry(entries))) {
             System.out.println("Starting Docker Desktop...");
             int startExit = processRunner.runLive("powershell", "-NoProfile", "-Command",
                     "Start-Process 'Docker Desktop'");
@@ -364,6 +391,12 @@ public class DoctorService {
             System.out.println("Some packages failed to install: " + String.join(", ", failedPackages));
             System.out.println("Check output above and install manually if needed.");
         }
+    }
+
+    private CheckEntry findDockerEntry(List<CheckEntry> entries) {
+        return entries.stream()
+                .filter(e -> e.result().tool().equals("Docker"))
+                .findFirst().orElse(null);
     }
 
     private boolean isDockerDaemonNotRunning(CheckEntry dockerEntry) {
@@ -543,16 +576,15 @@ public class DoctorService {
         boolean isRoot = isRunningAsRoot();
         List<String> command = new ArrayList<>();
 
-        String prereqPkgManager = null;
-        if (processRunner.isAvailable("apt")) prereqPkgManager = "apt";
-        else if (processRunner.isAvailable("dnf")) prereqPkgManager = "dnf";
-        else if (processRunner.isAvailable("pacman")) prereqPkgManager = "pacman";
-        else if (processRunner.isAvailable("zypper")) prereqPkgManager = "zypper";
+        String prereqPkgManager = detectLinuxPackageManager();
 
         if (prereqPkgManager != null && !isRoot && !processRunner.isAvailable("sudo")) {
             System.out.println("Root privileges required but 'sudo' not available.");
             System.out.println("Run manually as root:");
-            System.out.println("  " + prereqPkgManager + " install -y " + String.join(" ", missing));
+            String installCmd = "pacman".equals(prereqPkgManager)
+                    ? prereqPkgManager + " -S --noconfirm " + String.join(" ", missing)
+                    : prereqPkgManager + " install -y " + String.join(" ", missing);
+            System.out.println("  " + installCmd);
             return false;
         }
 
@@ -645,7 +677,7 @@ public class DoctorService {
      * Remove Java and Maven related packages from the set.
      * These are handled by SDKMAN instead.
      */
-    private void removeJavaMavenPackages(Set<String> packages) {
+    public static void removeJavaMavenPackages(Set<String> packages) {
         packages.removeIf(pkg ->
                 pkg.contains("java") ||
                 pkg.contains("jdk") ||

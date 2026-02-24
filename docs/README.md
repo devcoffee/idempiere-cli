@@ -33,7 +33,3 @@ Use this hub by scenario.
 - [Release Checklist](reference/release-checklist.md)
 - [Known Limitations](reference/known-limitations.md)
 - [Architecture, Scope, and Roadmap](reference/architecture-roadmap.md)
-
-## Strategy
-
-- [Ecosystem Complementarity Analysis](strategy/ECOSYSTEM.md)

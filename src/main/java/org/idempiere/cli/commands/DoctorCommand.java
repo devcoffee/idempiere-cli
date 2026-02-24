@@ -49,8 +49,10 @@ import java.util.stream.Collectors;
  * </ul>
  *
  * <h2>Auto-fix</h2>
- * <p>Use {@code --fix} to automatically install missing tools using
- * the system package manager (Homebrew on macOS, apt on Linux).
+ * <p>Use {@code --fix} to automatically install missing tools using the
+ * platform package manager when available (Homebrew on macOS, apt/dnf/pacman/zypper
+ * on Linux, winget on Windows). Java and Maven are preferably installed via SDKMAN
+ * on non-Windows systems.
  *
  * @see DoctorService
  */
@@ -84,6 +86,7 @@ public class DoctorCommand implements Callable<Integer> {
 
     @Inject
     CliConfigService configService;
+
 
     @Override
     public Integer call() {
@@ -132,6 +135,30 @@ public class DoctorCommand implements Callable<Integer> {
 
         if (fix && hasFixableIssues) {
             doctorService.runAutoFix(result.entries(), optionalFilter, javaVersion);
+
+            // Recheck after fix
+            System.out.println();
+            System.out.println("Rechecking environment...");
+            System.out.println("==================================");
+            System.out.println();
+
+            EnvironmentResult afterFix = doctorService.checkEnvironmentData();
+            for (CheckEntry entry : afterFix.entries()) {
+                printResult(entry.result());
+            }
+
+            System.out.println();
+            System.out.println("----------------------------------");
+            long fixed = result.failed() - afterFix.failed();
+            long pending = afterFix.failed();
+            System.out.printf("Fix summary: %d fixed, %d still pending%n", Math.max(fixed, 0), pending);
+
+            if (pending > 0) {
+                printFixSuggestions(afterFix.entries());
+            }
+
+            // Update result for the final message below
+            result = afterFix;
         } else if (result.failed() > 0 || dockerNotOk || postgresOutdated) {
             printFixSuggestions(result.entries());
         }
@@ -236,8 +263,8 @@ public class DoctorCommand implements Callable<Integer> {
         Set<String> aptPackages = new LinkedHashSet<>();
         Set<String> dnfPackages = new LinkedHashSet<>();
         Set<String> pacmanPackages = new LinkedHashSet<>();
+        Set<String> zypperPackages = new LinkedHashSet<>();
         Set<String> wingetPackages = new LinkedHashSet<>();
-        Set<String> manualUrls = new LinkedHashSet<>();
 
         for (CheckEntry entry : failed) {
             EnvironmentCheck.FixSuggestion fix = entry.check().getFixSuggestion(os);
@@ -249,8 +276,8 @@ public class DoctorCommand implements Callable<Integer> {
             if (fix.aptPackage() != null) aptPackages.add(fix.aptPackage());
             if (fix.dnfPackage() != null) dnfPackages.add(fix.dnfPackage());
             if (fix.pacmanPackage() != null) pacmanPackages.add(fix.pacmanPackage());
+            if (fix.zypperPackage() != null) zypperPackages.add(fix.zypperPackage());
             if (fix.wingetPackage() != null) wingetPackages.add(fix.wingetPackage());
-            if (fix.manualUrl() != null) manualUrls.add(entry.check().toolName() + ": " + fix.manualUrl());
         }
 
         if (!os.contains("win") && !sdkmanPackages.isEmpty()) {
@@ -258,6 +285,7 @@ public class DoctorCommand implements Callable<Integer> {
             removeJavaMavenPackages(aptPackages);
             removeJavaMavenPackages(dnfPackages);
             removeJavaMavenPackages(pacmanPackages);
+            removeJavaMavenPackages(zypperPackages);
 
             // Override default Java version with --java value
             if (sdkmanPackages.removeIf(pkg -> pkg.startsWith("java "))) {
@@ -280,10 +308,29 @@ public class DoctorCommand implements Callable<Integer> {
             for (String cask : brewCasks) {
                 System.out.println("    brew install --cask " + cask);
             }
-        } else if (os.contains("linux") && !aptPackages.isEmpty()) {
-            System.out.println();
-            System.out.println("  --fix will install via apt:");
-            System.out.println("    sudo apt install " + String.join(" ", aptPackages));
+        } else if (os.contains("linux")) {
+            String linuxPkgManager = detectLinuxPackageManager();
+            if ("apt".equals(linuxPkgManager) && !aptPackages.isEmpty()) {
+                System.out.println();
+                System.out.println("  --fix will install via apt:");
+                System.out.println("    sudo apt install " + String.join(" ", aptPackages));
+            } else if ("dnf".equals(linuxPkgManager) && !dnfPackages.isEmpty()) {
+                System.out.println();
+                System.out.println("  --fix will install via dnf:");
+                System.out.println("    sudo dnf install " + String.join(" ", dnfPackages));
+            } else if ("pacman".equals(linuxPkgManager) && !pacmanPackages.isEmpty()) {
+                System.out.println();
+                System.out.println("  --fix will install via pacman:");
+                System.out.println("    sudo pacman -S --noconfirm " + String.join(" ", pacmanPackages));
+            } else if ("zypper".equals(linuxPkgManager) && !zypperPackages.isEmpty()) {
+                System.out.println();
+                System.out.println("  --fix will install via zypper:");
+                System.out.println("    sudo zypper install -y " + String.join(" ", zypperPackages));
+            } else if (!aptPackages.isEmpty() || !dnfPackages.isEmpty() || !pacmanPackages.isEmpty() || !zypperPackages.isEmpty()) {
+                System.out.println();
+                System.out.println("  --fix will use your detected Linux package manager when available.");
+                System.out.println("  If auto-fix cannot run, install required tools manually and re-run doctor.");
+            }
         } else if (os.contains("win") && !wingetPackages.isEmpty()) {
             // Override default Java winget package with --java value
             if (wingetPackages.removeIf(pkg -> pkg.contains("Temurin") && pkg.contains("JDK"))) {
@@ -479,6 +526,10 @@ public class DoctorCommand implements Callable<Integer> {
         } catch (Exception e) {
             return JsonOutput.printError("JSON_SERIALIZATION", "Failed to serialize JSON", ExitCodes.IO_ERROR);
         }
+    }
+
+    private String detectLinuxPackageManager() {
+        return doctorService.detectLinuxPackageManager();
     }
 
     private Integer printPluginJson(PluginCheckResult result) {

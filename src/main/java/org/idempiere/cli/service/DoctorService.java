@@ -121,6 +121,7 @@ public class DoctorService {
         Set<String> aptPackages = new LinkedHashSet<>();
         Set<String> dnfPackages = new LinkedHashSet<>();
         Set<String> pacmanPackages = new LinkedHashSet<>();
+        Set<String> zypperPackages = new LinkedHashSet<>();
         Set<String> wingetPackages = new LinkedHashSet<>();
 
         for (CheckEntry entry : entries) {
@@ -139,6 +140,7 @@ public class DoctorService {
             if (fix.aptPackage() != null) aptPackages.add(fix.aptPackage());
             if (fix.dnfPackage() != null) dnfPackages.add(fix.dnfPackage());
             if (fix.pacmanPackage() != null) pacmanPackages.add(fix.pacmanPackage());
+            if (fix.zypperPackage() != null) zypperPackages.add(fix.zypperPackage());
             if (fix.wingetPackage() != null) wingetPackages.add(fix.wingetPackage());
         }
 
@@ -159,6 +161,7 @@ public class DoctorService {
             removeJavaMavenPackages(aptPackages);
             removeJavaMavenPackages(dnfPackages);
             removeJavaMavenPackages(pacmanPackages);
+            removeJavaMavenPackages(zypperPackages);
 
             if (!runAutoFixSdkman(sdkmanPackages)) {
                 System.out.println();
@@ -178,7 +181,7 @@ public class DoctorService {
         if (os.contains("mac")) {
             runAutoFixMac(brewPackages, brewCasks, entries, fixDocker);
         } else if (os.contains("linux") || os.contains("nix")) {
-            runAutoFixLinux(aptPackages, dnfPackages, pacmanPackages, entries, fixDocker);
+            runAutoFixLinux(aptPackages, dnfPackages, pacmanPackages, zypperPackages, entries, fixDocker);
         } else if (os.contains("win")) {
             runAutoFixWindows(wingetPackages, entries, fixDocker);
         } else {
@@ -189,43 +192,47 @@ public class DoctorService {
 
     private void runAutoFixMac(Set<String> brewPackages, Set<String> brewCasks,
                                List<CheckEntry> entries, boolean fixDocker) {
+        Integer installExitCode = null;
+
         if (!processRunner.isAvailable("brew")) {
             System.out.println("Homebrew not found. Install it first:");
             System.out.println("  /bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"");
-            return;
-        }
+        } else {
+            int exitCode = 0;
 
-        int exitCode = 0;
+            if (!brewPackages.isEmpty()) {
+                System.out.println("Installing packages with Homebrew...");
+                List<String> command = new ArrayList<>();
+                command.add("brew");
+                command.add("install");
+                command.addAll(brewPackages);
+                // Use no timeout for package installations which can take a long time
+                exitCode = processRunner.runLiveNoTimeout(command.toArray(new String[0]));
+            }
 
-        if (!brewPackages.isEmpty()) {
-            System.out.println("Installing packages with Homebrew...");
-            List<String> command = new ArrayList<>();
-            command.add("brew");
-            command.add("install");
-            command.addAll(brewPackages);
-            // Use no timeout for package installations which can take a long time
-            exitCode = processRunner.runLiveNoTimeout(command.toArray(new String[0]));
-        }
+            for (String cask : brewCasks) {
+                System.out.println("Installing " + cask + " with Homebrew Cask...");
+                // Use no timeout for package installations which can take a long time
+                int caskExit = processRunner.runLiveNoTimeout("brew", "install", "--cask", cask);
+                if (caskExit != 0) exitCode = caskExit;
+            }
 
-        for (String cask : brewCasks) {
-            System.out.println("Installing " + cask + " with Homebrew Cask...");
-            // Use no timeout for package installations which can take a long time
-            int caskExit = processRunner.runLiveNoTimeout("brew", "install", "--cask", cask);
-            if (caskExit != 0) exitCode = caskExit;
+            installExitCode = exitCode;
         }
 
         // Handle Docker daemon if stopped
         CheckEntry dockerEntry = entries.stream()
                 .filter(e -> e.result().tool().equals("Docker"))
                 .findFirst().orElse(null);
-        if (fixDocker && dockerEntry != null && dockerEntry.result().message() != null
-                && dockerEntry.result().message().contains("daemon is not running")) {
+        if (fixDocker && isDockerDaemonNotRunning(dockerEntry)) {
             System.out.println("Starting Docker Desktop...");
             processRunner.runLive("open", "-a", "Docker");
         }
 
         System.out.println();
-        if (exitCode == 0) {
+        if (installExitCode == null) {
+            System.out.println("Fix attempt completed. Run 'idempiere-cli doctor' to verify.");
+        } else if (installExitCode == 0) {
             System.out.println("Installation complete. Run 'idempiere-cli doctor' to verify.");
         } else {
             System.out.println("Some packages may have failed. Check output above.");
@@ -233,59 +240,78 @@ public class DoctorService {
     }
 
     private void runAutoFixLinux(Set<String> aptPackages, Set<String> dnfPackages,
-                                 Set<String> pacmanPackages, List<CheckEntry> entries, boolean fixDocker) {
-        String pkgManager = null;
+                                 Set<String> pacmanPackages, Set<String> zypperPackages,
+                                 List<CheckEntry> entries, boolean fixDocker) {
+        String pkgManager = detectLinuxPackageManager();
         Set<String> packages = null;
-
-        if (processRunner.isAvailable("apt") && !aptPackages.isEmpty()) {
-            pkgManager = "apt";
+        if ("apt".equals(pkgManager) && !aptPackages.isEmpty()) {
             packages = aptPackages;
-        } else if (processRunner.isAvailable("dnf") && !dnfPackages.isEmpty()) {
-            pkgManager = "dnf";
+        } else if ("dnf".equals(pkgManager) && !dnfPackages.isEmpty()) {
             packages = dnfPackages;
-        } else if (processRunner.isAvailable("pacman") && !pacmanPackages.isEmpty()) {
-            pkgManager = "pacman";
+        } else if ("pacman".equals(pkgManager) && !pacmanPackages.isEmpty()) {
             packages = pacmanPackages;
-        }
-
-        if (pkgManager == null || packages == null || packages.isEmpty()) {
-            System.out.println("No packages to install or package manager not detected.");
-            return;
+        } else if ("zypper".equals(pkgManager) && !zypperPackages.isEmpty()) {
+            packages = zypperPackages;
         }
 
         boolean isRoot = isRunningAsRoot();
-        List<String> command = new ArrayList<>();
+        Integer installExitCode = null;
 
-        if (!isRoot) command.add("sudo");
-        command.add(pkgManager);
+        if (pkgManager == null || packages == null || packages.isEmpty()) {
+            System.out.println("No packages to install or package manager not detected.");
+        } else if (!isRoot && !processRunner.isAvailable("sudo")) {
+            System.out.println("Root privileges required but 'sudo' not available.");
+            System.out.println("Run manually as root:");
+            String installCmd = switch (pkgManager) {
+                case "apt" -> "apt install -y " + String.join(" ", packages);
+                case "dnf" -> "dnf install -y " + String.join(" ", packages);
+                case "pacman" -> "pacman -S --noconfirm " + String.join(" ", packages);
+                case "zypper" -> "zypper install -y " + String.join(" ", packages);
+                default -> pkgManager + " install " + String.join(" ", packages);
+            };
+            System.out.println("  " + installCmd);
+        } else {
+            List<String> command = new ArrayList<>();
 
-        switch (pkgManager) {
-            case "apt" -> { command.add("install"); command.add("-y"); }
-            case "dnf" -> { command.add("install"); command.add("-y"); }
-            case "pacman" -> { command.add("-S"); command.add("--noconfirm"); }
+            if (!isRoot) command.add("sudo");
+            command.add(pkgManager);
+
+            switch (pkgManager) {
+                case "apt" -> { command.add("install"); command.add("-y"); }
+                case "dnf" -> { command.add("install"); command.add("-y"); }
+                case "pacman" -> { command.add("-S"); command.add("--noconfirm"); }
+                case "zypper" -> { command.add("install"); command.add("-y"); }
+            }
+            command.addAll(packages);
+
+            System.out.println("Installing packages with " + pkgManager + "...");
+            // Use no timeout for package installations which can take a long time
+            installExitCode = processRunner.runLiveNoTimeout(command.toArray(new String[0]));
         }
-        command.addAll(packages);
-
-        System.out.println("Installing packages with " + pkgManager + "...");
-        // Use no timeout for package installations which can take a long time
-        int exitCode = processRunner.runLiveNoTimeout(command.toArray(new String[0]));
 
         // Handle Docker daemon
         CheckEntry dockerEntry = entries.stream()
                 .filter(e -> e.result().tool().equals("Docker"))
                 .findFirst().orElse(null);
-        if (fixDocker && dockerEntry != null && !dockerEntry.result().isOk()) {
-            System.out.println("Starting Docker daemon...");
-            List<String> startCmd = new ArrayList<>();
-            if (!isRoot) startCmd.add("sudo");
-            startCmd.add("systemctl");
-            startCmd.add("start");
-            startCmd.add("docker");
-            processRunner.runLive(startCmd.toArray(new String[0]));
+        if (fixDocker && isDockerDaemonNotRunning(dockerEntry)) {
+            if (!isRoot && !processRunner.isAvailable("sudo")) {
+                System.out.println("Start Docker manually as root:");
+                System.out.println("  systemctl start docker");
+            } else {
+                System.out.println("Starting Docker daemon...");
+                List<String> startCmd = new ArrayList<>();
+                if (!isRoot) startCmd.add("sudo");
+                startCmd.add("systemctl");
+                startCmd.add("start");
+                startCmd.add("docker");
+                processRunner.runLive(startCmd.toArray(new String[0]));
+            }
         }
 
         System.out.println();
-        if (exitCode == 0) {
+        if (installExitCode == null) {
+            System.out.println("Fix attempt completed. Run 'idempiere-cli doctor' to verify.");
+        } else if (installExitCode == 0) {
             System.out.println("Installation complete. Run 'idempiere-cli doctor' to verify.");
         } else {
             System.out.println("Some packages may have failed. Check output above.");
@@ -293,34 +319,57 @@ public class DoctorService {
     }
 
     private void runAutoFixWindows(Set<String> wingetPackages, List<CheckEntry> entries, boolean fixDocker) {
+        List<String> failedPackages = new ArrayList<>();
+        Integer installExitCode = null;
+
         if (!wingetPackages.isEmpty()) {
             if (!processRunner.isAvailable("winget")) {
                 System.out.println("winget not found. Install from: https://aka.ms/getwinget");
-                return;
-            }
-
-            System.out.println("Installing packages with winget...");
-            List<String> failedPackages = new ArrayList<>();
-            for (String pkg : wingetPackages) {
-                System.out.println("  Installing " + pkg + "...");
-                // Use no timeout for package installations which can take a long time
-                int pkgExitCode = installWithWinget(pkg);
-                if (pkgExitCode != 0) {
-                    failedPackages.add(pkg);
-                }
-            }
-
-            // Check if psql was installed but not in PATH, and fix it
-            addPsqlToPathIfNeeded();
-
-            System.out.println();
-            if (failedPackages.isEmpty()) {
-                System.out.println("Installation complete. Restart your terminal and run 'idempiere-cli doctor' to verify.");
             } else {
-                System.out.println("Some packages failed to install: " + String.join(", ", failedPackages));
-                System.out.println("Check output above and install manually if needed.");
+                System.out.println("Installing packages with winget...");
+                for (String pkg : wingetPackages) {
+                    System.out.println("  Installing " + pkg + "...");
+                    // Use no timeout for package installations which can take a long time
+                    int pkgExitCode = installWithWinget(pkg);
+                    if (pkgExitCode != 0) {
+                        failedPackages.add(pkg);
+                    }
+                }
+
+                // Check if psql was installed but not in PATH, and fix it
+                addPsqlToPathIfNeeded();
+                installExitCode = failedPackages.isEmpty() ? 0 : 1;
             }
         }
+
+        CheckEntry dockerEntry = entries.stream()
+                .filter(e -> e.result().tool().equals("Docker"))
+                .findFirst().orElse(null);
+        if (fixDocker && isDockerDaemonNotRunning(dockerEntry)) {
+            System.out.println("Starting Docker Desktop...");
+            int startExit = processRunner.runLive("powershell", "-NoProfile", "-Command",
+                    "Start-Process 'Docker Desktop'");
+            if (startExit != 0) {
+                System.out.println("Could not start Docker Desktop automatically.");
+                System.out.println("Start it manually and run 'idempiere-cli doctor' again.");
+            }
+        }
+
+        System.out.println();
+        if (installExitCode == null) {
+            System.out.println("Fix attempt completed. Run 'idempiere-cli doctor' to verify.");
+        } else if (installExitCode == 0) {
+            System.out.println("Installation complete. Restart your terminal and run 'idempiere-cli doctor' to verify.");
+        } else {
+            System.out.println("Some packages failed to install: " + String.join(", ", failedPackages));
+            System.out.println("Check output above and install manually if needed.");
+        }
+    }
+
+    private boolean isDockerDaemonNotRunning(CheckEntry dockerEntry) {
+        return dockerEntry != null
+                && dockerEntry.result().message() != null
+                && dockerEntry.result().message().contains("daemon is not running");
     }
 
     private int installWithWinget(String pkg) {
@@ -494,23 +543,42 @@ public class DoctorService {
         boolean isRoot = isRunningAsRoot();
         List<String> command = new ArrayList<>();
 
-        if (processRunner.isAvailable("apt")) {
+        String prereqPkgManager = null;
+        if (processRunner.isAvailable("apt")) prereqPkgManager = "apt";
+        else if (processRunner.isAvailable("dnf")) prereqPkgManager = "dnf";
+        else if (processRunner.isAvailable("pacman")) prereqPkgManager = "pacman";
+        else if (processRunner.isAvailable("zypper")) prereqPkgManager = "zypper";
+
+        if (prereqPkgManager != null && !isRoot && !processRunner.isAvailable("sudo")) {
+            System.out.println("Root privileges required but 'sudo' not available.");
+            System.out.println("Run manually as root:");
+            System.out.println("  " + prereqPkgManager + " install -y " + String.join(" ", missing));
+            return false;
+        }
+
+        if ("apt".equals(prereqPkgManager)) {
             if (!isRoot) command.add("sudo");
             command.add("apt");
             command.add("install");
             command.add("-y");
             command.addAll(missing);
-        } else if (processRunner.isAvailable("dnf")) {
+        } else if ("dnf".equals(prereqPkgManager)) {
             if (!isRoot) command.add("sudo");
             command.add("dnf");
             command.add("install");
             command.add("-y");
             command.addAll(missing);
-        } else if (processRunner.isAvailable("pacman")) {
+        } else if ("pacman".equals(prereqPkgManager)) {
             if (!isRoot) command.add("sudo");
             command.add("pacman");
             command.add("-S");
             command.add("--noconfirm");
+            command.addAll(missing);
+        } else if ("zypper".equals(prereqPkgManager)) {
+            if (!isRoot) command.add("sudo");
+            command.add("zypper");
+            command.add("install");
+            command.add("-y");
             command.addAll(missing);
         } else if (processRunner.isAvailable("brew")) {
             command.add("brew");
@@ -559,7 +627,8 @@ public class DoctorService {
                         || fix.sdkmanPackage() != null;
             } else {
                 canAutoInstall = fix.aptPackage() != null || fix.dnfPackage() != null
-                        || fix.pacmanPackage() != null || fix.sdkmanPackage() != null;
+                        || fix.pacmanPackage() != null || fix.zypperPackage() != null
+                        || fix.sdkmanPackage() != null;
             }
 
             if (!canAutoInstall) {
@@ -583,6 +652,19 @@ public class DoctorService {
                 pkg.contains("openjdk") ||
                 pkg.contains("maven") ||
                 pkg.contains("temurin"));
+    }
+
+    /**
+     * Detects the available Linux package manager.
+     *
+     * @return the package manager name (apt, dnf, pacman, zypper) or null if none found
+     */
+    public String detectLinuxPackageManager() {
+        if (processRunner.isAvailable("apt")) return "apt";
+        if (processRunner.isAvailable("dnf")) return "dnf";
+        if (processRunner.isAvailable("pacman")) return "pacman";
+        if (processRunner.isAvailable("zypper")) return "zypper";
+        return null;
     }
 
     /**

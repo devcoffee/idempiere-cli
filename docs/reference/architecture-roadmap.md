@@ -38,13 +38,11 @@ src/test/java/
 
 ## Extension Direction
 
-The codebase now exposes internal plugin extension points for generation workflows:
+The codebase exposes internal plugin extension points for generation workflows:
 - `plugin/add/AddGenerationPlugin` for optional non-template generation providers
 - `service/skills/SkillsService` abstraction with core fallback implementation
 
 This keeps core commands stable while allowing optional feature modules.
-
-See: [Ecosystem Complementarity Analysis](../strategy/ECOSYSTEM.md)
 
 ## Roadmap (core-focused)
 

@@ -16,6 +16,7 @@ import picocli.CommandLine.Spec;
  * <pre>
  * idempiere-cli generate-completion &gt; ~/.idempiere-cli-completion.bash
  * echo 'source ~/.idempiere-cli-completion.bash' &gt;&gt; ~/.bashrc
+ * source ~/.bashrc  # or restart your terminal
  * </pre>
  *
  * <h2>Installation - Zsh</h2>
@@ -25,6 +26,7 @@ import picocli.CommandLine.Spec;
  * autoload -U +X compinit &amp;&amp; compinit
  * autoload -U +X bashcompinit &amp;&amp; bashcompinit
  * source ~/.idempiere-cli-completion.bash
+ * # Then run: source ~/.zshrc  # or restart your terminal
  * </pre>
  *
  * @see picocli.AutoComplete#bash(String, picocli.CommandLine)
@@ -45,14 +47,23 @@ public class GenerateCompletionCommand implements Runnable {
     public void run() {
         String script = AutoComplete.bash(commandName, spec.root().commandLine());
         System.out.println(script);
+        // Register .exe variant for Windows (Git Bash / MINGW64)
+        System.out.println("# Windows (Git Bash) support");
+        System.out.println("complete -F _complete_" + commandName + " -o default " + commandName + ".exe");
+        String completionFile = "~/." + commandName + "-completion.bash";
         System.err.println();
-        System.err.println("# To enable completion, run:");
-        System.err.println("#   " + commandName + " generate-completion > ~/." + commandName + "-completion.bash");
-        System.err.println("#   echo 'source ~/." + commandName + "-completion.bash' >> ~/.bashrc");
+        System.err.println("# Completion script generated!");
+        System.err.println("# If you haven't already, save it to a file:");
+        System.err.println("#   " + commandName + " generate-completion > " + completionFile);
         System.err.println("#");
-        System.err.println("# For zsh, add to ~/.zshrc:");
+        System.err.println("# Bash - add to ~/.bashrc:");
+        System.err.println("#   echo 'source " + completionFile + "' >> ~/.bashrc");
+        System.err.println("#   source ~/.bashrc  # or restart your terminal");
+        System.err.println("#");
+        System.err.println("# Zsh - add to ~/.zshrc:");
         System.err.println("#   autoload -U +X compinit && compinit");
         System.err.println("#   autoload -U +X bashcompinit && bashcompinit");
-        System.err.println("#   source ~/." + commandName + "-completion.bash");
+        System.err.println("#   source " + completionFile);
+        System.err.println("#   source ~/.zshrc  # or restart your terminal");
     }
 }

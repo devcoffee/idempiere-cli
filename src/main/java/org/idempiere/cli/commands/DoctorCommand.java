@@ -320,9 +320,11 @@ public class DoctorCommand implements Callable<Integer> {
                 System.out.println("  If auto-fix cannot run, install required tools manually and re-run doctor.");
             }
         } else if (os.contains("win") && !wingetPackages.isEmpty()) {
-            // Override default Java winget package with --java value
-            if (wingetPackages.removeIf(pkg -> pkg.contains("Temurin") && pkg.contains("JDK"))) {
-                wingetPackages.add(javaVersion);
+            // Only override winget Java package if --java looks like a winget id (contains '.')
+            if (javaVersion.contains(".")) {
+                if (wingetPackages.removeIf(pkg -> pkg.contains("Temurin") && pkg.contains("JDK"))) {
+                    wingetPackages.add(javaVersion);
+                }
             }
 
             System.out.println();

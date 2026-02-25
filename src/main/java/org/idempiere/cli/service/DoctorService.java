@@ -104,6 +104,11 @@ public class DoctorService {
     @Inject
     Instance<PluginCheck> pluginChecks;
 
+    /** Defines the display order of environment checks. */
+    private static final List<String> CHECK_ORDER = List.of(
+            "Git", "Java", "jar", "Maven", "PostgreSQL", "Docker", "greadlink"
+    );
+
     /**
      * Runs environment checks and returns structured data without printing.
      */
@@ -115,6 +120,14 @@ public class DoctorService {
             CheckResult result = check.check();
             entries.add(new CheckEntry(check, result));
         }
+
+        // Sort by defined order; unknown tools go to the end
+        entries.sort((a, b) -> {
+            int ia = CHECK_ORDER.indexOf(a.result().tool());
+            int ib = CHECK_ORDER.indexOf(b.result().tool());
+            return Integer.compare(ia < 0 ? Integer.MAX_VALUE : ia,
+                                   ib < 0 ? Integer.MAX_VALUE : ib);
+        });
 
         List<CheckResult> results = entries.stream().map(CheckEntry::result).toList();
         return new EnvironmentResult(
@@ -184,8 +197,11 @@ public class DoctorService {
             if (sdkmanPackages.removeIf(pkg -> pkg.startsWith("java "))) {
                 sdkmanPackages.add("java " + javaVersion);
             }
-            if (wingetPackages.removeIf(pkg -> pkg.contains("Temurin") && pkg.contains("JDK"))) {
-                wingetPackages.add(javaVersion);
+            // Only override winget Java package if --java looks like a winget id (contains '.')
+            if (javaVersion.contains(".")) {
+                if (wingetPackages.removeIf(pkg -> pkg.contains("Temurin") && pkg.contains("JDK"))) {
+                    wingetPackages.add(javaVersion);
+                }
             }
         }
 

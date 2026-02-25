@@ -152,7 +152,11 @@ public class DoctorCommand implements Callable<Integer> {
             long pending = afterFix.failed();
             System.out.printf("Fix summary: %d fixed, %d still pending%n", Math.max(fixed, 0), pending);
 
-            if (pending > 0) {
+            if (pending > 0 && fixed >= 0) {
+                System.out.println();
+                System.out.println("Note: Some tools (e.g. Java via SDKMAN or winget) may require");
+                System.out.println("  restarting your terminal to be detected. Close and reopen your");
+                System.out.println("  terminal, then run 'idempiere-cli doctor' to verify.");
                 printFixSuggestions(afterFix.entries());
             }
 

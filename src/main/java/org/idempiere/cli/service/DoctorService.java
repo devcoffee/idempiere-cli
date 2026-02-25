@@ -390,7 +390,7 @@ public class DoctorService {
 
         if (fixDocker && isDockerDaemonNotRunning(findDockerEntry(entries))) {
             System.out.println("Starting Docker Desktop...");
-            int startExit = processRunner.runLive("powershell", "-NoProfile", "-Command",
+            int startExit = processRunner.runLive("powershell.exe", "-NoProfile", "-Command",
                     "Start-Process 'Docker Desktop'");
             if (startExit != 0) {
                 System.out.println("Could not start Docker Desktop automatically.");
@@ -422,24 +422,21 @@ public class DoctorService {
     }
 
     private int installWithWinget(String pkg) {
-        List<String> command = new ArrayList<>();
-        command.add("winget");
-        command.add("install");
-        command.add("--accept-package-agreements");
-        command.add("--accept-source-agreements");
-        command.add("--source");
-        command.add("winget");
+        // Invoke winget via PowerShell, injecting WindowsApps into PATH.
+        // Git Bash/MINGW64 doesn't include WindowsApps in PATH, so winget
+        // (an App Execution Alias) is invisible to subprocesses without this.
+        StringBuilder psCommand = new StringBuilder(
+                "$env:Path += ';' + $env:LOCALAPPDATA + '\\Microsoft\\WindowsApps'; ");
+        psCommand.append("winget install");
+        psCommand.append(" --accept-package-agreements --accept-source-agreements --source winget");
 
         if (pkg.contains(".")) {
-            command.add("--id");
-            command.add(pkg);
-            command.add("--exact");
+            psCommand.append(" --id ").append(pkg).append(" --exact");
         } else {
-            // Keep compatibility for search terms (e.g. custom --java value on Windows).
-            command.add(pkg);
+            psCommand.append(" ").append(pkg);
         }
 
-        return processRunner.runLiveNoTimeout(command.toArray(new String[0]));
+        return processRunner.runLiveNoTimeout("powershell.exe", "-NoProfile", "-Command", psCommand.toString());
     }
 
     /**
@@ -469,7 +466,7 @@ public class DoctorService {
                 "} else { Write-Host 'Already in PATH' }",
                 binDir.replace("\\", "\\\\"), binDir);
 
-        processRunner.runLive("powershell", "-NoProfile", "-Command", psCommand);
+        processRunner.runLive("powershell.exe", "-NoProfile", "-Command", psCommand);
     }
 
     /**

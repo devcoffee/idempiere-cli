@@ -350,11 +350,17 @@ public class ProcessRunner {
             if (exitCode == 0) {
                 return true;
             }
-            // Fallback for Windows
-            pb = new ProcessBuilder("where", command);
-            pb.redirectErrorStream(true);
-            process = pb.start();
-            return process.waitFor() == 0;
+            // Fallback for Windows: check App Execution Aliases directory directly.
+            // Git Bash/MINGW64 PATH doesn't include WindowsApps, so which/where/Get-Command
+            // all fail for aliases like winget even when invoked via cmd.exe or powershell.exe
+            String localAppData = System.getenv("LOCALAPPDATA");
+            if (localAppData != null) {
+                Path aliasPath = Path.of(localAppData, "Microsoft", "WindowsApps", command + ".exe");
+                if (java.nio.file.Files.exists(aliasPath)) {
+                    return true;
+                }
+            }
+            return false;
         } catch (Exception e) {
             return false;
         }

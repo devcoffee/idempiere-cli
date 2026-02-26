@@ -114,8 +114,27 @@ public class SetupDevEnvService {
                     System.err.println("Error: Cannot connect to database at "
                             + config.getDbHost() + ":" + config.getDbPort()
                             + " (user: " + checkUser + ").");
-                    System.err.println("Fix: verify host/port and credentials, or use Docker.");
-                    System.err.println("Try: idempiere-cli setup-dev-env --with-docker");
+                    System.err.println();
+                    System.err.println("Options:");
+                    System.err.println("  1. Use Docker (recommended):");
+                    System.err.println("       idempiere-cli setup-dev-env --with-docker");
+                    String os = System.getProperty("os.name", "").toLowerCase();
+                    if (os.contains("linux")) {
+                        System.err.println("  2. Install PostgreSQL locally:");
+                        System.err.println("       sudo apt install postgresql");
+                        System.err.println("       echo \"alter user postgres password 'YOUR_PASSWORD'\" \\");
+                        System.err.println("         | sudo su postgres -c \"psql -U postgres\"");
+                        System.err.println("       # Edit pg_hba.conf: change 'peer' to 'scram-sha-256'");
+                        System.err.println("       sudo service postgresql reload");
+                        System.err.println("       See: https://wiki.idempiere.org/en/Install_Prerequisites");
+                    } else if (os.contains("mac")) {
+                        System.err.println("  2. Install PostgreSQL locally:");
+                        System.err.println("       brew install postgresql@16 && brew services start postgresql@16");
+                        System.err.println("       See: https://wiki.idempiere.org/en/Install_Prerequisites");
+                    } else {
+                        System.err.println("  2. Verify PostgreSQL is running and credentials are correct");
+                    }
+                    System.err.println("  3. Check host/port and credentials if PostgreSQL is already running");
                     abortSetup("Database not reachable. Aborting.", null);
                     return ExitCodes.STATE_ERROR;
                 }

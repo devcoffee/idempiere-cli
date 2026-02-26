@@ -39,9 +39,13 @@ public class PostgresCheck implements EnvironmentCheck {
                     result = processRunner.run(winPsql, "--version");
                     if (result.exitCode() == 0 && result.output() != null) {
                         String binDir = Path.of(winPsql).getParent().toString();
-                        return parseVersion(result.output(),
-                                " (not in PATH, run: setx PATH \"%PATH%;" + binDir + "\")",
-                                CheckResult.Status.WARN);
+                        // Check if binDir was already added to user PATH in registry
+                        // (e.g. by --fix) but not yet visible in current session
+                        boolean inRegistryPath = isInUserRegistryPath(binDir);
+                        String suffix = inRegistryPath
+                                ? " (restart terminal to update PATH)"
+                                : " (not in PATH, run: setx PATH \"%PATH%;" + binDir + "\")";
+                        return parseVersion(result.output(), suffix, CheckResult.Status.WARN);
                     }
                 }
             }
@@ -104,6 +108,23 @@ public class PostgresCheck implements EnvironmentCheck {
                     .orElse(null);
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    /**
+     * Checks the Windows registry User PATH to see if a directory was already added
+     * (e.g. by --fix) but not yet visible in the current terminal session.
+     */
+    private boolean isInUserRegistryPath(String binDir) {
+        try {
+            ProcessRunner.RunResult result = processRunner.run(
+                    "powershell.exe", "-NoProfile", "-Command",
+                    "[Environment]::GetEnvironmentVariable('Path','User')");
+            return result.exitCode() == 0
+                    && result.output() != null
+                    && result.output().toLowerCase().contains(binDir.toLowerCase());
+        } catch (Exception e) {
+            return false;
         }
     }
 

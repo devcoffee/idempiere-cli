@@ -21,6 +21,7 @@ class InfoCommandTest {
         String output = result.getOutput();
         assertTrue(output.contains("plugin") || output.contains("metadata") || output.contains("info"));
         assertTrue(output.contains("--json"));
+        assertTrue(output.contains("--verbose"));
     }
 
     @Test

@@ -1,9 +1,14 @@
 package org.idempiere.cli.commands;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.inject.Inject;
 import org.idempiere.cli.service.PluginInfoService;
+import org.idempiere.cli.service.PluginInfoService.BuildArtifact;
+import org.idempiere.cli.service.PluginInfoService.ExtensionRegistration;
+import org.idempiere.cli.service.PluginInfoService.ModuleSummary;
+import org.idempiere.cli.service.PluginInfoService.MultiModuleInfo;
 import org.idempiere.cli.service.PluginInfoService.PluginInfo;
 import org.idempiere.cli.service.ProjectDetector;
 import org.idempiere.cli.util.ExitCodes;
@@ -16,27 +21,6 @@ import java.util.concurrent.Callable;
 
 /**
  * Displays plugin metadata and detected components.
- *
- * <p>Extracts and displays information from plugin files:
- * <ul>
- *   <li>Plugin ID (Bundle-SymbolicName)</li>
- *   <li>Version (Bundle-Version)</li>
- *   <li>Vendor (Bundle-Vendor)</li>
- *   <li>Required bundles (Require-Bundle)</li>
- *   <li>Detected components (callouts, processes, forms, etc.)</li>
- * </ul>
- *
- * <h2>Component Detection</h2>
- * <p>Scans source files and OSGI-INF to detect registered components
- * based on annotations and service declarations.
- *
- * <h2>Example Usage</h2>
- * <pre>
- * idempiere-cli info
- * idempiere-cli info --dir=/path/to/plugin
- * </pre>
- *
- * @see PluginInfoService#printInfo(Path)
  */
 @Command(
         name = "info",
@@ -45,11 +29,14 @@ import java.util.concurrent.Callable;
 )
 public class InfoCommand implements Callable<Integer> {
 
-    @Option(names = {"--dir"}, description = "Plugin directory (default: current directory)", defaultValue = ".")
+    @Option(names = {"--dir"}, description = "Plugin directory or multi-module root (default: current directory)", defaultValue = ".")
     String dir;
 
     @Option(names = {"--json"}, description = "Output results as JSON")
     boolean json;
+
+    @Option(names = {"--verbose"}, description = "Show detailed OSGi/build/component sections")
+    boolean verbose;
 
     @Inject
     PluginInfoService pluginInfoService;
@@ -59,47 +46,133 @@ public class InfoCommand implements Callable<Integer> {
 
     @Override
     public Integer call() {
-        Path pluginDir = Path.of(dir);
-        if (!projectDetector.isIdempierePlugin(pluginDir)) {
+        Path inputDir = Path.of(dir).toAbsolutePath().normalize();
+
+        if (projectDetector.isIdempierePlugin(inputDir)) {
+            PluginInfo info = pluginInfoService.getInfo(inputDir);
             if (json) {
-                return JsonOutput.printError("NOT_PLUGIN",
-                        "Not an iDempiere plugin in " + pluginDir.toAbsolutePath(),
-                        ExitCodes.STATE_ERROR);
-            } else {
-                System.err.println("Error: Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
-                System.err.println("Make sure you are inside a plugin directory or use --dir to specify one.");
+                return printPluginJson(info, inputDir);
             }
-            return ExitCodes.STATE_ERROR;
+            pluginInfoService.printInfo(inputDir, verbose);
+            return ExitCodes.SUCCESS;
+        }
+
+        if (projectDetector.isMultiModuleRoot(inputDir)) {
+            MultiModuleInfo info = pluginInfoService.getMultiModuleInfo(inputDir);
+            if (json) {
+                return printMultiModuleJson(info, inputDir);
+            }
+            pluginInfoService.printMultiModuleInfo(inputDir, verbose);
+            return ExitCodes.SUCCESS;
         }
 
         if (json) {
-            return printJson(pluginInfoService.getInfo(pluginDir));
-        } else {
-            pluginInfoService.printInfo(pluginDir);
-            return ExitCodes.SUCCESS;
+            return JsonOutput.printError("NOT_PLUGIN",
+                    "Not an iDempiere plugin or multi-module root in " + inputDir,
+                    ExitCodes.STATE_ERROR);
         }
+
+        System.err.println("Error: Not an iDempiere plugin or multi-module root in " + inputDir);
+        System.err.println("Make sure you are inside a plugin directory or use --dir to specify one.");
+        return ExitCodes.STATE_ERROR;
     }
 
-    private Integer printJson(PluginInfo info) {
+    private Integer printPluginJson(PluginInfo info, Path inputDir) {
         if (info == null) {
-            return JsonOutput.printError("INFO_READ_FAILED", "Failed to read plugin info", ExitCodes.IO_ERROR);
+            return JsonOutput.printError("INFO_READ_FAILED",
+                    "Failed to read plugin info from " + inputDir,
+                    ExitCodes.IO_ERROR);
         }
 
         try {
             ObjectMapper mapper = new ObjectMapper();
             ObjectNode root = mapper.createObjectNode();
+            root.put("projectType", "plugin");
             root.put("pluginId", info.pluginId());
             root.put("version", info.version());
             root.put("vendor", info.vendor());
             if (info.fragmentHost() != null) {
                 root.put("fragmentHost", info.fragmentHost());
             }
+            if (info.javaSe() != null) {
+                root.put("javaSe", info.javaSe());
+            }
+            if (info.idempiereVersion() != null) {
+                root.put("idempiereVersion", info.idempiereVersion());
+            }
 
-            var deps = root.putArray("requiredBundles");
-            info.requiredBundles().forEach(deps::add);
+            ArrayNode required = root.putArray("requiredBundles");
+            info.requiredBundles().forEach(required::add);
 
-            var components = root.putArray("components");
+            ArrayNode imports = root.putArray("importPackages");
+            info.importPackages().forEach(imports::add);
+
+            ArrayNode exports = root.putArray("exportPackages");
+            info.exportPackages().forEach(exports::add);
+
+            ArrayNode ds = root.putArray("dsComponents");
+            info.dsComponents().forEach(ds::add);
+
+            ArrayNode components = root.putArray("components");
             info.components().forEach(components::add);
+
+            ArrayNode extensions = root.putArray("extensions");
+            for (ExtensionRegistration ext : info.extensions()) {
+                ObjectNode node = extensions.addObject();
+                node.put("type", ext.type());
+                node.put("point", ext.point());
+                if (ext.className() != null) {
+                    node.put("className", ext.className());
+                }
+                if (ext.target() != null) {
+                    node.put("target", ext.target());
+                }
+            }
+
+            BuildArtifact artifact = info.buildArtifact();
+            if (artifact != null) {
+                ObjectNode build = root.putObject("buildArtifact");
+                build.put("path", artifact.path());
+                build.put("sizeBytes", artifact.sizeBytes());
+                build.put("modifiedAt", artifact.modifiedAt().toString());
+            }
+
+            System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root));
+            return ExitCodes.SUCCESS;
+        } catch (Exception e) {
+            return JsonOutput.printError("JSON_SERIALIZATION", "Failed to serialize JSON", ExitCodes.IO_ERROR);
+        }
+    }
+
+    private Integer printMultiModuleJson(MultiModuleInfo info, Path inputDir) {
+        if (info == null) {
+            return JsonOutput.printError("INFO_READ_FAILED",
+                    "Failed to read multi-module info from " + inputDir,
+                    ExitCodes.IO_ERROR);
+        }
+
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            ObjectNode root = mapper.createObjectNode();
+            root.put("projectType", "multi-module");
+            root.put("projectName", info.projectName());
+            if (info.idempiereVersion() != null) {
+                root.put("idempiereVersion", info.idempiereVersion());
+            }
+            if (info.javaSe() != null) {
+                root.put("javaSe", info.javaSe());
+            }
+            if (info.baseModule() != null) {
+                root.put("baseModule", info.baseModule());
+            }
+
+            ArrayNode modules = root.putArray("modules");
+            for (ModuleSummary module : info.modules()) {
+                ObjectNode node = modules.addObject();
+                node.put("name", module.name());
+                node.put("type", module.type());
+                node.put("pluginModule", module.pluginModule());
+            }
 
             System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root));
             return ExitCodes.SUCCESS;

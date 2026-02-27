@@ -92,7 +92,16 @@ Show plugin metadata and component overview.
 ```bash
 idempiere-cli info --dir=./plugin
 idempiere-cli info --json --dir=./plugin
+idempiere-cli info --verbose --dir=./plugin
+idempiere-cli info --dir=./my-multi-module-root
 ```
+
+Includes:
+- OSGi surface summary (`Require-Bundle`, `Import-Package`, `Export-Package`)
+- registered `plugin.xml` extensions (when present)
+- DS component declarations (`Service-Component` / `OSGI-INF`)
+- build artifact status from `target/*.jar`
+- multi-module overview when run at project root
 
 ## Deploy & Distribution
 

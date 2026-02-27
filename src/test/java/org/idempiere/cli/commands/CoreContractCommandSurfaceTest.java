@@ -33,7 +33,6 @@ class CoreContractCommandSurfaceTest {
         // Quality/analysis
         assertTrue(output.contains("validate"));
         assertTrue(output.contains("deps"));
-        assertTrue(output.contains("diff-schema"));
         assertTrue(output.contains("info"));
 
         // Delivery

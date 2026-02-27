@@ -11,7 +11,7 @@ A command-line tool for iDempiere plugin engineering, built with [Quarkus](https
 `idempiere-cli` standardizes repetitive iDempiere plugin engineering tasks:
 - environment checks and setup (`doctor`, `setup-dev-env`)
 - scaffolding and component generation (`init`, `add`)
-- quality gates (`validate`, `deps`, `diff-schema`)
+- quality gates (`validate`, `deps`, `info`)
 - delivery (`build`, `deploy`, `package`, `migrate`)
 
 It complements iDempiere runtime/Application Dictionary tooling; it does not replace them.

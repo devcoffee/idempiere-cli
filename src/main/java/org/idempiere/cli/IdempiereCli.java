@@ -10,7 +10,6 @@ import org.idempiere.cli.commands.ConfigCommand;
 import org.idempiere.cli.commands.DeployCommand;
 import org.idempiere.cli.commands.DepsCommand;
 import org.idempiere.cli.commands.DistCommand;
-import org.idempiere.cli.commands.DiffSchemaCommand;
 import org.idempiere.cli.commands.DoctorCommand;
 import org.idempiere.cli.commands.GenerateCompletionCommand;
 import org.idempiere.cli.commands.ImportWorkspaceCommand;
@@ -40,7 +39,6 @@ import picocli.CommandLine.Command;
                 MigrateCommand.class,
                 DepsCommand.class,
                 DistCommand.class,
-                DiffSchemaCommand.class,
                 ConfigCommand.class,
                 ImportWorkspaceCommand.class,
                 SkillsCommand.class,

@@ -86,13 +86,6 @@ idempiere-cli deps --dir=./plugin
 idempiere-cli deps --json --dir=./plugin
 ```
 
-### `diff-schema`
-Compare model classes against database metadata.
-
-```bash
-idempiere-cli diff-schema --table=C_Order --dir=./plugin
-```
-
 ### `info`
 Show plugin metadata and component overview.
 

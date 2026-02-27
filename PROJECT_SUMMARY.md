@@ -49,8 +49,7 @@
                 │  MigrateCommand           │  MigrateService
                 │  DepsCommand              │  ValidateService
                 │  PackageCommand           │  CliConfigService
-                │  DiffSchemaCommand        │  InteractivePromptService
-                │  InfoCommand              │
+                │  InfoCommand              │  InteractivePromptService
                 │  ValidateCommand          │
                 │  UpgradeCommand           │
                 │  GenerateCompletionCommand│
@@ -109,7 +108,6 @@ src/main/java/org/idempiere/cli/
 │   ├── MigrateCommand.java
 │   ├── DepsCommand.java
 │   ├── PackageCommand.java
-│   ├── DiffSchemaCommand.java
 │   ├── InfoCommand.java
 │   ├── ValidateCommand.java
 │   ├── UpgradeCommand.java
@@ -176,7 +174,6 @@ src/test/java/                     # 31 test files
 | `migrate` | Version migration (v12↔v13) | ✅ Complete |
 | `deps` | Dependency analysis | ✅ Complete |
 | `package --format=zip/p2` | Package for distribution | ✅ Complete |
-| `diff-schema` | Model vs DB comparison | ✅ Complete |
 | `info` | Display plugin metadata | ✅ Complete |
 | `validate` | Validate plugin structure | ✅ Complete |
 | `upgrade` | Self-update from GitHub | ✅ Complete |

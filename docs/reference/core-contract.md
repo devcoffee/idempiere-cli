@@ -44,7 +44,6 @@ Scaffolding:
 Quality and analysis:
 - `validate`
 - `deps`
-- `diff-schema`
 - `info`
 
 Delivery:

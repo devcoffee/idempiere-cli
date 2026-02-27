@@ -1,6 +1,6 @@
 ---
 name: idempiere-cli-validate-analyze
-description: Validate, inspect, and analyze iDempiere plugins using idempiere-cli. Use when the user wants to check plugin structure, view metadata, analyze dependencies, or compare schema.
+description: Validate, inspect, and analyze iDempiere plugins using idempiere-cli. Use when the user wants to check plugin structure, view metadata, or analyze dependencies.
 ---
 
 # iDempiere CLI - Validate and Analyze
@@ -14,7 +14,6 @@ This skill guides you through validating and analyzing iDempiere plugins using `
 | `validate`    | Check plugin structure and configuration |
 | `info`        | Show plugin metadata and components      |
 | `deps`        | Analyze plugin dependencies              |
-| `diff-schema` | Compare model classes against database   |
 
 ## Validate - Plugin Structure Check
 
@@ -111,48 +110,6 @@ idempiere-cli deps --json
 - **Missing bundles**: Dependencies found in imports but not in MANIFEST.MF
 - **Unused bundles**: Bundles in MANIFEST.MF not referenced by any import
 
-## Diff-Schema - Database Schema Comparison
-
-Compares model classes (I\_/X\_ generated classes) against the actual database schema.
-
-```bash
-# Compare all model classes against database
-idempiere-cli diff-schema \
-  --db-host=localhost \
-  --db-port=5432 \
-  --db-name=idempiere \
-  --db-user=adempiere \
-  --db-pass=adempiere
-
-# Compare specific table only
-idempiere-cli diff-schema --table=C_Order \
-  --db-host=localhost \
-  --db-name=idempiere \
-  --db-user=adempiere \
-  --db-pass=adempiere
-
-# Use configuration file
-idempiere-cli diff-schema --config=~/.idempiere-cli.yaml
-```
-
-### What diff-schema detects
-
-- **Missing columns**: Column exists in database but not in model class
-- **Extra columns**: Column exists in model class but not in database
-- **Type mismatches**: Column type in model doesn't match database type
-
-### Diff-Schema Options
-
-| Option       | Default    | Description             |
-|--------------|------------|-------------------------|
-| `--table`    | (all)      | Specific table to check |
-| `--db-host`  | localhost  | Database host           |
-| `--db-port`  | 5432       | Database port           |
-| `--db-name`  | idempiere  | Database name           |
-| `--db-user`  | adempiere  | Database user           |
-| `--db-pass`  | adempiere  | Database password       |
-| `--config`   | -          | Configuration file path |
-
 ## Complete Analysis Example
 
 ```bash
@@ -166,15 +123,10 @@ idempiere-cli info
 
 # 3. Check for missing/unused dependencies
 idempiere-cli deps
-
-# 4. Verify model classes match database
-idempiere-cli diff-schema --db-host=localhost --db-name=idempiere \
-  --db-user=adempiere --db-pass=adempiere
 ```
 
 ## Notes
 
 - All analysis commands work on the current directory by default.
 - JSON output (`--json`) is available for most commands, useful for CI/CD pipelines and scripting.
-- `diff-schema` requires a running database connection.
 - `validate` is recommended before every `deploy` to catch configuration issues early.

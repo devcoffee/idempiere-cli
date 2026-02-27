@@ -80,5 +80,4 @@ idempiere-cli dist --dir ./orderext --skip-build   # if already built
 ```bash
 idempiere-cli deps --dir ./orderext/org.mycompany.orderext.base
 idempiere-cli info --dir ./orderext/org.mycompany.orderext.base
-idempiere-cli diff-schema --table=C_Order --dir ./orderext/org.mycompany.orderext.base
 ```

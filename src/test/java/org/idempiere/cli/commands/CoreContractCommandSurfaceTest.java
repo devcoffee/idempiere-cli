@@ -37,9 +37,7 @@ class CoreContractCommandSurfaceTest {
         assertTrue(output.contains("info"));
 
         // Delivery
-        assertTrue(output.contains("build"));
         assertTrue(output.contains("deploy"));
-        assertTrue(output.contains("package"));
         assertTrue(output.contains("migrate"));
         assertTrue(output.contains("dist"));
 

@@ -43,7 +43,7 @@ idempiere-cli setup-dev-env --with-docker
 
 # 3) Create and build first plugin
 idempiere-cli init org.mycompany.myplugin
-idempiere-cli build --dir ./myplugin/org.mycompany.myplugin.base
+cd myplugin && ./mvnw verify
 ```
 
 ## Build

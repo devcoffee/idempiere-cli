@@ -101,19 +101,7 @@ idempiere-cli info --dir=./plugin
 idempiere-cli info --json --dir=./plugin
 ```
 
-## Build, Deploy, Package
-
-### `build`
-Compile plugin module with Maven/Tycho.
-
-If `--dir` points to a multi-module root, CLI resolves the primary `.base` module automatically.
-
-```bash
-idempiere-cli build --dir=./plugin --clean
-idempiere-cli build --dir=./plugin --skip-tests
-idempiere-cli build --dir=./plugin --idempiere-home=/opt/idempiere
-idempiere-cli build --dir=./multi-module-root
-```
+## Deploy & Distribution
 
 ### `deploy`
 Deploy built JAR to iDempiere instance.
@@ -126,16 +114,6 @@ idempiere-cli deploy --dir=./plugin --target=/opt/idempiere --hot
 idempiere-cli deploy --dir=./multi-module-root --target=/opt/idempiere
 ```
 
-### `package`
-Create distribution artifacts.
-
-```bash
-idempiere-cli package --dir=./plugin --format=zip
-
-cd ./multi-module-root
-idempiere-cli package --format=p2
-```
-
 ### `migrate`
 Migrate plugin between iDempiere platform versions.
 
@@ -144,10 +122,28 @@ idempiere-cli migrate --from=12 --to=13 --dir=./plugin
 ```
 
 ### `dist`
-Create iDempiere server distributions.
+Create distribution packages for iDempiere core or plugins.
+
+Auto-detects project type (core source vs plugin) and produces appropriate artifacts:
+- **Core**: per-platform server ZIPs + checksums (Jenkins/SourceForge format)
+- **Plugin (multi-module)**: plugin JAR ZIP + p2 repository ZIP + checksums
+- **Plugin (standalone)**: plugin JAR ZIP + checksums
 
 ```bash
+# Core: build and create server distribution ZIPs
 idempiere-cli dist --source-dir=./idempiere --output=./dist
+
+# Core: skip build, just repackage existing artifacts
+idempiere-cli dist --source-dir=./idempiere --skip-build
+
+# Core: full clean build with custom version label
+idempiere-cli dist --source-dir=./idempiere --clean --version-label=13
+
+# Plugin: build and package (auto-detects multi-module or standalone)
+idempiere-cli dist --dir=./my-plugin
+
+# Plugin: skip build, just package existing artifacts
+idempiere-cli dist --dir=./my-plugin --skip-build
 ```
 
 ## Utilities

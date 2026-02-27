@@ -307,39 +307,6 @@ clear_stale_tycho_lock() {
   echo "Removed stale Tycho lock: ${lock_file}"
 }
 
-build_base_module_with_cli() {
-  local module_dir="$1"
-  local rc=0
-  local attempt=1
-  local output=""
-
-  while [ "${attempt}" -le 2 ]; do
-    if [ -n "${MAVEN_REPO_ARG}" ]; then
-      output="$(run_cli build --dir="${module_dir}" --disable-p2-mirrors --maven-args="${MAVEN_REPO_ARG}" 2>&1)"
-    else
-      output="$(run_cli build --dir="${module_dir}" --disable-p2-mirrors 2>&1)"
-    fi
-    rc=$?
-    printf "%s\n" "${output}"
-
-    if [ "${rc}" -eq 0 ]; then
-      return 0
-    fi
-
-    if printf "%s\n" "${output}" | grep -q "Could not acquire lock on file"; then
-      clear_stale_tycho_lock
-      echo "Transient Maven lock timeout detected (attempt ${attempt}); retrying in 5s..."
-      sleep 5
-      attempt=$((attempt + 1))
-      continue
-    fi
-
-    return "${rc}"
-  done
-
-  return "${rc}"
-}
-
 list_subcommands_for_path() {
   local help_output=""
   if ! help_output="$(run_cli "$@" --help 2>/dev/null)"; then
@@ -656,7 +623,7 @@ if [ "${RUN_SETUP_DEV_ENV_FULL}" = "1" ]; then
       echo
       echo "## Abort"
       echo
-      echo "- setup-dev-env full failed; downstream deterministic/build/package/deploy phases were skipped to avoid cascade failures."
+      echo "- setup-dev-env full failed; downstream deterministic/build/dist/deploy phases were skipped to avoid cascade failures."
       echo "- Root cause log: \`${REPORT_DIR}/setup_dev_env_full_docker_rest_profile.log\`"
     } >> "${INDEX_FILE}"
 
@@ -666,7 +633,7 @@ fi
 
 if [ "${ABORT_AFTER_SETUP_FULL_FAILURE}" != "1" ]; then
   run_step "Deterministic phase header" \
-    "echo \"Running deterministic developer flow (init -> validate -> build -> package -> deploy)...\""
+    "echo \"Running deterministic developer flow (init -> validate -> verify -> dist -> deploy)...\""
 
   run_step "Init non-interactive multi-module" \
     "( cd \"${WORK_DIR}\" && run_cli init \"${PLUGIN_ID}\" --name=\"${PROJECT_NAME}\" --no-interactive --with-callout --with-test --with-fragment --with-feature )"
@@ -691,7 +658,7 @@ if [ "${ABORT_AFTER_SETUP_FULL_FAILURE}" != "1" ]; then
 
   if [ "${RUN_BUILD_PIPELINE}" = "1" ] && [ ! -d "${IDEMPIERE_P2_REPO}" ]; then
     run_step "Build pipeline prerequisites" \
-      "echo \"Skipping build/package/deploy: missing iDempiere p2 repository at ${IDEMPIERE_P2_REPO}. Run with RUN_SETUP_DEV_ENV_FULL=1 to include build pipeline steps.\""
+      "echo \"Skipping verify/dist/deploy: missing iDempiere p2 repository at ${IDEMPIERE_P2_REPO}. Run with RUN_SETUP_DEV_ENV_FULL=1 to include build pipeline steps.\""
     RUN_BUILD_PIPELINE="0"
   fi
 
@@ -699,14 +666,8 @@ if [ "${ABORT_AFTER_SETUP_FULL_FAILURE}" != "1" ]; then
     run_step "Build with plugin mvnw" \
       "( cd \"${PLUGIN_ROOT}\" && build_multimodule_verify )"
 
-    run_step "Build command at project root" \
-      "build_base_module_with_cli \"${PLUGIN_ROOT}\""
-
-    run_step "Package zip" \
-      "run_cli package --dir=\"${PLUGIN_ROOT}\" --format=zip --output=dist-smoke"
-
-    run_step "Package p2" \
-      "run_cli package --dir=\"${PLUGIN_ROOT}\" --format=p2 --output=dist-smoke"
+    run_step "Dist at project root" \
+      "run_cli dist --dir=\"${PLUGIN_ROOT}\" --output=dist-smoke --skip-build"
 
     run_step "Deploy copy at project root" \
       "mkdir -p \"${DEPLOY_TARGET_HOME}/plugins\" && run_cli deploy --dir=\"${PLUGIN_ROOT}\" --target=\"${DEPLOY_TARGET_HOME}\""
@@ -714,7 +675,7 @@ if [ "${ABORT_AFTER_SETUP_FULL_FAILURE}" != "1" ]; then
 
   if [ "${RUN_STANDALONE_MATRIX}" = "1" ]; then
     run_step "Standalone phase header" \
-      "echo \"Running standalone plugin flow (init -> add -> validate -> build -> package -> deploy)...\""
+      "echo \"Running standalone plugin flow (init -> add -> validate -> verify -> dist -> deploy)...\""
 
     run_step "Init standalone plugin" \
       "( cd \"${WORK_DIR}\" && run_cli init \"${STANDALONE_PLUGIN_ID}\" --name=\"${STANDALONE_PROJECT_NAME}\" --standalone --no-interactive )"
@@ -729,11 +690,11 @@ if [ "${ABORT_AFTER_SETUP_FULL_FAILURE}" != "1" ]; then
       "run_cli validate --strict \"${STANDALONE_ROOT}\""
 
     if [ "${RUN_BUILD_PIPELINE}" = "1" ]; then
-      run_step "Standalone build" \
-        "build_base_module_with_cli \"${STANDALONE_ROOT}\""
+      run_step "Standalone build with mvnw" \
+        "( cd \"${STANDALONE_ROOT}\" && build_multimodule_verify )"
 
-      run_step "Standalone package zip" \
-        "run_cli package --dir=\"${STANDALONE_ROOT}\" --format=zip --output=dist-standalone-smoke"
+      run_step "Standalone dist" \
+        "run_cli dist --dir=\"${STANDALONE_ROOT}\" --output=dist-standalone-smoke --skip-build"
 
       run_step "Standalone deploy copy" \
         "mkdir -p \"${DEPLOY_TARGET_HOME_STANDALONE}/plugins\" && run_cli deploy --dir=\"${STANDALONE_ROOT}\" --target=\"${DEPLOY_TARGET_HOME_STANDALONE}\""

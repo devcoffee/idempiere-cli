@@ -142,7 +142,7 @@ idempiere-cli add callout MyNewCallout --prompt="Validate order total against cr
 idempiere-cli add process MyBatchProcess
 
 # Build the plugin
-idempiere-cli build --idempiere-home=/path/to/idempiere
+./mvnw verify
 
 # Validate before deployment
 idempiere-cli validate

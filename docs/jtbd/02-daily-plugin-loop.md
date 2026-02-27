@@ -47,10 +47,11 @@ idempiere-cli validate --strict ./orderext/org.mycompany.orderext.base
 ## 4. Build
 
 ```bash
-idempiere-cli build --dir ./orderext/org.mycompany.orderext.base --clean
+cd orderext
+./mvnw verify       # or: ./mvnw clean verify
 ```
 
-Note: in multi-module projects, you can also run from root (`--dir ./orderext`) and CLI resolves the `.base` module automatically.
+Note: in multi-module projects, run from the project root.
 
 ## 5. Deploy
 
@@ -67,19 +68,11 @@ Hot deploy:
 idempiere-cli deploy --dir ./orderext/org.mycompany.orderext.base --target /opt/idempiere --hot
 ```
 
-## 6. Package
-
-ZIP:
+## 6. Package for Distribution
 
 ```bash
-idempiere-cli package --dir ./orderext/org.mycompany.orderext.base --format=zip
-```
-
-P2 (run from multi-module root):
-
-```bash
-cd orderext
-idempiere-cli package --format=p2
+idempiere-cli dist --dir ./orderext
+idempiere-cli dist --dir ./orderext --skip-build   # if already built
 ```
 
 ## Optional Diagnostics

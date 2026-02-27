@@ -6,7 +6,6 @@ package org.idempiere.cli;
  */
 import io.quarkus.picocli.runtime.annotations.TopCommand;
 import org.idempiere.cli.commands.AddCommand;
-import org.idempiere.cli.commands.BuildCommand;
 import org.idempiere.cli.commands.ConfigCommand;
 import org.idempiere.cli.commands.DeployCommand;
 import org.idempiere.cli.commands.DepsCommand;
@@ -18,7 +17,6 @@ import org.idempiere.cli.commands.ImportWorkspaceCommand;
 import org.idempiere.cli.commands.InfoCommand;
 import org.idempiere.cli.commands.InitCommand;
 import org.idempiere.cli.commands.MigrateCommand;
-import org.idempiere.cli.commands.PackageCommand;
 import org.idempiere.cli.commands.SetupDevEnvCommand;
 import org.idempiere.cli.commands.SkillsCommand;
 import org.idempiere.cli.commands.UpgradeCommand;
@@ -38,11 +36,9 @@ import picocli.CommandLine.Command;
                 AddCommand.class,
                 InfoCommand.class,
                 ValidateCommand.class,
-                BuildCommand.class,
                 DeployCommand.class,
                 MigrateCommand.class,
                 DepsCommand.class,
-                PackageCommand.class,
                 DistCommand.class,
                 DiffSchemaCommand.class,
                 ConfigCommand.class,

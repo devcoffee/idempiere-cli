@@ -14,14 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class CommandExitCodeContractTest {
 
     @Test
-    @Launch(value = {"package"}, exitCode = 3)
-    void testPackageReturnsStateErrorOutsidePlugin(LaunchResult result) {
-        assertEquals(3, result.exitCode());
-        assertTrue(result.getErrorOutput().contains("Not an iDempiere plugin"));
-        assertTrue(result.getErrorOutput().contains("How to resolve"));
-    }
-
-    @Test
     @Launch(value = {"diff-schema", "--table=C_Order"}, exitCode = 3)
     void testDiffSchemaReturnsStateErrorOutsidePlugin(LaunchResult result) {
         assertEquals(3, result.exitCode());

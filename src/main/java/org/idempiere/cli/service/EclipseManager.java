@@ -509,10 +509,11 @@ public class EclipseManager {
             // Download using wget (same as setup.sh) or curl as fallback
             System.out.println("  Downloading: " + fileName);
             int exitCode;
+            // Use no timeout for large downloads (~570MB)
             if (processRunner.isAvailable("wget")) {
-                exitCode = processRunner.runLive("wget", "-q", "--show-progress", downloadUrl, "-O", archiveFile.toString());
+                exitCode = processRunner.runLiveNoTimeout("wget", "-q", "--show-progress", downloadUrl, "-O", archiveFile.toString());
             } else {
-                exitCode = processRunner.runLive("curl", "-L", "-o", archiveFile.toString(), "-#", downloadUrl);
+                exitCode = processRunner.runLiveNoTimeout("curl", "-L", "-o", archiveFile.toString(), "-#", downloadUrl);
             }
 
             if (exitCode != 0) {
@@ -532,12 +533,12 @@ public class EclipseManager {
                 String extractTarget = os.contains("mac")
                         ? config.getEclipseDir().toString()
                         : downloadDir.toString();
-                exitCode = processRunner.runLive(
+                exitCode = processRunner.runLiveNoTimeout(
                         "tar", "xzf", archiveFile.toString(),
                         "-C", extractTarget
                 );
             } else if (fileName.endsWith(".zip")) {
-                exitCode = processRunner.runLive(
+                exitCode = processRunner.runLiveNoTimeout(
                         "unzip", "-q", archiveFile.toString(),
                         "-d", downloadDir.toString()
                 );

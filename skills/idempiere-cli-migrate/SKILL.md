@@ -66,7 +66,7 @@ cd org.mycompany.myplugin
 idempiere-cli migrate --from=12 --to=13
 
 # Rebuild with new Java version
-idempiere-cli build --clean
+./mvnw clean verify
 
 # Validate the migrated plugin
 idempiere-cli validate
@@ -82,7 +82,7 @@ git checkout -b release-12
 idempiere-cli migrate --from=13 --to=12
 
 # Build and test
-idempiere-cli build --clean
+./mvnw clean verify
 ```
 
 ## Notes

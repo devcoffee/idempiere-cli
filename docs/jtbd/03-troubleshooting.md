@@ -80,39 +80,39 @@ Symptom:
 Fix:
 
 ```bash
-idempiere-cli build --dir /path/to/plugin
+cd /path/to/plugin
+./mvnw verify
 ```
 
-Then retry `deploy` or `package`.
+Then retry `deploy` or `dist`.
 
-## p2 packaging fails
+## p2 repository not found
 
 Symptom:
-- `p2 format requires a multi-module project structure`
-- `No .p2 module found`
-- `p2 repository not found at ...`
+- `p2 repository not found`
 
 Fix:
 - ensure project was created as multi-module (`init` without `--standalone`)
-- run build before package
+- run build before dist
 
 ```bash
 cd /path/to/multi-module-root
-idempiere-cli build --dir ./<base-plugin-module>
-idempiere-cli package --format=p2
+./mvnw verify
+idempiere-cli dist --dir . --skip-build
 ```
 
 ## Build fails and output is truncated
 
 Symptom:
-- build command fails with summary only
+- dist/build command fails with summary only
 
 Fix:
-- inspect the session log path printed by setup/build flow
-- rerun with Maven debug args if needed:
+- inspect the session log path printed by the dist flow
+- rerun Maven directly with debug flags:
 
 ```bash
-idempiere-cli build --dir /path/to/plugin -A="-X -e"
+cd /path/to/plugin
+./mvnw verify -X -e
 ```
 
 ## AI generation created code but build fails

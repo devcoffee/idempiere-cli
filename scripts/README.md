@@ -123,10 +123,10 @@ CLI_MODE=auto ./scripts/run-cli-prebuild-smoke.sh
 - `EXPECTED_FAILURE_STEPS` default: empty; semicolon-separated step names treated as expected failure (`XFAIL`)
 - `HELP_MATRIX_ACCEPT_EXIT2_PATHS` default: fixed allowlist of command paths that may legitimately return exit `2` for `--help`
 - `SMOKE_FAIL_ON_REGRESSION` default: `0`; when `1`, script exits non-zero if any unexpected failure (`FAIL`) occurs
-- `RUN_BUILD_PIPELINE` default: `1`; when `0`, skips build/package/deploy steps even if p2 repository exists
+- `RUN_BUILD_PIPELINE` default: `1`; when `0`, skips verify/dist/deploy steps even if p2 repository exists
 
 Fail-fast behavior:
-- if `RUN_SETUP_DEV_ENV_FULL=1` and that step fails, the script aborts downstream deterministic/build/package/deploy phases
+- if `RUN_SETUP_DEV_ENV_FULL=1` and that step fails, the script aborts downstream deterministic/build/dist/deploy phases
 - this keeps one root failure in the report instead of a cascade of derived failures
 
 ### Setup-dev-env examples
@@ -176,7 +176,7 @@ CLI_MODE=jar RUN_AI_STEPS=1 AI_BLOCKING=1 ./scripts/run-cli-prebuild-smoke.sh
 Mark known issues as expected failures (without hiding real regressions):
 
 ```bash
-EXPECTED_FAILURE_STEPS="Build with plugin mvnw;Build command at project root;Package zip;Package p2;Deploy copy at project root" \
+EXPECTED_FAILURE_STEPS="Build with plugin mvnw;Dist at project root;Deploy copy at project root" \
 CLI_MODE=jar ./scripts/run-cli-prebuild-smoke.sh
 ```
 
@@ -207,7 +207,7 @@ CLI_MODE=jar RUN_AI_STEPS=1 ./scripts/run-cli-prebuild-smoke.sh
 - This script is a **developer smoke harness**. It does not replace CI.
 - The script executes in a natural developer order first, then runs the full command matrix as a coverage pass.
 - Core flow is designed to be deterministic; failures should indicate an actionable regression or environment issue.
-- If full setup is not enabled and p2 repository is missing, build/package/deploy steps are skipped by design.
+- If full setup is not enabled and p2 repository is missing, verify/dist/deploy steps are skipped by design.
 - First run with isolated Maven repo may download dependencies again; expect longer runtime and required network access.
 - Use `reports/index.md` + step logs for triage.
 - The command matrix uses `--help` only (safe, no side effects). It does not run `doctor --fix` or `doctor --fix-optional`.

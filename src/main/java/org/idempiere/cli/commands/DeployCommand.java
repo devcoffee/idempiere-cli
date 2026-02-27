@@ -67,6 +67,7 @@ public class DeployCommand implements Callable<Integer> {
 
     @Override
     public Integer call() {
+        boolean isWindows = System.getProperty("os.name", "").toLowerCase().contains("win");
         Path inputDir = Path.of(dir).toAbsolutePath().normalize();
         var pluginDirOpt = projectDetector.resolvePluginDirectory(inputDir);
         if (pluginDirOpt.isEmpty()) {
@@ -84,10 +85,11 @@ public class DeployCommand implements Callable<Integer> {
 
         Optional<Path> jar = deployService.findBuiltJar(pluginDir);
         if (jar.isEmpty()) {
+            String buildCmd = isWindows ? "mvnw.cmd verify" : "./mvnw verify";
             System.err.println("Error: No built .jar found in target/");
-            System.err.println("Run 'idempiere-cli build' first.");
+            System.err.println("Run '" + buildCmd + "' first to build the plugin.");
             Troubleshooting.printHowToResolve(
-                    "Build the plugin: idempiere-cli build --dir " + pluginDir.toAbsolutePath(),
+                    "Build the plugin: cd " + pluginDir.toAbsolutePath() + " && " + buildCmd,
                     "Retry deploy after confirming target/*.jar exists."
             );
             return ExitCodes.STATE_ERROR;

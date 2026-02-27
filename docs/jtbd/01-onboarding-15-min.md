@@ -63,14 +63,14 @@ idempiere-cli init org.mycompany.myplugin
 
 ```bash
 idempiere-cli validate ./myplugin/org.mycompany.myplugin.base
-idempiere-cli build --dir ./myplugin/org.mycompany.myplugin.base
+cd myplugin && ./mvnw verify
 ```
 
-For standalone projects, run `validate`/`build` directly in the plugin directory.
+For standalone projects, run `validate` directly in the plugin directory.
 
 ## Done Checklist
 
 - `doctor` shows required tools as available
 - `init` generated plugin structure
 - `validate` returns success
-- `build` produced a JAR in `target/`
+- `./mvnw verify` produced a JAR in `target/`

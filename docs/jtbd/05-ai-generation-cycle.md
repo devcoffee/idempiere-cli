@@ -84,7 +84,7 @@ Use this to fix missing or unused `Require-Bundle` entries before build/deploy.
 ## 7. Build and Deploy
 
 ```bash
-idempiere-cli build --dir ./orderext/org.mycompany.orderext.base
+cd orderext && ./mvnw verify
 idempiere-cli deploy --dir ./orderext/org.mycompany.orderext.base --target /opt/idempiere --hot
 ```
 
@@ -103,5 +103,5 @@ Keep changes small per iteration to isolate regressions.
 ```bash
 idempiere-cli validate --strict ./orderext/org.mycompany.orderext.base \
 && idempiere-cli deps --dir ./orderext/org.mycompany.orderext.base \
-&& idempiere-cli build --dir ./orderext/org.mycompany.orderext.base --clean
+&& cd orderext && ./mvnw clean verify
 ```

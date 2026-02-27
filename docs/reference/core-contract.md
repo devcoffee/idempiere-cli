@@ -48,9 +48,7 @@ Quality and analysis:
 - `info`
 
 Delivery:
-- `build`
 - `deploy`
-- `package`
 - `migrate`
 - `dist`
 

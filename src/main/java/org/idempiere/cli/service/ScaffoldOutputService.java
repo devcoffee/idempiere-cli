@@ -33,24 +33,24 @@ public class ScaffoldOutputService {
         System.out.println();
         System.out.println("Structure:");
         System.out.println("  " + descriptor.getProjectName() + "/");
-        System.out.println("  ├── " + descriptor.getPluginId() + ".parent/    (Maven parent)");
-        System.out.println("  ├── " + descriptor.getBasePluginId() + "/    (Main plugin)");
+        System.out.println("  +-- " + descriptor.getPluginId() + ".parent/    (Maven parent)");
+        System.out.println("  +-- " + descriptor.getBasePluginId() + "/    (Main plugin)");
         if (descriptor.isWithTest()) {
-            System.out.println("  ├── " + descriptor.getBasePluginId() + ".test/    (Tests)");
+            System.out.println("  +-- " + descriptor.getBasePluginId() + ".test/    (Tests)");
         }
         if (descriptor.isWithFragment()) {
-            System.out.println("  ├── " + descriptor.getPluginId() + ".fragment/    (Fragment)");
+            System.out.println("  +-- " + descriptor.getPluginId() + ".fragment/    (Fragment)");
         }
         if (descriptor.isWithFeature()) {
-            System.out.println("  ├── " + descriptor.getPluginId() + ".feature/    (Feature)");
+            System.out.println("  +-- " + descriptor.getPluginId() + ".feature/    (Feature)");
         }
-        System.out.println("  └── " + descriptor.getPluginId() + ".p2/    (P2 repository)");
+        System.out.println("  +-- " + descriptor.getPluginId() + ".p2/    (P2 repository)");
         System.out.println();
         printSharedNextSteps(descriptor);
         System.out.println("To package for distribution:");
         System.out.println("  ./mvnw verify    (JAR will be in p2/target/repository/)");
         System.out.println();
-        System.out.println("Tip: Use 'idempiere-cli add <component>' for AI-powered code generation.");
+        System.out.println("Tip: Use 'idempiere-cli add <component>' to add callouts, processes, forms, etc.");
         System.out.println();
     }
 
@@ -59,22 +59,25 @@ public class ScaffoldOutputService {
         System.out.println("Plugin created successfully!");
         System.out.println();
         printSharedNextSteps(descriptor);
-        System.out.println("Tip: Use 'idempiere-cli add <component>' for AI-powered code generation.");
+        System.out.println("Tip: Use 'idempiere-cli add <component>' to add callouts, processes, forms, etc.");
         System.out.println();
     }
 
     private void printSharedNextSteps(PluginDescriptor descriptor) {
         System.out.println("Next steps:");
-        System.out.println("  1. cd " + descriptor.getProjectName());
         if (descriptor.isWithEclipseProject()) {
-            System.out.println("  2. Import in Eclipse: File > Import > Existing Projects into Workspace");
-            System.out.println("     Or run: idempiere-cli import-workspace --dir=" + descriptor.getProjectName());
+            System.out.println("  Import into Eclipse (choose one):");
+            System.out.println("    a) CLI:     idempiere-cli import-workspace --dir=" + descriptor.getProjectName());
+            System.out.println("    b) Manual:  File > Import > Existing Projects into Workspace");
+            System.out.println("                Select " + descriptor.getProjectName() + "/ as root and click Finish");
         } else {
-            System.out.println("  2. Import in Eclipse: File > Import > Maven > Existing Maven Projects");
+            System.out.println("  Import into Eclipse:");
+            System.out.println("    File > Import > Maven > Existing Maven Projects");
+            System.out.println("    Select " + descriptor.getProjectName() + "/ as root and click Finish");
         }
-        System.out.println("  3. Select this directory as root and click Finish");
         System.out.println();
         System.out.println("To build:");
+        System.out.println("  cd " + descriptor.getProjectName());
         System.out.println("  ./mvnw verify    (or mvnw.cmd on Windows)");
         System.out.println();
     }

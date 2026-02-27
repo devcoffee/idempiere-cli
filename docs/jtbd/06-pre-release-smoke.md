@@ -25,14 +25,14 @@ CLI_MODE=jar RUN_SETUP_DEV_ENV_FULL=1 ./scripts/run-cli-prebuild-smoke.sh
 ```
 
 This is slower and stateful, but validates the full `setup-dev-env` path.
-If this step fails, smoke aborts downstream build/package/deploy phases to keep a single root-cause failure.
+If this step fails, smoke aborts downstream verify/dist/deploy phases to keep a single root-cause failure.
 
 ## 3. Keep Failures Actionable
 
 Use expected-failure classification for known issues, then fail only on unexpected breaks:
 
 ```bash
-EXPECTED_FAILURE_STEPS="Build with plugin mvnw;Build command at base module;Package zip;Package p2" \
+EXPECTED_FAILURE_STEPS="Build with plugin mvnw;Dist at project root;Deploy copy at project root" \
 SMOKE_FAIL_ON_REGRESSION=1 \
 CLI_MODE=jar ./scripts/run-cli-prebuild-smoke.sh
 ```
@@ -104,8 +104,8 @@ The smoke script also runs a standalone plugin flow:
 - `init --standalone`
 - `add callout` (template path)
 - `validate --strict`
-- `build`
-- `package --format=zip`
+- `./mvnw verify`
+- `dist --dir ... --skip-build`
 - `deploy` to fake target
 
 Keep it enabled (`RUN_STANDALONE_MATRIX=1`) for release validation.

@@ -21,18 +21,17 @@ Notes:
 set -euo pipefail
 
 idempiere-cli validate --strict ./plugin
-idempiere-cli build --dir ./plugin --clean
-idempiere-cli package --dir ./plugin --format=zip
+idempiere-cli dist --dir ./plugin
 ```
 
 ## Branching by Exit Code
 
 ```bash
-idempiere-cli package --format=p2
+idempiere-cli dist --dir ./plugin
 rc=$?
 
 if [ "$rc" -eq 3 ]; then
-  echo "Project state invalid (likely wrong directory or missing .p2 module)"
+  echo "Project state invalid (likely wrong directory or not a plugin)"
 elif [ "$rc" -ne 0 ]; then
   echo "Command failed with code $rc"
 fi

@@ -139,12 +139,13 @@ public class ProjectDetector {
                 Matcher matcher = POM_ARTIFACT_ID.matcher(content);
                 if (matcher.find()) {
                     String artifactId = matcher.group(1).trim();
-                    // Parent typically ends with .parent, remove it
-                    if (artifactId.endsWith(".parent")) {
-                        return Optional.of(artifactId.substring(0, artifactId.length() - 7));
-                    }
+                    // Check the longer suffix first so '.extensions.parent' is not
+                    // shadowed by '.parent'.
                     if (artifactId.endsWith(".extensions.parent")) {
-                        return Optional.of(artifactId.substring(0, artifactId.length() - 18));
+                        return Optional.of(artifactId.substring(0, artifactId.length() - ".extensions.parent".length()));
+                    }
+                    if (artifactId.endsWith(".parent")) {
+                        return Optional.of(artifactId.substring(0, artifactId.length() - ".parent".length()));
                     }
                 }
             } catch (IOException e) {

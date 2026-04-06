@@ -334,4 +334,31 @@ class ProjectDetectorTest {
         assertTrue(baseId.isPresent());
         assertEquals("org.example.myproject", baseId.get());
     }
+
+    @Test
+    void testDetectProjectBaseIdFromExtensionsParent() throws IOException {
+        // Regression: '.extensions.parent' must not be shadowed by '.parent'.
+        Files.writeString(tempDir.resolve("pom.xml"),
+                "<?xml version=\"1.0\"?>\n" +
+                "<project>\n" +
+                "  <packaging>pom</packaging>\n" +
+                "  <modules>\n" +
+                "    <module>org.acme.extensions.parent</module>\n" +
+                "    <module>org.acme.extensions.base</module>\n" +
+                "  </modules>\n" +
+                "</project>\n");
+
+        Path parentDir = tempDir.resolve("org.acme.extensions.parent");
+        Files.createDirectories(parentDir);
+        Files.writeString(parentDir.resolve("pom.xml"),
+                "<?xml version=\"1.0\"?>\n" +
+                "<project>\n" +
+                "  <artifactId>org.acme.extensions.parent</artifactId>\n" +
+                "  <packaging>pom</packaging>\n" +
+                "</project>\n");
+
+        Optional<String> baseId = projectDetector.detectProjectBaseId(tempDir);
+        assertTrue(baseId.isPresent());
+        assertEquals("org.acme", baseId.get());
+    }
 }

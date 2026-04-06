@@ -42,7 +42,7 @@ public class AddEventHandlerCommand implements Callable<Integer> {
         String pluginId = projectDetector.detectPluginId(dir).orElse(null);
         if (pluginId == null) {
             projectDetector.printPluginNotFoundError(dir);
-            return ExitCodes.VALIDATION_ERROR;
+            return ExitCodes.STATE_ERROR;
         }
         return ExitCodeMapper.fromScaffold(scaffoldService.addComponent("event-handler", name, dir, pluginId,
                 aiAuditOptions.createExtraData(prompt)));

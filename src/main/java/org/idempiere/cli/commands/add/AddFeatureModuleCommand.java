@@ -74,7 +74,7 @@ public class AddFeatureModuleCommand implements Callable<Integer> {
         if (rootOpt.isEmpty()) {
             System.err.println("Error: Not inside a multi-module project.");
             System.err.println("Use 'idempiere-cli init' to create a new project first.");
-            return ExitCodes.VALIDATION_ERROR;
+            return ExitCodes.STATE_ERROR;
         }
 
         Path rootDir = rootOpt.get();
@@ -82,7 +82,7 @@ public class AddFeatureModuleCommand implements Callable<Integer> {
         // Check if feature already exists
         if (projectDetector.hasFeature(rootDir)) {
             System.err.println("Error: A feature module already exists in this project.");
-            return ExitCodes.VALIDATION_ERROR;
+            return ExitCodes.STATE_ERROR;
         }
 
         // Detect project settings from existing project

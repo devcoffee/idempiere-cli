@@ -42,7 +42,7 @@ public class AddZkFormZulCommand implements Callable<Integer> {
         String pluginId = projectDetector.detectPluginId(dir).orElse(null);
         if (pluginId == null) {
             projectDetector.printPluginNotFoundError(dir);
-            return ExitCodes.VALIDATION_ERROR;
+            return ExitCodes.STATE_ERROR;
         }
         return ExitCodeMapper.fromScaffold(scaffoldService.addComponent("zk-form-zul", name, dir, pluginId,
                 aiAuditOptions.createExtraData(prompt)));

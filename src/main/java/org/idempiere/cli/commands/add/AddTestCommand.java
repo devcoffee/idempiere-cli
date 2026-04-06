@@ -35,13 +35,13 @@ public class AddTestCommand implements Callable<Integer> {
         Path pluginDir = Path.of(dir);
         if (!projectDetector.isIdempierePlugin(pluginDir)) {
             System.err.println("Error: Not an iDempiere plugin in " + pluginDir.toAbsolutePath());
-            return ExitCodes.VALIDATION_ERROR;
+            return ExitCodes.STATE_ERROR;
         }
 
         Optional<String> pluginId = projectDetector.detectPluginId(pluginDir);
         if (pluginId.isEmpty()) {
             System.err.println("Error: Could not detect plugin ID.");
-            return ExitCodes.VALIDATION_ERROR;
+            return ExitCodes.STATE_ERROR;
         }
 
         System.out.println();

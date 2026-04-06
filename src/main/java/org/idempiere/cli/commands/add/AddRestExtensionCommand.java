@@ -48,7 +48,7 @@ public class AddRestExtensionCommand implements Callable<Integer> {
         String pluginId = projectDetector.detectPluginId(dir).orElse(null);
         if (pluginId == null) {
             projectDetector.printPluginNotFoundError(dir);
-            return ExitCodes.VALIDATION_ERROR;
+            return ExitCodes.STATE_ERROR;
         }
         Map<String, Object> extraData = new HashMap<>();
         extraData.put("resourcePath", resourcePath);

@@ -54,13 +54,13 @@ public class AddModelCommand implements Callable<Integer> {
         Path dir = Path.of(pluginDir);
         if (!projectDetector.isIdempierePlugin(dir)) {
             System.err.println("Error: Not an iDempiere plugin in " + dir.toAbsolutePath());
-            return ExitCodes.VALIDATION_ERROR;
+            return ExitCodes.STATE_ERROR;
         }
 
         Optional<String> pluginId = projectDetector.detectPluginId(dir);
         if (pluginId.isEmpty()) {
             System.err.println("Error: Could not detect plugin ID.");
-            return ExitCodes.VALIDATION_ERROR;
+            return ExitCodes.STATE_ERROR;
         }
 
         Path srcDir = dir.resolve("src").resolve(pluginId.get().replace('.', '/'));

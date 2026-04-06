@@ -90,10 +90,19 @@ public class DoctorCommand implements Callable<Integer> {
     @Override
     public Integer call() {
         if (dir != null) {
+            Path pluginDir = Path.of(dir);
+            if (!Files.exists(pluginDir)) {
+                if (json) {
+                    return JsonOutput.printError("DIR_NOT_FOUND",
+                            "Directory '" + pluginDir + "' does not exist", ExitCodes.STATE_ERROR);
+                }
+                System.err.println("  Error: Directory '" + pluginDir + "' does not exist.");
+                return ExitCodes.STATE_ERROR;
+            }
             if (json) {
-                return printPluginJson(doctorService.checkPluginData(Path.of(dir)));
+                return printPluginJson(doctorService.checkPluginData(pluginDir));
             } else {
-                return runPluginCheck(Path.of(dir));
+                return runPluginCheck(pluginDir);
             }
         } else if (json) {
             return printEnvironmentJson(doctorService.checkEnvironmentData());
@@ -185,11 +194,6 @@ public class DoctorCommand implements Callable<Integer> {
         System.out.println("==================================");
         System.out.println();
 
-        if (!Files.exists(pluginDir)) {
-            System.err.println("  Error: Directory '" + pluginDir + "' does not exist.");
-            return ExitCodes.STATE_ERROR;
-        }
-
         PluginCheckResult result = doctorService.checkPluginData(pluginDir);
 
         for (CheckResult cr : result.results()) {
@@ -201,7 +205,7 @@ public class DoctorCommand implements Callable<Integer> {
         System.out.printf("Results: %d passed, %d warnings, %d failed%n",
                 result.passed(), result.warnings(), result.failed());
         System.out.println();
-        return ExitCodes.SUCCESS;
+        return result.failed() > 0 ? ExitCodes.STATE_ERROR : ExitCodes.SUCCESS;
     }
 
     private void printResult(CheckResult result) {
@@ -535,7 +539,7 @@ public class DoctorCommand implements Callable<Integer> {
             }
 
             System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(root));
-            return ExitCodes.SUCCESS;
+            return result.failed() > 0 ? ExitCodes.STATE_ERROR : ExitCodes.SUCCESS;
         } catch (Exception e) {
             return JsonOutput.printError("JSON_SERIALIZATION", "Failed to serialize JSON", ExitCodes.IO_ERROR);
         }
